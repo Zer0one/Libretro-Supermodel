@@ -529,7 +529,10 @@ int LibretroWrapper::Supermodel(const Game &game, bool skipRender)
     }
     else
     {
-        Model3->RunFrame(skipRender);
+        // Current upstream owns rendering inside RunFrame(). The frontend can
+        // still suppress presentation for frame skipping without changing the
+        // emulator's frame execution contract.
+        Model3->RunFrame();
 
         // One frame of emulated time is one frame's worth of audio, full stop:
         // 44100 / 57.53 = 766 samples. This used to be computed from the MEASURED

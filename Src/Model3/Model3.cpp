@@ -225,8 +225,12 @@
 #include "DriveBoard/WheelBoard.h"
 #include "Game.h"
 #include "ROMSet.h"
+#ifdef SUPERMODEL_OSD_LIBRETRO
+#include "OSD/libretro/LibretroNetBoard.h"
+#else
 #include "Network/NetBoard.h"
 #include "Network/SimNetBoard.h"
+#endif
 #include "OSD/Audio.h"
 #include "OSD/Video.h"
 #include "Util/Format.h"
@@ -1025,7 +1029,7 @@ UINT8 CModel3::Read8(UINT32 addr)
         if (addr > 0xc00101ff)
         {
           printf("R8 ATTENTION OUT OF RANGE\n");
-          SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Info", "Out of Range", NULL);
+          ErrorLog("Network board read is out of range");
         }
         return (UINT8)NetBoard->ReadIORegister((addr & 0x1FF) / 2);
 
@@ -1035,7 +1039,7 @@ UINT8 CModel3::Read8(UINT32 addr)
 
       default:
         printf("R8 ATTENTION OUT OF RANGE\n");
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Info", "Out of Range", NULL);
+        ErrorLog("Network board read is out of range");
         break;
       }
     }
@@ -1159,7 +1163,7 @@ UINT16 CModel3::Read16(UINT32 addr)
   // Unknown
   default:
     printf("CMODEL3 : unknown R16 : %x (%x)\n", addr, addr >> 24);
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Info", "CMODEL3 : Unknown R16", NULL);
+    ErrorLog("Network board received an unknown 16-bit read");
     break;
   }
 
@@ -3170,10 +3174,14 @@ Result CModel3::Init(void)
   PCIBus.AttachDevice(14,&SCSI);
   PCIBus.AttachDevice(16,this);
 
+#ifdef SUPERMODEL_OSD_LIBRETRO
+  NetBoard = new CLibretroNetBoard();
+#else
   if (m_config["SimulateNet"].ValueAs<bool>())
-      NetBoard = new CSimNetBoard(m_config);
+    NetBoard = new CSimNetBoard(m_config);
   else
-      NetBoard = new CNetBoard(m_config);
+    NetBoard = new CNetBoard(m_config);
+#endif
 
   DebugLog("Initialized Model 3 (allocated %1.1f MB)\n", memSizeMB);
 

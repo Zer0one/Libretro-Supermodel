@@ -101,6 +101,10 @@ private:
   bool LoadROMs(ROMSet *rom_set, const std::string &game_name, const ZipArchive &zip) const;
 
 public:
+  // Override ZIP I/O with frontend-provided callbacks, such as libretro VFS.
+  // Passing nullptr restores the default minizip file backend.
+  static void SetZipFilefunc(const zlib_filefunc64_def *filefunc);
+
   GameLoader(const std::string &xml_file);
   bool Load(Game *game, ROMSet *rom_set, const std::string &zipfilename) const;
   const std::map<std::string, Game> &GetGames() const

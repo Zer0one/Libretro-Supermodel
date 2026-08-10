@@ -42,28 +42,36 @@ endif
 # ============================================================
 LIBRETRO_COMM_DIR := $(CORE_DIR)/Src/OSD/libretro/libretro-common
 DEPS_DIR := $(CORE_DIR)/deps
+MUSASHI_DIR := $(CORE_DIR)/Src/CPU/68K/Musashi
+MUSASHI_GEN_DIR := $(CORE_DIR)/build/libretro/musashi
+MUSASHI_GENERATOR := $(MUSASHI_GEN_DIR)/m68kmake
+MUSASHI_GENERATED := $(MUSASHI_GEN_DIR)/m68kops.h \
+                     $(MUSASHI_GEN_DIR)/m68kops.c \
+                     $(MUSASHI_GEN_DIR)/m68kopac.c \
+                     $(MUSASHI_GEN_DIR)/m68kopdm.c \
+                     $(MUSASHI_GEN_DIR)/m68kopnz.c
 
 INCFLAGS := -I$(CORE_DIR) \
             -I$(DEPS_DIR)/ugui \
             -I$(LIBRETRO_COMM_DIR)/include \
             -I$(CORE_DIR)/Src/OSD/libretro/include \
             -I$(CORE_DIR)/Src/OSD/libretro \
+            -I$(CORE_DIR)/Src/OSD \
             -I$(CORE_DIR)/Src \
-            -I$(CORE_DIR)/Src/CPU/68K/Musashi \
-            -I$(CORE_DIR)/Src/CPU/68K/Musashi/generated
+            -I$(MUSASHI_DIR) \
+            -I$(MUSASHI_GEN_DIR)
 
 COREDEFINES := -D__LIBRETRO__ -DSUPERMODEL_OSD_LIBRETRO
-COREDEFINES += -DINLINE=inline
 COREDEFINES += -DPSS_STYLE=$(PSS_STYLE)
 
 # C Source Files (28 files)
 SOURCES_C := $(CORE_DIR)/Src/Pkgs/unzip.c \
              $(CORE_DIR)/Src/Pkgs/ioapi.c \
-             $(CORE_DIR)/Src/CPU/68K/Musashi/m68kcpu.c \
-             $(CORE_DIR)/Src/CPU/68K/Musashi/generated/m68kops.c \
-             $(CORE_DIR)/Src/CPU/68K/Musashi/generated/m68kopac.c \
-             $(CORE_DIR)/Src/CPU/68K/Musashi/generated/m68kopdm.c \
-             $(CORE_DIR)/Src/CPU/68K/Musashi/generated/m68kopnz.c \
+             $(MUSASHI_DIR)/m68kcpu.c \
+             $(MUSASHI_GEN_DIR)/m68kops.c \
+             $(MUSASHI_GEN_DIR)/m68kopac.c \
+             $(MUSASHI_GEN_DIR)/m68kopdm.c \
+             $(MUSASHI_GEN_DIR)/m68kopnz.c \
              $(DEPS_DIR)/ugui/ugui.c \
              $(CORE_DIR)/Src/ugui_tools.c \
              $(LIBRETRO_COMM_DIR)/streams/file_stream.c \
@@ -93,7 +101,6 @@ endif
 SOURCES_CXX := $(CORE_DIR)/Src/CPU/PowerPC/PPCDisasm.cpp \
                $(CORE_DIR)/Src/BlockFile.cpp \
                $(CORE_DIR)/Src/Model3/93C46.cpp \
-               $(CORE_DIR)/Src/Util/BitRegister.cpp \
                $(CORE_DIR)/Src/Model3/JTAG.cpp \
                $(CORE_DIR)/Src/Pkgs/imgui/imgui.cpp \
                $(CORE_DIR)/Src/Pkgs/imgui/imgui_draw.cpp \
@@ -141,6 +148,7 @@ SOURCES_CXX := $(CORE_DIR)/Src/CPU/PowerPC/PPCDisasm.cpp \
                $(CORE_DIR)/Src/Model3/DriveBoard/JoystickBoard.cpp \
                $(CORE_DIR)/Src/Model3/DriveBoard/SkiBoard.cpp \
                $(CORE_DIR)/Src/Model3/DriveBoard/BillBoard.cpp \
+               $(CORE_DIR)/Src/Model3/DriveBoard/Z80CTC.cpp \
                $(CORE_DIR)/Src/Model3/MPC10x.cpp \
                $(CORE_DIR)/Src/Inputs/Input.cpp \
                $(CORE_DIR)/Src/Inputs/Inputs.cpp \
@@ -525,6 +533,20 @@ endif
 $(info PLATFORM_DEFINES ARE: $(PLATFORM_DEFINES))
 all: $(TARGET)
 
+$(MUSASHI_GEN_DIR):
+	mkdir -p $@
+
+$(MUSASHI_GENERATOR): $(MUSASHI_DIR)/m68kmake.c $(MUSASHI_DIR)/m68k_in.c | $(MUSASHI_GEN_DIR)
+	$(CC) $(CFLAGS) $(MUSASHI_DIR)/m68kmake.c -o $@
+
+$(MUSASHI_GEN_DIR)/.generated: $(MUSASHI_GENERATOR) $(MUSASHI_DIR)/m68k_in.c $(MUSASHI_DIR)/m68k.h $(MUSASHI_DIR)/m68kconf.h
+	$(MUSASHI_GENERATOR) $(MUSASHI_GEN_DIR) $(MUSASHI_DIR)/m68k_in.c
+	touch $@
+
+$(MUSASHI_GENERATED): $(MUSASHI_GEN_DIR)/.generated
+
+$(MUSASHI_DIR)/m68kcpu.o: $(MUSASHI_GEN_DIR)/m68kops.h
+
 $(TARGET): $(OBJECTS)
 	@echo "Linking $(TARGET)..."
 	$(CXX) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $@
@@ -549,6 +571,7 @@ endif
 clean:
 	@echo "Cleaning..."
 	@rm -f $(OBJECTS) $(TARGET)
+	@rm -rf $(MUSASHI_GEN_DIR)
 	@echo "Clean complete"
 
 info:

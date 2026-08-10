@@ -81,6 +81,7 @@ static size_t g_cached_serialize_size = 0;
 // fine and these are no-ops). RetroArch can tear the core down without running
 // libgcov's destructors, which would silently drop the whole profile — so flush
 // it explicitly at the points we know are reached.
+#if defined(__GNUC__) && !defined(__APPLE__)
 extern "C" void __gcov_dump(void) __attribute__((weak));
 
 static void pgo_flush(void)
@@ -91,6 +92,9 @@ static void pgo_flush(void)
       if (log_cb) log_cb(RETRO_LOG_INFO, "[PGO] profile flushed\n");
    }
 }
+#else
+static void pgo_flush(void) {}
+#endif
 
 // --- Logging Helper ---
 static void fallback_log(enum retro_log_level level, const char *fmt, ...)
@@ -265,7 +269,9 @@ bool retro_load_game(const struct retro_game_info *info)
 
    
    update_core_options();
+#ifdef HAVE_PPC_JIT
    ppc_set_jit_enabled(g_options.jit_enable);
+#endif
    wrapper.InitializePaths(retro_base_directory);
    wrapper.setHwRender(hw_render); 
 
@@ -318,7 +324,9 @@ void retro_run(void)
       bool old_service_on_sticks = g_options.service_on_sticks;
 
       update_core_options();
+#ifdef HAVE_PPC_JIT
       ppc_set_jit_enabled(g_options.jit_enable);
+#endif
 
       if (g_options.widescreen != old_widescreen)
       {
