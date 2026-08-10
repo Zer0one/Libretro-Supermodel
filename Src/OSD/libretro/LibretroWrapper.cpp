@@ -952,13 +952,6 @@ void LibretroWrapper::SetWidescreen(bool enabled)
     if (Model3) Model3->ResumeThreads();
 }
 
-void LibretroWrapper::SetServiceOnSticks(bool enabled)
-{
-    auto* libretroInput = dynamic_cast<CLibretroInputSystem*>(m_inputSystem.get());
-    if (libretroInput)
-        libretroInput->SetServiceOnSticks(enabled);
-}
-
 void LibretroWrapper::SetSoundVolume(int volume)
 {
     s_runtime_config.Get("SoundVolume").SetValue(volume);
