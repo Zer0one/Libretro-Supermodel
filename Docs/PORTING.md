@@ -105,7 +105,8 @@ Validated on macOS ARM64:
   `system/supermodel` directory without creating a `Supermodel.ini`;
 - negotiation of an OpenGL 4.1 core profile, successful creation of the
   Libretro and Real3D framebuffers, and sustained execution of the frame loop;
-- visible boot of `dayto2pe` up to its network-board check;
+- visible boot of `dayto2pe` beyond its network-board check with standalone
+  Supermodel NVRAM configured for a single cabinet;
 - exported `retro_init`, `retro_load_game`, `retro_run`, save-state, and unload
   entry points.
 
@@ -115,8 +116,12 @@ Still requiring validation or implementation:
 - audio, controls, force feedback, and save states;
 - Linux, Windows, Android, and other advertised build targets;
 - PPC JIT integration on supported architectures;
-- network-board emulation: the current Libretro placeholder reports the board
-  as detached, so `dayto2pe` stops at `Network Board Not Present`. A future
-  core option should default to an in-process single-cabinet simulation while
-  preserving the upstream `Games.xml` metadata;
+- network-board emulation for multi-cabinet play: the current Libretro
+  placeholder reports the board as detached. Single-cabinet operation works
+  when selected in the game's machine settings and stored in NVRAM;
 - frame-skip behavior against the current `CModel3::RunFrame()` interface.
+
+Libretro save RAM uses the same block container as standalone Supermodel NVRAM
+files. Frontends persist it as a fixed-size `.srm`, with zero padding after the
+final block. Older headerless `.srm` files from the initial Libretro port remain
+readable.
