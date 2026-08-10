@@ -99,14 +99,24 @@ Validated on macOS ARM64:
 - dynamic loading without SDL or SDL_net dependencies;
 - loading by RetroArch 1.22.2 with VFS v3, core options v2, hardware OpenGL,
   XRGB8888, and full-path content negotiation;
+- loading and CRC validation of the real `dayto2pe` ROM set through the
+  current upstream `Games.xml`;
+- discovery of `Games.xml` and `Music.xml` in the preferred flat
+  `system/supermodel` directory without creating a `Supermodel.ini`;
+- negotiation of an OpenGL 4.1 core profile, successful creation of the
+  Libretro and Real3D framebuffers, and sustained execution of the frame loop;
+- visible boot of `dayto2pe` up to its network-board check;
 - exported `retro_init`, `retro_load_game`, `retro_run`, save-state, and unload
   entry points.
 
 Still requiring validation or implementation:
 
-- loading assets and a game through RetroArch;
-- gameplay, graphics, audio, controls, force feedback, and save states;
+- visual correctness and extended gameplay testing;
+- audio, controls, force feedback, and save states;
 - Linux, Windows, Android, and other advertised build targets;
 - PPC JIT integration on supported architectures;
-- network-board emulation, which is currently disabled for the Libretro build;
+- network-board emulation: the current Libretro placeholder reports the board
+  as detached, so `dayto2pe` stops at `Network Board Not Present`. A future
+  core option should default to an in-process single-cabinet simulation while
+  preserving the upstream `Games.xml` metadata;
 - frame-skip behavior against the current `CModel3::RunFrame()` interface.

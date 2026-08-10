@@ -2,9 +2,9 @@
 
 > [!IMPORTANT]
 > This port is under active development. The current macOS ARM64 build has
-> passed compile, link, dynamic-load, and Libretro symbol checks; gameplay and
-> the other advertised platforms still need to be revalidated against the
-> current Supermodel engine.
+> passed compile, link, dynamic-load, Libretro symbol, real-ROM loading, and
+> initial frame-execution checks; gameplay quality and the other advertised
+> platforms still need to be revalidated against the current Supermodel engine.
 
 This branch combines three explicitly preserved lines of development:
 
@@ -39,17 +39,28 @@ guidance.
 - **Raspberry Pi Optimized:** GLES3 rendering with CPU-specific tuning for RPi5 (Cortex-A76), RPi4 (Cortex-A72), and generic aarch64.
 - **Windows Support:** Full cross-platform support with dedicated Windows build targets using MinGW — no vendored prebuilt libraries required.
 
-## 📂 Required Assets
-To run the core, you must place the emulator's configuration files in your RetroArch system directory. The core follows standard Libretro conventions and will look for assets in the following location:
+## 📂 System assets and configuration
 
-* **Path:** `[RetroArch System Directory]/supermodel/Config/`
+Place the engine data files in the RetroArch system directory:
+
+* **Preferred path:** `[RetroArch System Directory]/supermodel/`
 * **Files:**
-    * `Games.xml` is required to identify ROM sets.
+    * `Games.xml` is required. It describes Model 3 games, hardware, ROM files,
+      regions, and CRCs, and is therefore engine data rather than a user
+      preference file.
     * `Music.xml` is optional and enables the corresponding music metadata.
-    * `Supermodel.ini` is generated from the built-in defaults when the
-      directory exists and the file is absent; an existing file is preserved.
+    * `Supermodel.ini` is an optional expert override. If present, it is read
+      before core options are applied. The core never creates or modifies it.
 
-*Note: Without `Games.xml`, the core cannot identify or load a game.*
+For compatibility with the initial port, files are also discovered in
+`[RetroArch System Directory]/supermodel/Config/`. New installations should
+use the preferred flat path. Without `Games.xml`, the core cannot identify or
+load a game.
+
+Normal settings belong to RetroArch: use core options for video, audio, CPU,
+and control-layout choices; input remaps for controller bindings; and the
+frontend save directory for NVRAM. Core options take precedence over an
+optional `Supermodel.ini`.
 
 ## 🛠 Build Instructions
 
