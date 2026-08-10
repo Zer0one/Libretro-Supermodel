@@ -237,6 +237,7 @@ ifneq ($(GIT_VERSION)," unknown")
 endif
 
 OBJECTS := $(SOURCES_C:.c=.o) $(SOURCES_CXX:.cpp=.o)
+DEPFILES := $(OBJECTS:.o=.d)
 
 # Platform-specific defines (to be assembled with COREDEFINES into final DEFINES)
 PLATFORM_DEFINES :=
@@ -533,6 +534,10 @@ endif
 $(info PLATFORM_DEFINES ARE: $(PLATFORM_DEFINES))
 all: $(TARGET)
 
+# Track included headers so incremental builds rebuild every object whose ABI
+# may have changed. This is especially important for shared core option types.
+-include $(DEPFILES)
+
 $(MUSASHI_GEN_DIR):
 	mkdir -p $@
 
@@ -563,14 +568,14 @@ ifeq ($(platform),android)
 endif
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<
 
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
 
 clean:
 	@echo "Cleaning..."
-	@rm -f $(OBJECTS) $(TARGET)
+	@rm -f $(OBJECTS) $(DEPFILES) $(TARGET)
 	@rm -rf $(MUSASHI_GEN_DIR)
 	@echo "Clean complete"
 
