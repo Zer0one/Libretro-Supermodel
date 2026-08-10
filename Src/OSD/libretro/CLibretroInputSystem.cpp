@@ -167,7 +167,7 @@ bool CLibretroInputSystem::Poll()
                 input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, game_buttons[b]);
         }
 
-        // Gear shift / shoulder buttons (4-7: L, R, L2, R2)
+        // Shoulder/trigger buttons (4-7: L, R, L2, R2)
         m_joyButtons[joy][4] = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L);
         m_joyButtons[joy][5] = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R);
         m_joyButtons[joy][6] = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2);

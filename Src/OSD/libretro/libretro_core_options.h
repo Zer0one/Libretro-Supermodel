@@ -106,30 +106,16 @@ static struct retro_core_option_v2_definition option_defs[] = {
    },
    // Input
    {
-      "supermodel_service_buttons",
-      "Service / Test Button Mapping",
-      NULL,
-      "Choose which buttons trigger Service and Test (coin door) functions.",
-      NULL,
-      "input",
-      {
-         { "sticks",    "L3/R3 (Stick Click)" },
-         { "shoulders", "L/R + L2/R2 (Shoulders)" },
-         { NULL, NULL },
-      },
-      "sticks"
-   },
-   {
       "supermodel_driving_layout",
       "Driving Controls Layout",
       NULL,
-      "Pad layout for driving games. Default: pedals on the D-pad, gears 1-4 on L/R/L2/R2. Both other layouts put the analog brake on L2 and the analog accelerator on R2, and differ in what the right stick does: a 4-gear gate (up/down/left/right = 1/2/3/4), or a sequential lever (up = shift up, down = shift down, which disables the 4-gear gate). L/R always shift sequentially in both. Takes effect when the game is reloaded.",
+      "Pad layout for driving games. L/R shift down/up and L2/R2 are analog brake/accelerator in every layout. The optional layouts also use the right stick as either a 4-gear gate or a sequential lever. Takes effect when the game is reloaded.",
       NULL,
       "input",
       {
-         { "default",      "Default (pedals on D-pad, gears on L/R/L2/R2)" },
-         { "triggers",     "Analog Triggers + 4-gear gate on right stick" },
-         { "triggers_seq", "Analog Triggers + sequential on right stick" },
+         { "default",      "Standard (L/R shift, triggers as pedals)" },
+         { "triggers",     "Standard + 4-gear gate on right stick" },
+         { "triggers_seq", "Standard + sequential on right stick" },
          { NULL, NULL },
       },
       "default"
@@ -306,7 +292,6 @@ void update_core_options(void)
    g_options.sound_volume = atoi(option_get("supermodel_sound_volume", "100"));
    g_options.music_volume = atoi(option_get("supermodel_music_volume", "100"));
 
-   g_options.service_on_sticks = strcmp(option_get("supermodel_service_buttons", "sticks"), "sticks") == 0;
    {
       const char *layout = option_get("supermodel_driving_layout", "default");
       g_options.driving_layout = strcmp(layout, "triggers") == 0     ? DrivingLayout::TriggersGate
