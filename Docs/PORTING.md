@@ -97,6 +97,8 @@ Validated on macOS ARM64:
 - clean compilation and linking with `make platform=osx`;
 - Mach-O ARM64 dynamic library output;
 - dynamic loading without SDL or SDL_net dependencies;
+- loading by RetroArch 1.22.2 with VFS v3, core options v2, hardware OpenGL,
+  XRGB8888, and full-path content negotiation;
 - exported `retro_init`, `retro_load_game`, `retro_run`, save-state, and unload
   entry points.
 
