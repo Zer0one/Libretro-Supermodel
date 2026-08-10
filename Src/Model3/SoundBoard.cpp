@@ -372,34 +372,13 @@ bool CSoundBoard::RunFrame(void)
 	float soundVol = (float)std::max(0,std::min(200,m_config["SoundVolume"].ValueAs<int>()));
 	soundVol = soundVol * (float)(1.0 / 100.0);
 
-#if defined(__LIBRETRO__)
-	static unsigned diagnosticFrames = 0;
-	static unsigned scspActiveFrames = 0;
-	static float scspPeak = 0.0f;
-	static float mixedPeak = 0.0f;
-	float frameScspPeak = 0.0f;
-#endif
-
 	// Apply sound volume setting to SCSP channels only
 	for (int i = 0; i < NUM_SAMPLES_PER_FRAME; i++) {
 		audioFL[i] *= soundVol;
 		audioFR[i] *= soundVol;
 		audioRL[i] *= soundVol;
 		audioRR[i] *= soundVol;
-#if defined(__LIBRETRO__)
-		const float samples[] = { audioFL[i], audioFR[i], audioRL[i], audioRR[i] };
-		for (float sample: samples) {
-			const float magnitude = sample < 0.0f ? -sample : sample;
-			frameScspPeak = std::max(frameScspPeak, magnitude);
-		}
-#endif
 	}
-
-#if defined(__LIBRETRO__)
-	scspPeak = std::max(scspPeak, frameScspPeak);
-	if (frameScspPeak > 1.0f)
-		++scspActiveFrames;
-#endif
 
 	// Run DSB and mix with existing audio, apply music volume
 	if (NULL != DSB) {
@@ -411,30 +390,6 @@ bool CSoundBoard::RunFrame(void)
 		else
 			DSB->RunFrame(audioRL, audioRR);
 	}
-
-#if defined(__LIBRETRO__)
-	for (int i = 0; i < NUM_SAMPLES_PER_FRAME; ++i) {
-		const float samples[] = { audioFL[i], audioFR[i], audioRL[i], audioRR[i] };
-		for (float sample: samples) {
-			const float magnitude = sample < 0.0f ? -sample : sample;
-			mixedPeak = std::max(mixedPeak, magnitude);
-		}
-	}
-	if (++diagnosticFrames == 120) {
-		InfoLog("[Supermodel] Audio diagnostic: SCSP peak=%.1f active=%u/120, mixed peak=%.1f, DSB=%d, EmulateSound=%d, LegacyDSP=%d, MultiThreaded=%d, SoundVolume=%d, MusicVolume=%d",
-		        scspPeak, scspActiveFrames, mixedPeak,
-		        DSB != NULL ? 1 : 0,
-		        m_config["EmulateSound"].ValueAs<bool>() ? 1 : 0,
-		        m_config["LegacySoundDSP"].ValueAs<bool>() ? 1 : 0,
-		        m_config["MultiThreaded"].ValueAs<bool>() ? 1 : 0,
-		        m_config["SoundVolume"].ValueAs<int>(),
-		        m_config["MusicVolume"].ValueAs<int>());
-		diagnosticFrames = 0;
-		scspActiveFrames = 0;
-		scspPeak = 0.0f;
-		mixedPeak = 0.0f;
-	}
-#endif
 
 	// Output the audio buffers
 	bool bufferFull = OutputAudio(NUM_SAMPLES_PER_FRAME, audioFL, audioFR, audioRL, audioRR, m_config["FlipStereo"].ValueAs<bool>());
