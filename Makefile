@@ -238,6 +238,7 @@ ifneq ($(GIT_VERSION)," unknown")
 endif
 
 OBJECTS := $(SOURCES_C:.c=.o) $(SOURCES_CXX:.cpp=.o)
+DEPFILES := $(OBJECTS:.o=.d)
 
 # Platform-specific defines (to be assembled with COREDEFINES into final DEFINES)
 PLATFORM_DEFINES :=
@@ -561,6 +562,10 @@ $(BUNDLED_GAMES_XML_H): $(CORE_DIR)/Config/Games.xml
 	xxd -i $< | sed 's/unsigned char.*\[\]/const unsigned char bundled_games_xml[]/' \
 	           | sed 's/unsigned int.*_len/const unsigned int bundled_games_xml_len/' > $@
 
+# Track included headers so incremental builds rebuild every object whose ABI
+# may have changed. This is especially important for shared core option types.
+-include $(DEPFILES)
+
 $(BUNDLED_SUPERMODEL_H): $(CORE_DIR)/Config/Supermodel.ini
 	xxd -i $< | sed 's/unsigned char.*\[\]/const unsigned char bundled_supermodel_ini[]/' \
 	           | sed 's/unsigned int.*_len/const unsigned int bundled_supermodel_ini_len/' > $@
@@ -581,14 +586,14 @@ ifeq ($(platform),android)
 endif
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<
 
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
 
 clean:
 	@echo "Cleaning..."
-	@rm -f $(OBJECTS) $(TARGET)
+	@rm -f $(OBJECTS) $(DEPFILES) $(TARGET)
 	@echo "Clean complete"
 
 info:
