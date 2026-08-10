@@ -36,7 +36,7 @@ struct retro_hw_render_callback hw_render;
 struct retro_rumble_interface rumble;
 struct retro_vfs_interface *g_vfs_interface = nullptr;
 static LibretroWrapper wrapper = LibretroWrapper();
-void set_input_descriptors(bool service_on_sticks);
+void set_input_descriptors(void);
 
 // GPU timer queries (double-buffered: write slot N, read slot N-1)
 static GLuint s_gpuQuery[2]  = {0, 0};
@@ -57,7 +57,6 @@ CoreOptions g_options = {
    /* analog_sensitivity   */ 100,
    /* sound_volume         */ 100,
    /* music_volume         */ 100,
-   /* service_on_sticks    */ true,
    /* ppc_frequency        */ 0,
    /* frameskip            */ 0,
    /* sound_enable         */ true,
@@ -479,8 +478,6 @@ void retro_run(void)
    {
       float old_multiplier = g_options.resolution_multiplier;
       bool old_widescreen = g_options.widescreen;
-      bool old_service_on_sticks = g_options.service_on_sticks;
-
       update_core_options();
 #ifdef HAVE_PPC_JIT
       ppc_set_jit_enabled(g_options.jit_enable);
@@ -515,9 +512,6 @@ void retro_run(void)
          av_info.timing.sample_rate    = 44100.0;
          environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
       }
-
-      if (g_options.service_on_sticks != old_service_on_sticks)
-         set_input_descriptors(g_options.service_on_sticks);
 
       wrapper.SetSoundVolume(g_options.sound_volume);
       wrapper.SetMusicVolume(g_options.music_volume);
@@ -629,29 +623,14 @@ void retro_run(void)
    Game game = wrapper.getGame();
    wrapper.Inputs->Poll(&game, 0, 0, target_w, target_h);
 
-   // Service/Test are Libretro controls, so apply them directly to the Model 3
-   // input lines. Routing them through invented joystick buttons made the
-   // mapping depend on Supermodel's generic input parser for no benefit.
+   // Service/Test are fixed Libretro controls. Apply them directly to the Model 3
+   // input lines, while preserving the standalone keyboard mappings polled above.
    if (input_state_cb)
    {
-      if (g_options.service_on_sticks)
-      {
-         wrapper.Inputs->service[0]->value |= input_state_cb(
-               0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3) ? 1 : 0;
-         wrapper.Inputs->test[0]->value |= input_state_cb(
-               0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3) ? 1 : 0;
-      }
-      else
-      {
-         wrapper.Inputs->service[0]->value |= input_state_cb(
-               0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L) ? 1 : 0;
-         wrapper.Inputs->test[0]->value |= input_state_cb(
-               0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R) ? 1 : 0;
-         wrapper.Inputs->service[1]->value |= input_state_cb(
-               0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2) ? 1 : 0;
-         wrapper.Inputs->test[1]->value |= input_state_cb(
-               0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2) ? 1 : 0;
-      }
+      wrapper.Inputs->test[0]->value |= input_state_cb(
+            0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3) ? 1 : 0;
+      wrapper.Inputs->service[0]->value |= input_state_cb(
+            0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3) ? 1 : 0;
    }
 
    GLuint sm_fbo = wrapper.getSuperModelFBO();
@@ -816,7 +795,7 @@ bool retro_unserialize(const void* data, size_t size)
 }
 
 // --- Input Descriptors & Callbacks ---
-void set_input_descriptors(bool service_on_sticks)
+void set_input_descriptors(void)
 {
    struct retro_input_descriptor desc[] = {
       // Player 1 - D-Pad
@@ -835,26 +814,19 @@ void set_input_descriptors(bool service_on_sticks)
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,  "Start" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT, "Coin" },
 
-      // Player 1 - Shoulder buttons (role depends on mapping option)
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,
-            service_on_sticks ? "Gear Shift 1" : "Service (Test Menu)" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,
-            service_on_sticks ? "Gear Shift 2" : "Test Button" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,
-            service_on_sticks ? "Gear Shift 3" : "Service 2" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,
-            service_on_sticks ? "Gear Shift 4" : "Test Button 2" },
-
-      // Player 1 - Stick clicks (role depends on mapping option)
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,
-            service_on_sticks ? "Service (Test Menu)" : "L3" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,
-            service_on_sticks ? "Test Button" : "R3" },
+      // Player 1 - Driving and cabinet controls
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,      "Gear Shift Down" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,      "Gear Shift Up" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,     "Brake" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,     "Accelerator" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,     "Test A (Test Menu)" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,     "Service A" },
 
       // Player 1 - Analog
       { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_X, "Steering / Move X" },
-      { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_Y, "Accelerator / Move Y" },
-      { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Brake" },
+      { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_Y, "Move Y" },
+      { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Right Stick X / Gear Gate" },
+      { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Right Stick Y / Gear Shift" },
 
       // Player 2 - D-Pad
       { 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,   "P2 D-Pad Left" },
@@ -899,7 +871,7 @@ void retro_set_environment(retro_environment_t cb)
    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &dummy);
    
    // 4. Input Descriptors
-   set_input_descriptors(g_options.service_on_sticks); 
+   set_input_descriptors();
 }
 
 void retro_set_audio_sample(retro_audio_sample_t cb)
