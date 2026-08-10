@@ -1,6 +1,25 @@
 # Supermodel (Sega Model 3) - Libretro Port (Modernized)
 
-A modernized fork of the Sega Model 3 (Supermodel) Libretro core, optimized for modern Linux distributions and updated to C++17 standards.
+> [!IMPORTANT]
+> This port is under active development. The current macOS ARM64 build has
+> passed compile, link, dynamic-load, and Libretro symbol checks; gameplay and
+> the other advertised platforms still need to be revalidated against the
+> current Supermodel engine.
+
+This branch combines three explicitly preserved lines of development:
+
+- the historical [`libretro/supermodel`](https://github.com/libretro/supermodel)
+  core lineage;
+- the current [`trzy/Supermodel`](https://github.com/trzy/Supermodel) engine;
+- the modern Libretro frontend developed by
+  [`sgiannop/Libretro-Supermodel`](https://github.com/sgiannop/Libretro-Supermodel),
+  imported at commit `1c094999664b23876323a50815022bad1f353a04`.
+
+Most of the modern frontend implementation comes from sgiannop's work. The
+subsequent commits in this branch adapt that frontend to the current upstream
+engine while keeping the integration changes separate and reviewable. See
+[`PORTING.md`](PORTING.md) for provenance, synchronization, and contribution
+guidance.
 
 ## 🚀 Key Improvements
 - **Unified Makefile:** Single build configuration supporting 6 platforms (Linux, Windows, macOS, Android, RPi64, aarch64) following libretro/skeletor standards.
