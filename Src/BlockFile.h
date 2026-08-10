@@ -30,6 +30,7 @@
 
 #include <cstdint>
 #include <string>
+#include "Types.h"
 
 /*
  * CBlockFile:
@@ -72,6 +73,36 @@ public:
    *    Number of bytes read. If not 1, an error occurred.
    */
   unsigned Read(bool *value);
+
+  /*
+ * Read(value):
+ *
+ * Reads a bool value from the current file position.
+ *
+ * Parameters:
+ *    value   Bool to read to.
+ *
+ * Returns:
+ *    Number of bytes read. If not 1, an error occurred.
+ */
+  unsigned Read(bool& value);
+
+  /*
+   * Read(value):
+   *
+   * Reads a value from the current file position.
+   *
+   * Parameters:
+   *    value   Variable to read to.
+   *
+   * Returns:
+   *    Number of bytes read
+   */
+  template<typename T>
+  unsigned Read(T& value)
+  {
+      return Read(static_cast<void*>(&value), static_cast<uint32_t>(sizeof(value)));
+  }
   
   /*
    * FindBlock(name):
@@ -85,7 +116,7 @@ public:
    * Returns:
    *    OKAY if found, FAIL if unable to locate.
    */
-  bool FindBlock(const std::string &name);
+  Result FindBlock(const std::string &name);
   
   /*
    * Write(value):
@@ -122,6 +153,22 @@ public:
   void Write(const std::string &str);
 
   /*
+   * Write(value):
+   *
+   * Outputs POD data types, float, double, int etc
+   * position. Updates the block header appropriately.
+   *
+   * Parameters:
+   *    value   Value to write.
+  */
+  template<typename T>
+  void Write(const T& value)
+  {
+    static_assert(std::is_trivially_copyable<T>::value, "Write() only supports POD / trivially copyable types");
+    Write(static_cast<const void*>(&value), static_cast<uint32_t>(sizeof(value)));
+  }
+
+  /*
    * NewBlock(name, comment):
    *
    * Begins a new block. Writes the block header and sets the file pointer to
@@ -131,7 +178,7 @@ public:
    *    name      Block name. Must be unique and not NULL.
    *    comment   Comment string to embed in the block header.
    */
-  void NewBlock(const std::string &title, const std::string &comment);
+  void NewBlock(const std::string &name, const std::string &comment);
 
   /*
    * Create(file, headerName, comment):
@@ -149,7 +196,7 @@ public:
    * Returns:
      *    OKAY if successfully opened, otherwise FAIL.
    */
-  bool Create(const std::string &file, const std::string &headerName, const std::string &comment);
+  Result Create(const std::string &file, const std::string &headerName, const std::string &comment);
 
   /*
    * Load(file):
@@ -165,7 +212,7 @@ public:
    *    subsequent operations will be silently ignored (reads will return
    *    0's). Write commands will be ignored.
    */
-  bool Load(const std::string &file);
+  Result Load(const std::string &file);
 
   /*
    * Close(void):

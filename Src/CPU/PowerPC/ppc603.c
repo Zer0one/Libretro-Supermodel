@@ -1,7 +1,7 @@
 /**
  ** Supermodel
  ** A Sega Model 3 Arcade Emulator.
- ** Copyright 2011 Bart Trzynadlowski, Nik Henson
+ ** Copyright 2003-2026 The Supermodel Team
  **
  ** This file is part of Supermodel.
  **
@@ -53,7 +53,7 @@ void ppc603_exception(int exception)
 				else
 					ppc.npc = 0x00000000 | 0x0500;
 
-				ppc.interrupt_pending &= ~0x1;
+				//MAME has this: ppc.interrupt_pending &= ~0x1;
 				ppc_change_pc(ppc.npc);
 			}
 			break;
@@ -206,13 +206,6 @@ void ppc603_exception(int exception)
 	}
 }
 
-static void ppc603_set_smi_line(int state)
-{
-	if( state ) {
-		ppc.interrupt_pending |= 0x4;
-	}
-}
-
 static void ppc603_check_interrupts(void)
 {
 	if (MSR & MSR_EE)
@@ -226,7 +219,7 @@ static void ppc603_check_interrupts(void)
 			else if (ppc.interrupt_pending & 0x2)
 			{
 				ppc603_exception(EXCEPTION_DECREMENTER);
-			}	
+			}
 			else if (ppc.interrupt_pending & 0x4)
 			{
 				ppc603_exception(EXCEPTION_SMI);
@@ -278,7 +271,7 @@ int ppc_execute(int cycles)
 		char string1[200];
 		char string2[200];
 		opcode = BSWAP32(*ppc.op);
-		DisassemblePowerPC(opcode, ppc.npc, string1, string2, true);
+		DisassemblePowerPC(opcode, ppc.npc, string1, string2, sizeof(string2), true);
 		printf("%08X: %s %s\n", ppc.npc, string1, string2);
 	}*/
 
@@ -348,7 +341,7 @@ int ppc_execute(int cycles)
 		char string1[200];
 		char string2[200];
 		opcode = BSWAP32(*ppc.op);
-		DisassemblePowerPC(opcode, ppc.npc, string1, string2, true);
+		DisassemblePowerPC(opcode, ppc.npc, string1, string2, sizeof(string2), true);
 		printf("%08X: %s %s\n", ppc.npc, string1, string2);
 	}
 	*/
