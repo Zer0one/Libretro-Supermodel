@@ -60,7 +60,7 @@ public:
     void setSuperAA(SuperAA* val) { superAA = val; }
     void setCRTColors(CRTcolor val) { CRTcolors = val; }
     void setHwRender(retro_hw_render_callback val) { hw_render = val; }
-    void InitializePaths(const std::string& baseConfigPath);
+    void InitializePaths(const std::string& systemPath);
     void UpdateScreenSize(unsigned newWidth, unsigned newHeight);
     void SetServiceOnSticks(bool enabled);
     void SetSoundVolume(int volume);
@@ -77,7 +77,7 @@ public:
     int SuperModelInit(const Game &game);
     void ShutDownSupermodel();
     bool InitRenderers();
-    void InitGL();
+    bool InitGL();
     // Returns the actual FBO Supermodel renders into (SuperAA's or our own)
     GLuint getSuperModelFBO() const;
 

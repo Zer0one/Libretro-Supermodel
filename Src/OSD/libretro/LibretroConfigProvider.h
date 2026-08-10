@@ -316,6 +316,27 @@ namespace LibretroConfigProvider {
         return config;
     }
 
+    // Translate user-facing Libretro options into the native Supermodel
+    // configuration consumed by the engine. Apply this after defaults, the
+    // optional per-game INI section, and command-line values have been merged
+    // so the frontend remains the authoritative configuration source.
+    inline void ApplyCoreOptions(Util::Config::Node &config)
+    {
+        const unsigned width  = static_cast<unsigned>(496.0f * g_options.resolution_multiplier);
+        const unsigned height = static_cast<unsigned>(384.0f * g_options.resolution_multiplier);
+
+        config.Set("XResolution", width);
+        config.Set("YResolution", height);
+        config.Set("WideScreen", g_options.widescreen);
+        config.Set("VSync", g_options.vsync);
+        config.Set("Crosshairs", g_options.crosshairs ? 3 : 0);
+        config.Set("EmulateSound", g_options.sound_enable);
+        config.Set("SoundVolume", g_options.sound_volume);
+        config.Set("MusicVolume", g_options.music_volume);
+        config.Set("ForceFeedback", g_options.force_feedback);
+        config.Set("PowerPCFrequency", static_cast<unsigned>(g_options.ppc_frequency));
+    }
+
     struct ParsedCommandLine
     {
         Util::Config::Node config = Util::Config::Node("CommandLine");
