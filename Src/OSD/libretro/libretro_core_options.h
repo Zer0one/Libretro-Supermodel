@@ -1,0 +1,350 @@
+#include "libretro.h"
+#include "libretro_cbs.h"
+#include <cstdlib>
+#include <cstring>
+#include <OSD/Audio.h>
+
+// --- Core Options ---
+static struct retro_core_option_v2_category option_cats[] = {
+   {
+      "video",
+      "Video",
+      "Configure graphics and rendering options."
+   },
+   {
+      "audio", 
+      "Audio",
+      "Configure audio settings."
+   },
+   {
+      "input",
+      "Input",
+      "Configure input and control settings."
+   },
+   {
+      "cpu",
+      "CPU",
+      "Configure CPU performance and emulation settings."
+   },
+   { NULL, NULL, NULL },
+};
+
+static struct retro_core_option_v2_definition option_defs[] = {
+   // Video
+   {
+      "supermodel_resolution",
+      "Internal Resolution",
+      NULL,
+      "Render at higher internal resolution for improved image quality. Lower values reduce GPU load. 'Half' (248x192) recommended for low-end systems.",
+      NULL,
+      "video",
+      {
+         { "half",   "Half (248x192) - Low-End Mobile" },
+         { "native", "Native (496x384) - Recommended" },
+         { "2x",     "2x (992x768)" },
+         { "3x",     "3x (1488x1152)" },
+         { "4x",     "4x (1984x1536)" },
+         { NULL, NULL },
+      },
+      "native"
+   },
+   {
+      "supermodel_timing_overlay",
+      "Frame Timing Overlay",
+      NULL,
+      "Show the per-frame timing overlay (PPC/Render/GPU/Total) and log timing averages. Costs an extra draw pass every frame, so leave it off unless you are profiling.",
+      NULL,
+      "video",
+      {
+         { "disabled", NULL },
+         { "enabled",  NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "supermodel_wide_screen",
+      "Widescreen Hack",
+      NULL,
+      "Enable widescreen rendering for supported games. May cause graphical glitches.",
+      NULL,
+      "video",
+      {
+         { "disabled", NULL },
+         { "enabled",  NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "supermodel_vsync",
+      "VSync",
+      NULL,
+      "Synchronize frame rendering with display refresh rate.",
+      NULL,
+      "video",
+      {
+         { "disabled", NULL },
+         { "enabled",  NULL },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
+   {
+      "supermodel_crosshairs",
+      "Show Crosshairs",
+      NULL,
+      "Display crosshairs for light gun games.",
+      NULL,
+      "video",
+      {
+         { "disabled", NULL },
+         { "enabled",  NULL },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
+   // Input
+   {
+      "supermodel_service_buttons",
+      "Service / Test Button Mapping",
+      NULL,
+      "Choose which buttons trigger Service and Test (coin door) functions.",
+      NULL,
+      "input",
+      {
+         { "shoulders", "L/R + L2/R2 (Shoulders)" },
+         { "sticks",    "L3/R3 (Stick Click)" },
+         { NULL, NULL },
+      },
+      "shoulders"
+   },
+   {
+      "supermodel_driving_layout",
+      "Driving Controls Layout",
+      NULL,
+      "Pad layout for driving games. Default: pedals on the D-pad, gears 1-4 on L/R/L2/R2. Both other layouts put the analog brake on L2 and the analog accelerator on R2, and differ in what the right stick does: a 4-gear gate (up/down/left/right = 1/2/3/4), or a sequential lever (up = shift up, down = shift down, which disables the 4-gear gate). L/R always shift sequentially in both. Takes effect when the game is reloaded.",
+      NULL,
+      "input",
+      {
+         { "default",      "Default (pedals on D-pad, gears on L/R/L2/R2)" },
+         { "triggers",     "Analog Triggers + 4-gear gate on right stick" },
+         { "triggers_seq", "Analog Triggers + sequential on right stick" },
+         { NULL, NULL },
+      },
+      "default"
+   },
+   {
+      "supermodel_force_feedback",
+      "Force Feedback",
+      NULL,
+      "Enable force feedback for racing games (requires compatible hardware).",
+      NULL,
+      "input",
+      {
+         { "disabled", NULL },
+         { "enabled",  NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "supermodel_analog_sensitivity",
+      "Analog Sensitivity",
+      NULL,
+      "Adjust sensitivity of analog controls (steering, etc.).",
+      NULL,
+      "input",
+      {
+         { "50",  "50%" },
+         { "75",  "75%" },
+         { "100", "100%" },
+         { "125", "125%" },
+         { "150", "150%" },
+         { NULL, NULL },
+      },
+      "100"
+   },
+   // Audio
+   {
+      "supermodel_sound_volume",
+      "Sound Volume",
+      NULL,
+      "Adjust overall sound volume.",
+      NULL,
+      "audio",
+      {
+         { "25",  "25%" },
+         { "50",  "50%" },
+         { "75",  "75%" },
+         { "100", "100%" },
+         { NULL, NULL },
+      },
+      "100"
+   },
+   {
+      "supermodel_music_volume",
+      "Music Volume",
+      NULL,
+      "Adjust DSB music volume (affects games with separate music board e.g. Sega Rally 2, Virtua Fighter 3).",
+      NULL,
+      "audio",
+      {
+         { "25",  "25%" },
+         { "50",  "50%" },
+         { "75",  "75%" },
+         { "100", "100%" },
+         { NULL, NULL },
+      },
+      "100"
+   },
+   {
+      "supermodel_sound_enable",
+      "Sound Enable",
+      NULL,
+      "Enable or disable sound emulation. Disabling sound can significantly improve performance on slow hardware.",
+      NULL,
+      "audio",
+      {
+         { "enabled",  NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
+   // CPU
+   {
+      "supermodel_frameskip",
+      "Frame Skip",
+      NULL,
+      "Skip rendering every N frames to reduce GPU load on slow hardware. '0' disables frame skipping. Higher values improve speed at the cost of visual smoothness.",
+      NULL,
+      "cpu",
+      {
+         { "0", "Disabled" },
+         { "1", "Skip 1 (render every 2nd frame)" },
+         { "2", "Skip 2 (render every 3rd frame)" },
+         { "3", "Skip 3 (render every 4th frame)" },
+         { NULL, NULL },
+      },
+      "0"
+   },
+   {
+      "supermodel_ppc_frequency",
+      "PowerPC CPU Frequency",
+      NULL,
+      "Adjust PowerPC CPU frequency to trade cycle accuracy for performance on low-end hardware. 'Auto' follows the game's stepping (66/100/166 MHz): a Stepping 2.x game such as Daytona 2 runs at 166 MHz, which is over twice the CPU work of 70 MHz. Underclocking is the single biggest performance lever on weak hardware, at the cost of cycle accuracy.",
+      NULL,
+      "cpu",
+      {
+         { "auto", "Auto (Default)" },
+         { "33",   "33 MHz (Half Speed - Aggressive)" },
+         { "50",   "50 MHz (0.75x Speed)" },
+         { "66",   "66 MHz (Step 1.0 Default)" },
+         { "70",   "70 MHz (Fast - Underclocked)" },
+         { "100",  "100 MHz (Step 1.5 Default)" },
+         { "133",  "133 MHz (2.0x Base)" },
+         { "166",  "166 MHz (Step 2.x Default)" },
+         { "200",  "200 MHz (Max)" },
+         { NULL, NULL },
+      },
+      "auto"
+   },
+#ifdef __aarch64__
+   {
+      "supermodel_jit_enable",
+      "JIT Recompiler (ARM64)",
+      NULL,
+      "Enable the ARM64 JIT recompiler for the PowerPC CPU. Significantly improves performance on ARM64 devices. Disable to use the interpreter for debugging.",
+      NULL,
+      "cpu",
+      {
+         { "enabled",  "Enabled" },
+         { "disabled", "Disabled (Interpreter)" },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
+#endif
+   { NULL, NULL, NULL, NULL, NULL, NULL, {{0}}, NULL },
+};
+
+// --- Helper: Read Core Option ---
+static const char* option_get(const char* key, const char* default_value)
+{
+   struct retro_variable var = { key, NULL };
+   if (environ_cb && environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      return var.value;
+   return default_value;
+}
+
+// Cache for parsed options
+#include "CoreOptionsTypes.h"
+
+// --- Update Core Options ---
+void update_core_options(void)
+{
+   const char* resolution = option_get("supermodel_resolution", "native");
+   if (strcmp(resolution, "half") == 0)
+      g_options.resolution_multiplier = 0.5f;
+   else if (strcmp(resolution, "2x") == 0)
+      g_options.resolution_multiplier = 2.0f;
+   else if (strcmp(resolution, "3x") == 0)
+      g_options.resolution_multiplier = 3.0f;
+   else if (strcmp(resolution, "4x") == 0)
+      g_options.resolution_multiplier = 4.0f;
+   else
+      g_options.resolution_multiplier = 1.0f;  // native
+
+   g_options.timing_overlay = strcmp(option_get("supermodel_timing_overlay", "disabled"), "enabled") == 0;
+
+   g_options.widescreen = strcmp(option_get("supermodel_wide_screen", "disabled"), "enabled") == 0;
+   g_options.vsync = strcmp(option_get("supermodel_vsync", "enabled"), "enabled") == 0;
+   g_options.crosshairs = strcmp(option_get("supermodel_crosshairs", "enabled"), "enabled") == 0;
+
+   g_options.sound_enable = strcmp(option_get("supermodel_sound_enable", "enabled"), "enabled") == 0;
+   g_options.sound_volume = atoi(option_get("supermodel_sound_volume", "100"));
+   g_options.music_volume = atoi(option_get("supermodel_music_volume", "100"));
+
+   g_options.service_on_sticks = strcmp(option_get("supermodel_service_buttons", "shoulders"), "sticks") == 0;
+   {
+      const char *layout = option_get("supermodel_driving_layout", "default");
+      g_options.driving_layout = strcmp(layout, "triggers") == 0     ? DrivingLayout::TriggersGate
+                               : strcmp(layout, "triggers_seq") == 0 ? DrivingLayout::TriggersSequential
+                               : DrivingLayout::Default;
+   }
+   g_options.force_feedback = strcmp(option_get("supermodel_force_feedback", "disabled"), "enabled") == 0;
+   g_options.analog_sensitivity = atoi(option_get("supermodel_analog_sensitivity", "100"));
+
+   // Parse frame skip option
+   g_options.frameskip = atoi(option_get("supermodel_frameskip", "0"));
+   if (g_options.frameskip < 0) g_options.frameskip = 0;
+   if (g_options.frameskip > 3) g_options.frameskip = 3;
+
+   // Parse PowerPC frequency option
+   const char* ppc_freq = option_get("supermodel_ppc_frequency", "auto");
+   if (strcmp(ppc_freq, "auto") == 0)
+      g_options.ppc_frequency = 0;
+   else
+   {
+      int mhz = atoi(ppc_freq);
+      g_options.ppc_frequency = (mhz > 0) ? mhz : 0;
+   }
+   
+   // Adjust audio buffers if PPC frequency changed
+   // If frequency is "auto" (0), use default 66 MHz
+   float current_ppc_mhz = (g_options.ppc_frequency > 0) ? g_options.ppc_frequency : 66.0f;
+   AdjustAudioForCPUFrequency(current_ppc_mhz);
+
+#ifdef __aarch64__
+   g_options.jit_enable = strcmp(option_get("supermodel_jit_enable", "enabled"), "enabled") == 0;
+#else
+   g_options.jit_enable = false;
+#endif
+
+   // if (log_cb)
+   // {
+   //    log_cb(RETRO_LOG_INFO, "[Supermodel] Options updated: Resolution=%dx, Widescreen=%d\n",
+   //           g_options.resolution_multiplier, g_options.widescreen);
+   // }
+}

@@ -1,0 +1,743 @@
+#include <compat/msvc.h>
+#include <math.h>
+#include <chrono>
+#include <rthreads/rthreads.h>
+#include <streams/file_stream.h>
+#include <string/stdstring.h>
+#include <vector>
+#include <stdarg.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <string>
+#include <Inputs/Inputs.h>
+#include "libretro_cbs.h"
+#include "Game.h"
+#include "LibretroBlockFileMemory.h"
+#include "LibretroWrapper.h"
+#include <GL/glew.h>
+#include "../../Graphics/SuperAA.h"
+#include "libretro_core_options.h"
+#include "CLibretroInputSystem.h"
+#include "CPU/PowerPC/ppc.h"
+#include "libretroGui.h"
+#include "../../Graphics/GLSLVersion.h"
+
+// --- Global Variables ---
+retro_video_refresh_t video_cb = NULL;
+retro_environment_t environ_cb = NULL;
+retro_audio_sample_t audio_cb = NULL;
+retro_audio_sample_batch_t audio_batch_cb = NULL;
+retro_input_poll_t input_poll_cb = NULL;
+retro_input_state_t input_state_cb = NULL;
+retro_log_printf_t log_cb;
+
+struct retro_hw_render_callback hw_render;
+struct retro_rumble_interface rumble;
+struct retro_vfs_interface *g_vfs_interface = nullptr;
+static LibretroWrapper wrapper = LibretroWrapper();
+
+// GPU timer queries (double-buffered: write slot N, read slot N-1)
+static GLuint s_gpuQuery[2]  = {0, 0};
+static int    s_gpuSlot      = 0;
+static float  s_gpuMs        = 0.0f;
+static bool   s_gpuQueryOK   = false;
+
+// Path buffers
+char retro_save_directory[4096];
+char retro_base_directory[4096];
+
+CoreOptions g_options = {
+   /* resolution_multiplier */ 1,
+   /* widescreen           */ false,
+   /* vsync                */ true,
+   /* crosshairs           */ true,
+   /* force_feedback       */ false,
+   /* analog_sensitivity   */ 100,
+   /* sound_volume         */ 100,
+   /* music_volume         */ 100,
+   /* service_on_sticks    */ false,
+   /* ppc_frequency        */ 0,
+   /* frameskip            */ 0,
+   /* sound_enable         */ true,
+   /* jit_enable           */
+#ifdef __aarch64__
+                              true,
+#else
+                              false,
+#endif
+   /* timing_overlay      */ false,
+   /* driving_layout      */ DrivingLayout::Default,
+};
+
+// Optimization: Cache last known resolution to avoid redundant updates
+static unsigned last_width = 0;
+static unsigned last_height = 0;
+#define NVRAM_BUFFER_SIZE (0x20000 + 2048) 
+static uint8_t g_nvram_buffer[NVRAM_BUFFER_SIZE];
+// Optimization: Cache save state size
+static size_t g_cached_serialize_size = 0;
+
+// PGO: defined only in -fprofile-generate builds (weak, so a normal build links
+// fine and these are no-ops). RetroArch can tear the core down without running
+// libgcov's destructors, which would silently drop the whole profile — so flush
+// it explicitly at the points we know are reached.
+extern "C" void __gcov_dump(void) __attribute__((weak));
+
+static void pgo_flush(void)
+{
+   if (__gcov_dump)
+   {
+      __gcov_dump();
+      if (log_cb) log_cb(RETRO_LOG_INFO, "[PGO] profile flushed\n");
+   }
+}
+
+// --- Logging Helper ---
+static void fallback_log(enum retro_log_level level, const char *fmt, ...)
+{
+   (void)level;
+   va_list va;
+   va_start(va, fmt);
+   vfprintf(stderr, fmt, va);
+   va_end(va);
+}
+
+// --- Core Lifecycle ---
+
+void retro_init(void)
+{
+   struct retro_log_callback log;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log))
+      log_cb = log.log;
+   else
+      log_cb = fallback_log;
+
+   const char *dir = NULL;
+
+   // 1. Setup Config/System Directory
+   if (environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &dir) && dir)
+   {
+      snprintf(retro_base_directory, sizeof(retro_base_directory), "%s/supermodel/Config", dir);
+   }
+   else
+   {
+      snprintf(retro_base_directory, sizeof(retro_base_directory), "Config");
+   }
+
+   // 2. Setup Save Directory
+   if (environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &dir) && dir)
+   {
+      snprintf(retro_save_directory, sizeof(retro_save_directory), "%s/supermodel/Saves", dir);
+   }
+   else
+   {
+      snprintf(retro_save_directory, sizeof(retro_save_directory), "%s", retro_base_directory);
+   }
+
+   log_cb(RETRO_LOG_INFO, "[Supermodel] Config Path: %s\n", retro_base_directory);
+   log_cb(RETRO_LOG_INFO, "[Supermodel] Save Path: %s\n", retro_save_directory);
+
+   bool can_dupe = true;
+   environ_cb(RETRO_ENVIRONMENT_GET_CAN_DUPE, &can_dupe);
+
+   // 3. Negotiate VFS — must happen before retro_load_game
+   struct retro_vfs_interface_info vfs_info = { 1, nullptr };
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VFS_INTERFACE, &vfs_info))
+       g_vfs_interface = vfs_info.iface;
+}
+
+void retro_deinit(void)
+{
+    pgo_flush();
+}
+
+unsigned retro_api_version(void)
+{
+   return RETRO_API_VERSION;
+}
+
+void retro_set_controller_port_device(unsigned port, unsigned device)
+{
+    log_cb(RETRO_LOG_INFO, "Plugging device %u into port %u\n", device, port);
+}
+
+void retro_get_system_info(struct retro_system_info *info)
+{
+   memset(info, 0, sizeof(*info));
+   info->library_name     = "Supermodel";
+   info->library_version  = "v0.3a-libretro";
+   info->need_fullpath    = true;
+   // Explicitly removed 7z to avoid user confusion until solid archives are supported
+   info->valid_extensions = "zip|chd"; 
+   info->block_extract    = true;
+}
+
+void retro_get_system_av_info(struct retro_system_av_info *info)
+{
+   float multiplier = (g_options.resolution_multiplier > 0) ? g_options.resolution_multiplier : 1.0f;
+   info->geometry.base_width   = 496;
+   info->geometry.base_height  = 384;
+   info->geometry.max_width    = (unsigned)(496 * multiplier);
+   info->geometry.max_height   = (unsigned)(384 * multiplier);
+   info->geometry.aspect_ratio = g_options.widescreen ? (16.0f / 9.0f) : (4.0f / 3.0f);
+
+   info->timing.fps         = 57.53;
+   info->timing.sample_rate = 44100.0;
+}
+
+// --- OpenGL Context Management ---
+
+void context_reset(void)
+{
+    auto emu = wrapper.getEmulator();
+    if (!emu) return;
+
+    emu->PauseThreads();
+    wrapper.InitGL();
+
+    // CRITICAL FIX: Force 1-byte alignment for textures.
+    // This prevents the "split-screen" / ghosting on legacy drivers
+    // when handling NPOT resolutions like 496x384.
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    Libretro_InitOverlay(Graphics::GLSLVersion::GetImGui().c_str());
+
+    // GPU timer queries: EXT variant (GLES3 only), core variant TODO for desktop GL
+    s_gpuQueryOK = false;
+    s_gpuMs      = 0.0f;
+    s_gpuSlot    = 0;
+#if defined(CORE_GLES)
+    if (glGenQueriesEXT && glBeginQueryEXT && glEndQueryEXT &&
+        glGetQueryObjectuivEXT && glGetQueryObjectui64vEXT)
+    {
+        if (s_gpuQuery[0]) glDeleteQueriesEXT(2, s_gpuQuery);
+        glGenQueriesEXT(2, s_gpuQuery);
+        s_gpuQueryOK = (s_gpuQuery[0] != 0 && s_gpuQuery[1] != 0);
+    }
+#endif
+
+    emu->ResumeThreads();
+}
+
+void context_destroy(void)
+{
+#if defined(CORE_GLES)
+    if (s_gpuQuery[0] && glDeleteQueriesEXT) { glDeleteQueriesEXT(2, s_gpuQuery); s_gpuQuery[0] = s_gpuQuery[1] = 0; }
+#endif
+    Libretro_ShutdownOverlay();
+}
+
+// --- Game Loading ---
+bool retro_load_game(const struct retro_game_info *info)
+{
+   hw_render.context_reset   = context_reset;
+   hw_render.context_destroy = context_destroy;
+   hw_render.depth           = true;
+   hw_render.stencil         = true;
+   hw_render.bottom_left_origin = true;
+
+#if defined(ANDROID) || defined(CORE_GLES)
+   hw_render.context_type = RETRO_HW_CONTEXT_OPENGLES3;
+#else
+   hw_render.context_type = RETRO_HW_CONTEXT_OPENGL;
+#endif
+   if (!environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render)) {
+       log_cb(RETRO_LOG_ERROR, "[Supermodel] HW Render Context negotiation failed.\n");
+       return false;
+   }
+
+   // 1. Attempt to get the Rumble Interface from the frontend
+   if (environ_cb(RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE, &rumble))
+   {
+      // Cast the base shared_ptr to the specific derived shared_ptr
+      auto libretroInput = std::static_pointer_cast<CLibretroInputSystem>(wrapper.getInputSystem());
+      
+      if (libretroInput) {
+         libretroInput->SetRumbleInterface(rumble);
+         libretroInput->SetFFBEnabled(g_options.force_feedback);
+      }
+   }
+   else
+   {
+        // Optional: Log that rumble is not supported by this frontend/controller
+   }
+
+   
+   update_core_options();
+   ppc_set_jit_enabled(g_options.jit_enable);
+   wrapper.InitializePaths(retro_base_directory);
+   wrapper.setHwRender(hw_render); 
+
+   enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_XRGB8888;
+   if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
+      return false;
+
+   log_cb(RETRO_LOG_INFO, "[Supermodel] Loading ROM: %s\n", info->path);
+      
+   int emulation = wrapper.Emulate(info->path);
+   if (emulation != 0) return false;
+   wrapper.SetWidescreen(g_options.widescreen);
+   wrapper.SetServiceOnSticks(g_options.service_on_sticks);
+   wrapper.SuperModelInit(wrapper.getGame());
+
+   // Re-apply FFB state after full DriveBoard initialization
+   auto libretroInput2 = std::static_pointer_cast<CLibretroInputSystem>(wrapper.getInputSystem());
+   if (libretroInput2 && g_options.force_feedback) {
+      libretroInput2->SetFFBEnabled(false);   // force a state transition
+      libretroInput2->SetFFBEnabled(true);
+   }
+
+   return true;
+}
+void retro_unload_game(void)
+{
+   // Save NVRAM to buffer before shutdown (RetroArch will write it to .srm)
+   if (wrapper.getEmulator() != nullptr)
+   {
+       log_cb(RETRO_LOG_INFO, "[Supermodel] Saving NVRAM to .srm file\n");
+       
+       CBlockFileMemory memFile(g_nvram_buffer, NVRAM_BUFFER_SIZE);
+       wrapper.getEmulator()->SaveNVRAM(&memFile);
+       memFile.Finish();
+   }
+   
+   wrapper.ShutDownSupermodel();
+   pgo_flush();   // RetroArch may never call retro_deinit before exiting
+}
+void retro_run(void)
+{
+   const auto t_frame_start = std::chrono::steady_clock::now();
+
+   // Check if options were changed
+   bool options_updated = false;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &options_updated) && options_updated)
+   {
+      float old_multiplier = g_options.resolution_multiplier;
+      bool old_widescreen = g_options.widescreen;
+      bool old_service_on_sticks = g_options.service_on_sticks;
+
+      update_core_options();
+      ppc_set_jit_enabled(g_options.jit_enable);
+
+      if (g_options.widescreen != old_widescreen)
+      {
+         wrapper.SetWidescreen(g_options.widescreen);
+
+         // Tell RetroArch the aspect ratio changed
+         struct retro_game_geometry geometry;
+         geometry.base_width   = last_width  ? last_width  : 496;
+         geometry.base_height  = last_height ? last_height : 384;
+         geometry.max_width    = 496 * 4;
+         geometry.max_height   = 384 * 4;
+         geometry.aspect_ratio = g_options.widescreen ? (16.0f / 9.0f) : (4.0f / 3.0f);
+         environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &geometry);
+      }
+
+      if (g_options.resolution_multiplier != old_multiplier)
+      {
+         last_width  = 0;
+         last_height = 0;
+
+         struct retro_system_av_info av_info;
+         av_info.geometry.base_width   = 496;
+         av_info.geometry.base_height  = 384;
+         av_info.geometry.max_width    = (unsigned)(496 * g_options.resolution_multiplier);
+         av_info.geometry.max_height   = (unsigned)(384 * g_options.resolution_multiplier);
+         av_info.geometry.aspect_ratio = g_options.widescreen ? (16.0f / 9.0f) : (4.0f / 3.0f);
+         av_info.timing.fps            = 57.53;
+         av_info.timing.sample_rate    = 44100.0;
+         environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
+      }
+
+      if (g_options.service_on_sticks != old_service_on_sticks)
+         wrapper.SetServiceOnSticks(g_options.service_on_sticks);
+
+      wrapper.SetSoundVolume(g_options.sound_volume);
+      wrapper.SetMusicVolume(g_options.music_volume);
+
+
+      auto libretroInput = std::static_pointer_cast<CLibretroInputSystem>(wrapper.getInputSystem());
+      if (libretroInput) {
+         libretroInput->SetFFBEnabled(g_options.force_feedback);
+         
+         // If we just disabled it, kill any active vibration immediately
+         if (!g_options.force_feedback) {
+            rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, 0);
+            rumble.set_rumble_state(0, RETRO_RUMBLE_WEAK, 0);
+         }
+      }
+   }
+
+   // NVRAM Loading: Do this on first frame, AFTER RetroArch has loaded .srm
+   static bool first_run = true;
+   if (first_run)
+   {
+      first_run = false;
+
+      // Apply initial volume settings now that the emulator is fully initialized
+      wrapper.SetSoundVolume(g_options.sound_volume);
+      wrapper.SetMusicVolume(g_options.music_volume);
+        
+      log_cb(RETRO_LOG_INFO, "[Supermodel] First frame - checking NVRAM buffer...\n");
+        
+      // Check if buffer has valid block file data (first 16 bytes shouldn't all be zero)
+      bool has_nvram = false;
+      for (int i = 0; i < 16 && !has_nvram; i++)
+         has_nvram = (g_nvram_buffer[i] != 0);
+        
+      if (has_nvram)
+      {
+         log_cb(RETRO_LOG_INFO, "[Supermodel] Loading NVRAM from .srm file\n");
+            
+         CBlockFileMemory memFile(g_nvram_buffer, NVRAM_BUFFER_SIZE);
+         wrapper.getEmulator()->LoadNVRAM(&memFile);
+      }
+      else
+      {
+         log_cb(RETRO_LOG_INFO, "[Supermodel] No NVRAM data found, using defaults\n");
+      }
+   }
+
+    if (input_poll_cb) input_poll_cb();
+
+   // Frame skip: determine whether to skip GPU rendering this frame
+   // Uses modulo to create consistent (skip N, render 1) pattern
+   // frameskip=1: S,R,S,R... (render 1 per 2 frames)
+   // frameskip=2: S,S,R,S,S,R... (render 1 per 3 frames)
+   // frameskip=3: S,S,S,R,S,S,S,R... (render 1 per 4 frames)
+   static int s_skipCounter = 0;
+   bool skipRender = false;
+   if (g_options.frameskip > 0)
+   {
+      s_skipCounter = (s_skipCounter + 1) % (g_options.frameskip + 1);
+      skipRender = (s_skipCounter != 0);  // Render only when counter == 0
+   }
+
+   // Apply resolution multiplier from core options - always use NATIVE resolution as base
+   const unsigned NATIVE_WIDTH = 496;
+   const unsigned NATIVE_HEIGHT = 384;
+
+   unsigned target_w = NATIVE_WIDTH * g_options.resolution_multiplier;
+   unsigned target_h = NATIVE_HEIGHT * g_options.resolution_multiplier;
+
+   // OPTIMIZATION: Only update screen size if it actually changed.
+   if (target_w != last_width || target_h != last_height) {
+      wrapper.UpdateScreenSize(target_w, target_h);
+      
+      struct retro_game_geometry geometry;
+      geometry.base_width   = target_w;
+      geometry.base_height  = target_h;
+      geometry.max_width    = target_w;
+      geometry.max_height   = target_h;
+      geometry.aspect_ratio = g_options.widescreen ? (16.0f / 9.0f) : (4.0f / 3.0f);
+
+      environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &geometry);
+      
+      last_width  = target_w;
+      last_height = target_h;
+   }
+
+   Game game = wrapper.getGame();
+   wrapper.Inputs->Poll(&game, 0, 0, target_w, target_h);
+
+   GLuint sm_fbo = wrapper.getSuperModelFBO();
+
+   if (skipRender)
+   {
+      // Skipped frame: run emulation logic only, no GL work at all.
+      // video_cb(NULL) tells RetroArch to reuse the last displayed frame.
+      wrapper.Supermodel(game, true);
+      video_cb(NULL, target_w, target_h, 0);
+   }
+   else
+   {
+      // Full render: reset GL state, clear FBO, run emulation + rendering
+      glBindFramebuffer(GL_FRAMEBUFFER, sm_fbo);
+
+      glDisable(GL_SCISSOR_TEST);
+      glDisable(GL_STENCIL_TEST);
+      glEnable(GL_DEPTH_TEST);
+      glDepthFunc(GL_LESS);
+      glDepthMask(GL_TRUE);
+      glDisable(GL_BLEND);
+      glDisable(GL_CULL_FACE);
+      glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+      glViewport(0, 0, target_w, target_h);
+      glScissor(0, 0, target_w, target_h);
+
+      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+      glClearDepth(1.0);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+#if defined(CORE_GLES)
+      // Collect previous frame's GPU time (non-blocking: result from 1 frame ago)
+      if (s_gpuQueryOK) {
+          int readSlot = s_gpuSlot ^ 1;
+          GLuint available = 0;
+          glGetQueryObjectuivEXT(s_gpuQuery[readSlot], GL_QUERY_RESULT_AVAILABLE_EXT, &available);
+          if (available) {
+              GLuint64 elapsed = 0;
+              glGetQueryObjectui64vEXT(s_gpuQuery[readSlot], GL_QUERY_RESULT_EXT, &elapsed);
+              s_gpuMs = elapsed / 1000000.0f;
+          }
+          glBeginQueryEXT(GL_TIME_ELAPSED_EXT, s_gpuQuery[s_gpuSlot]);
+      }
+#endif
+
+      wrapper.Supermodel(game, false);
+
+#if defined(CORE_GLES)
+      if (s_gpuQueryOK) {
+          glEndQueryEXT(GL_TIME_ELAPSED_EXT);
+          s_gpuSlot ^= 1;
+      }
+#endif
+
+      glViewport(0, 0, target_w, target_h);
+      // REMOVED: glFlush() - not needed before glBlitFramebuffer and causes unnecessary GPU stall
+
+      // Blit from Supermodel FBO to RetroArch's framebuffer
+      GLuint ra_fbo = wrapper.getHwRender().get_current_framebuffer();
+
+      glBindFramebuffer(GL_READ_FRAMEBUFFER, sm_fbo);
+      glBindFramebuffer(GL_DRAW_FRAMEBUFFER, ra_fbo);
+
+      glDisable(GL_SCISSOR_TEST);
+      glDisable(GL_STENCIL_TEST);
+      glDisable(GL_DEPTH_TEST);
+
+      glBlitFramebuffer(
+          0, 0, target_w, target_h,
+          0, 0, target_w, target_h,
+          GL_COLOR_BUFFER_BIT,
+          GL_LINEAR
+      );
+
+      glBindFramebuffer(GL_FRAMEBUFFER, ra_fbo);
+
+      // Timing overlay: ImGui NewFrame + Render + a draw call. Was unconditional,
+      // i.e. every frame of every session paid for a debug overlay.
+      const FrameTimings t = wrapper.GetTimings();
+      if (g_options.timing_overlay)
+         Libretro_DrawTimingOverlay(t, target_w, target_h, s_gpuMs);
+
+      // Everything above (blit + overlay) plus video_cb below is invisible to
+      // CModel3's own "Total" — and it is exactly what the standalone build does
+      // not do. video_cb is where RetroArch runs its shader chain (a curved CRT
+      // preset at display resolution is not free on V3D) and waits for vsync.
+      const auto t_post = std::chrono::steady_clock::now();
+      video_cb(RETRO_HW_FRAME_BUFFER_VALID, target_w, target_h, 0);
+      const auto t_end = std::chrono::steady_clock::now();
+
+      auto ms = [](auto a, auto b) {
+         return std::chrono::duration<float, std::milli>(b - a).count();
+      };
+
+      // Average over the period, never a single sample: with frameskip the render
+      // runs on 1 frame in N, and any fixed sampling period that shares a factor
+      // with N always lands on the same phase of the cycle and lies to you.
+      // renderTicks is also stale on skipped frames (Model3 only writes it when it
+      // actually renders), so it is averaged over rendered frames only.
+      static float    acc_run = 0.0f, acc_emu = 0.0f, acc_present = 0.0f, max_run = 0.0f;
+      static unsigned acc_ppc = 0, acc_render = 0, rendered = 0, log_frames = 0;
+
+      const float emu     = ms(t_frame_start, t_post);
+      const float present = ms(t_post, t_end);
+
+      acc_emu     += emu;
+      acc_present += present;
+      acc_run     += emu + present;
+      if (emu + present > max_run) max_run = emu + present;
+      acc_ppc += t.ppcTicks;
+      if (!skipRender) { acc_render += t.renderTicks; rendered++; }
+
+      if (++log_frames >= 61) {   // 61: coprime with every frameskip cycle (1..4)
+         const float n = (float)log_frames;
+         if (g_options.timing_overlay)
+            log_cb(RETRO_LOG_INFO,
+                   "[Timing] avg over %u frames | PPC:%4.1f  Render:%4.1f (%u drawn)  "
+                   "emu+blit:%5.1f  present:%5.1f  retro_run:%5.1f  worst:%5.1f ms\n",
+                   log_frames,
+                   acc_ppc / n,
+                   rendered ? acc_render / (float)rendered : 0.0f, rendered,
+                   acc_emu / n, acc_present / n, acc_run / n, max_run);
+         log_frames = 0; rendered = 0;
+         acc_run = acc_emu = acc_present = max_run = 0.0f;
+         acc_ppc = acc_render = 0;
+      }
+   }
+}
+
+// --- Save States ---
+
+size_t retro_serialize_size(void)
+{
+    if (g_cached_serialize_size > 0)
+        return g_cached_serialize_size;
+    
+    if (wrapper.getEmulator() != nullptr)
+    {
+        CBlockFileCounter counter;
+        wrapper.getEmulator()->SaveState(&counter);
+        g_cached_serialize_size = counter.GetSize();
+    }
+    return g_cached_serialize_size;
+}
+
+bool retro_serialize(void* data, size_t size) {
+    if (!data || size == 0) return false;
+    CBlockFileMemory mem(data, size);
+    wrapper.getEmulator()->SaveState(&mem);
+    mem.Finish();
+    return true;
+}
+
+bool retro_unserialize(const void* data, size_t size)
+{
+    if (!data || size == 0) return false;
+    CBlockFileMemory mem(const_cast<void*>(data), size);
+    wrapper.getEmulator()->LoadState(&mem);
+    return true;
+}
+
+// --- Input Descriptors & Callbacks ---
+void set_input_descriptors(bool service_on_sticks)
+{
+   struct retro_input_descriptor desc[] = {
+      // Player 1 - D-Pad
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,   "D-Pad Left" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,     "D-Pad Up" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT,  "D-Pad Right" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,   "D-Pad Down" },
+
+      // Player 1 - Face buttons
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,      "Punch / Accelerate" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,      "Kick / Brake" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,      "Guard / View Change" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,      "Escape / Shift Up" },
+
+      // Player 1 - Start / Coin
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,  "Start" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT, "Coin" },
+
+      // Player 1 - Shoulder buttons (role depends on mapping option)
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,
+            service_on_sticks ? "Gear Shift 1" : "Service (Test Menu)" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,
+            service_on_sticks ? "Gear Shift 2" : "Test Button" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,
+            service_on_sticks ? "Gear Shift 3" : "Service 2" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,
+            service_on_sticks ? "Gear Shift 4" : "Test Button 2" },
+
+      // Player 1 - Stick clicks (role depends on mapping option)
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,
+            service_on_sticks ? "Service (Test Menu)" : "L3" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,
+            service_on_sticks ? "Test Button" : "R3" },
+
+      // Player 1 - Analog
+      { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_X, "Steering / Move X" },
+      { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_Y, "Accelerator / Move Y" },
+      { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Brake" },
+
+      // Player 2 - D-Pad
+      { 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,   "P2 D-Pad Left" },
+      { 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,     "P2 D-Pad Up" },
+      { 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT,  "P2 D-Pad Right" },
+      { 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,   "P2 D-Pad Down" },
+
+      // Player 2 - Face buttons
+      { 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,      "P2 Punch / Accelerate" },
+      { 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,      "P2 Kick / Brake" },
+      { 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,      "P2 Guard / View Change" },
+      { 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,      "P2 Escape / Shift Up" },
+
+      // Player 2 - Start / Coin
+      { 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,  "P2 Start" },
+      { 1, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT, "P2 Coin" },
+
+      { 0 },
+   };
+   environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
+}
+
+void retro_set_environment(retro_environment_t cb)
+{
+   environ_cb = cb;
+
+   // 1. VFS Interface
+   struct retro_vfs_interface_info vfs_iface_info;
+   vfs_iface_info.required_interface_version = 2;
+   vfs_iface_info.iface                      = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VFS_INTERFACE, &vfs_iface_info))
+      filestream_vfs_init(&vfs_iface_info);
+
+   // Ensure option_cats and option_defs are defined ABOVE this function
+   struct retro_core_options_v2 options_v2;
+   options_v2.categories = option_cats;
+   options_v2.definitions = option_defs;
+   environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_V2, &options_v2);
+
+   // 3. Variable Update Check
+   bool dummy = false;
+   environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &dummy);
+   
+   // 4. Input Descriptors
+   set_input_descriptors(g_options.service_on_sticks); 
+}
+
+void retro_set_audio_sample(retro_audio_sample_t cb)
+{
+   audio_cb = cb;
+}
+
+void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb)
+{
+   audio_batch_cb = cb;
+}
+
+void retro_set_input_poll(retro_input_poll_t cb)
+{
+   input_poll_cb = cb;
+}
+
+void retro_set_input_state(retro_input_state_t cb)
+{
+   input_state_cb = cb;
+}
+
+void retro_set_video_refresh(retro_video_refresh_t cb)
+{
+   video_cb = cb;
+}
+
+// --- Stubs (Unused) ---
+
+void retro_reset(void) { wrapper.Reset(); }
+bool retro_load_game_special(unsigned, const struct retro_game_info *, size_t) { return false; }
+void retro_cheat_reset(void) {}
+void retro_cheat_set(unsigned, bool, const char *) {}
+void* retro_get_memory_data(unsigned id)
+{
+    if (id == RETRO_MEMORY_SAVE_RAM)
+    {
+        // Serialize NVRAM to buffer on every access
+        if (wrapper.getEmulator() != nullptr)
+        {
+            CBlockFileMemory memFile(g_nvram_buffer, NVRAM_BUFFER_SIZE);
+            wrapper.getEmulator()->SaveNVRAM(&memFile);
+            memFile.Finish();
+        }
+        return g_nvram_buffer;
+    }
+    return nullptr;
+}
+
+size_t retro_get_memory_size(unsigned id)
+{
+    return (id == RETRO_MEMORY_SAVE_RAM) ? NVRAM_BUFFER_SIZE : 0;
+}
+unsigned retro_get_region(void) { return RETRO_REGION_NTSC; }

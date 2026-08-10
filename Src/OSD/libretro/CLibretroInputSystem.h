@@ -1,0 +1,61 @@
+#ifndef LIBRETRO_INPUT_SYSTEM_H
+#define LIBRETRO_INPUT_SYSTEM_H
+
+#include <Inputs/InputSystem.h>
+#include "libretro.h"
+
+class CLibretroInputSystem : public CInputSystem
+{
+public:
+    CLibretroInputSystem();
+    virtual ~CLibretroInputSystem() override;
+
+    // Must match EXACTLY the =0 functions in InputSystem.h
+    virtual bool InitializeSystem() override;
+    virtual bool Poll() override;
+
+    virtual int GetNumKeyboards() const override { return 1; }
+    virtual int GetKeyIndex(const char *keyName) override;
+    virtual const char *GetKeyName(int keyIndex) override;
+    virtual bool IsKeyPressed(int kbdNum, int keyIndex) const override;
+    virtual const KeyDetails *GetKeyDetails(int kbdNum) override;
+    bool Initialize();
+
+    virtual int GetNumMice() const override { return 3; }
+    virtual int GetMouseAxisValue(int mseNum, int axisNum) const override;
+    virtual int GetMouseWheelDir(int mseNum) const override;
+    virtual bool IsMouseButPressed(int mseNum, int butNum) const override;
+    virtual const MouseDetails *GetMouseDetails(int mseNum) override;
+    virtual void SetMouseVisibility(bool visible) override;
+    void SetServiceOnSticks(bool enabled) { m_serviceOnSticks = enabled; }
+    virtual int GetNumJoysticks() const override { return 2; }
+    virtual int GetJoyAxisValue(int joyNum, int axisNum) const override;
+    virtual bool IsJoyPOVInDir(int joyNum, int povNum, int povDir) const override;
+    virtual bool IsJoyButPressed(int joyNum, int butNum) const override;
+    virtual const JoyDetails *GetJoyDetails(int joyNum) override;
+    void SetRumbleInterface(struct retro_rumble_interface interface) { m_rumbleInterface = interface; }
+    void SetFFBEnabled(bool enabled) { m_ffbEnabled = enabled; }
+    // Signature match check: Supermodel usually uses the struct directly, 
+    // but ensure your .cpp matches this exactly.
+    virtual bool ProcessForceFeedbackCmd(int joyNum, int axisNum, ForceFeedbackCmd ffCmd) override;
+
+private:
+    int16_t m_joyButtons[2][NUM_JOY_BUTTONS];
+    int16_t m_joyAxes[2][NUM_JOY_AXES];
+    uint8_t m_joyPOV[2][4]; // Up, Right, Down, Left]
+    bool m_keyState[512];  // Add this for keyboard
+    
+    // Mouse/Lightgun support (3 devices: 1 mouse, 2 lightguns)
+    int16_t m_mouseAxes[3][NUM_MOUSE_AXES];
+    bool m_mouseButtons[3][NUM_MOUSE_BUTTONS];
+    int m_mouseWheelDir[3];
+    bool m_mouseIsAbsolute[3];
+    int m_mouseX = 0;
+    int m_mouseY = 0;
+
+    bool m_serviceOnSticks = false;
+    retro_rumble_interface m_rumbleInterface;
+    bool m_ffbEnabled = false; // Guard flag
+};
+
+#endif
