@@ -80,10 +80,15 @@ Result R3DFrameBuffers::CreateFBODepthCopy(int width, int height)
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH32F_STENCIL8, width, height);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_renderBufferIDCopy);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	// check setup was successful
+	// This is intentionally a depth-only FBO. In a core profile, the default
+	// draw/read buffer still points at a colour attachment unless both are
+	// disabled, which makes the FBO incomplete. Check it while it is still
+	// bound; checking after binding 0 tests the frontend/window FBO instead.
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
 	auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	return (fboStatus == GL_FRAMEBUFFER_COMPLETE) ? Result::OKAY : Result::FAIL;
 }
