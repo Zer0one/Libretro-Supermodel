@@ -619,16 +619,6 @@ void retro_run(void)
    Game game = wrapper.getGame();
    wrapper.Inputs->Poll(&game, 0, 0, target_w, target_h);
 
-   // Service/Test are fixed Libretro controls. Apply them directly to the Model 3
-   // input lines, while preserving the standalone keyboard mappings polled above.
-   if (input_state_cb)
-   {
-      wrapper.Inputs->test[0]->value |= input_state_cb(
-            0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3) ? 1 : 0;
-      wrapper.Inputs->service[0]->value |= input_state_cb(
-            0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3) ? 1 : 0;
-   }
-
    GLuint sm_fbo = wrapper.getSuperModelFBO();
 
    if (skipRender)
@@ -815,9 +805,6 @@ void set_input_descriptors(void)
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,      "Gear Shift Up" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,     "Brake" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,     "Accelerator" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,     "Test A (Test Menu)" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,     "Service A" },
-
       // Player 1 - Analog
       { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_X, "Steering / Move X" },
       { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_Y, "Move Y" },
