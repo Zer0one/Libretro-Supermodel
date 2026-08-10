@@ -62,7 +62,6 @@ public:
     void setHwRender(retro_hw_render_callback val) { hw_render = val; }
     void InitializePaths(const std::string& systemPath);
     void UpdateScreenSize(unsigned newWidth, unsigned newHeight);
-    void SetServiceOnSticks(bool enabled);
     void SetSoundVolume(int volume);
     void SetMusicVolume(int volume);
     int Emulate(const char* romPath);

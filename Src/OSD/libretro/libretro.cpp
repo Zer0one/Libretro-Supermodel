@@ -424,7 +424,6 @@ bool retro_load_game(const struct retro_game_info *info)
    int emulation = wrapper.Emulate(info->path);
    if (emulation != 0) return false;
    wrapper.SetWidescreen(g_options.widescreen);
-   wrapper.SetServiceOnSticks(g_options.service_on_sticks);
    if (wrapper.SuperModelInit(wrapper.getGame()) != 0)
    {
       log_cb(RETRO_LOG_ERROR, "[Supermodel] Emulator initialization failed.\n");
@@ -518,10 +517,7 @@ void retro_run(void)
       }
 
       if (g_options.service_on_sticks != old_service_on_sticks)
-      {
-         wrapper.SetServiceOnSticks(g_options.service_on_sticks);
          set_input_descriptors(g_options.service_on_sticks);
-      }
 
       wrapper.SetSoundVolume(g_options.sound_volume);
       wrapper.SetMusicVolume(g_options.music_volume);
@@ -632,6 +628,31 @@ void retro_run(void)
 
    Game game = wrapper.getGame();
    wrapper.Inputs->Poll(&game, 0, 0, target_w, target_h);
+
+   // Service/Test are Libretro controls, so apply them directly to the Model 3
+   // input lines. Routing them through invented joystick buttons made the
+   // mapping depend on Supermodel's generic input parser for no benefit.
+   if (input_state_cb)
+   {
+      if (g_options.service_on_sticks)
+      {
+         wrapper.Inputs->service[0]->value |= input_state_cb(
+               0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3) ? 1 : 0;
+         wrapper.Inputs->test[0]->value |= input_state_cb(
+               0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3) ? 1 : 0;
+      }
+      else
+      {
+         wrapper.Inputs->service[0]->value |= input_state_cb(
+               0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L) ? 1 : 0;
+         wrapper.Inputs->test[0]->value |= input_state_cb(
+               0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R) ? 1 : 0;
+         wrapper.Inputs->service[1]->value |= input_state_cb(
+               0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2) ? 1 : 0;
+         wrapper.Inputs->test[1]->value |= input_state_cb(
+               0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2) ? 1 : 0;
+      }
+   }
 
    GLuint sm_fbo = wrapper.getSuperModelFBO();
 

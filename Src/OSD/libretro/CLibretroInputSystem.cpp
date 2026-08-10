@@ -186,22 +186,6 @@ bool CLibretroInputSystem::Poll()
         m_joyButtons[joy][12] = (x < -THRESHOLD) || d_left;    // Left - ANALOG + DIGITAL
         m_joyButtons[joy][13] = (x >  THRESHOLD) || d_right;   // Right - ANALOG + DIGITAL
 
-        // Service/Test buttons (20-23) - BUTTON21-24 in Supermodel numbering
-        // Service/Test buttons (20-23) - mapping depends on user preference
-        if (m_serviceOnSticks)
-        {
-            m_joyButtons[joy][20] = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3);
-            m_joyButtons[joy][21] = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3);
-            m_joyButtons[joy][22] = 0; // no 3rd/4th stick button on standard pads
-            m_joyButtons[joy][23] = 0;
-        }
-        else
-        {
-            m_joyButtons[joy][20] = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L);
-            m_joyButtons[joy][21] = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R);
-            m_joyButtons[joy][22] = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2);
-            m_joyButtons[joy][23] = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2);
-        }
     }
 
     return true;

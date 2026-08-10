@@ -27,7 +27,6 @@ public:
     virtual bool IsMouseButPressed(int mseNum, int butNum) const override;
     virtual const MouseDetails *GetMouseDetails(int mseNum) override;
     virtual void SetMouseVisibility(bool visible) override;
-    void SetServiceOnSticks(bool enabled) { m_serviceOnSticks = enabled; }
     virtual int GetNumJoysticks() const override { return 2; }
     virtual int GetJoyAxisValue(int joyNum, int axisNum) const override;
     virtual bool IsJoyPOVInDir(int joyNum, int povNum, int povDir) const override;
@@ -53,7 +52,6 @@ private:
     int m_mouseX = 0;
     int m_mouseY = 0;
 
-    bool m_serviceOnSticks = false;
     retro_rumble_interface m_rumbleInterface;
     bool m_ffbEnabled = false; // Guard flag
 };
