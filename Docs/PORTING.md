@@ -121,7 +121,10 @@ Still requiring validation or implementation:
   when selected in the game's machine settings and stored in NVRAM;
 - frame-skip behavior against the current `CModel3::RunFrame()` interface.
 
-Libretro save RAM uses the same block container as standalone Supermodel NVRAM
-files. Frontends persist it as a fixed-size `.srm`, with zero padding after the
-final block. Older headerless `.srm` files from the initial Libretro port remain
-readable.
+Libretro save RAM is canonical and is persisted by the frontend as a fixed-size
+`.srm`. Its payload uses the same block container as standalone Supermodel
+NVRAM, with zero padding after the final block. A native `<rom-set>.nv` in the
+frontend save directory is imported only when the frontend supplied no `.srm`
+data; when both sources exist, `.srm` wins and the decision is logged. The core
+never modifies `.nv`. Older headerless `.srm` files from the initial Libretro
+port remain readable.

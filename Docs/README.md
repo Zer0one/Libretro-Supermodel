@@ -62,6 +62,12 @@ and control-layout choices; input remaps for controller bindings; and the
 frontend save directory for NVRAM. Core options take precedence over an
 optional `Supermodel.ini`.
 
+NVRAM is normally persisted by the frontend as `<content>.srm`. To import a
+standalone Supermodel save, place `<rom-set>.nv` directly in the frontend save
+directory. The core reads `.nv` only when no `.srm` data was supplied. If both
+are present, `.srm` takes precedence and the ignored `.nv` path is reported in
+the log. The core never writes or overwrites the native `.nv` file.
+
 ## 🛠 Build Instructions
 
 **Unified Makefile System:** This core uses a single unified `Makefile` supporting 6 platforms:
