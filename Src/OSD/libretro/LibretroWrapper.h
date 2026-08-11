@@ -46,10 +46,13 @@ public:
     IEmulator* getEmulator() const { return Model3; }
     void Reset();   // hard reset of the emulated machine (retro_reset)
     FrameTimings GetTimings() const;
+    float GetLastEngineMs() const { return lastEngineMs; }
+    float GetLastAudioSubmitMs() const { return lastAudioSubmitMs; }
     std::shared_ptr<CInputSystem> getInputSystem() const { return m_inputSystem; }
     retro_hw_render_callback getHwRender() const { return hw_render; }
     static const std::string& GetGameXMLPath() { return s_gameXMLFilePath; }
-    void SetWidescreen(bool enabled);
+    void SetWidescreen(bool enabled, bool wideBackground);
+    void SetCrosshairs(unsigned mask);
     void setXRes(unsigned val) { xRes = val; }
     void setYRes(unsigned val) { yRes = val; }
     void setXOffset(unsigned val) { xOffset = val; }
@@ -61,7 +64,8 @@ public:
     void setCRTColors(CRTcolor val) { CRTcolors = val; }
     void setHwRender(retro_hw_render_callback val) { hw_render = val; }
     void InitializePaths(const std::string& systemPath);
-    void UpdateScreenSize(unsigned newWidth, unsigned newHeight);
+    void UpdateScreenSize(unsigned viewWidth, unsigned viewHeight,
+                          unsigned outputWidth, unsigned outputHeight);
     void SetSoundVolume(int volume);
     void SetMusicVolume(int volume);
     int Emulate(const char* romPath);
@@ -81,8 +85,9 @@ public:
     GLuint getSuperModelFBO() const;
 
 private:
+    float lastEngineMs = 0.0f;
+    float lastAudioSubmitMs = 0.0f;
     uint64_t m_lastFrameTime = 0;
-    float m_currentFPS = 57.53f;
     static const char* s_outputNames[];
     struct retro_hw_render_callback hw_render{};
     unsigned  xOffset, yOffset;                                         // offset of renderer output within OpenGL viewport

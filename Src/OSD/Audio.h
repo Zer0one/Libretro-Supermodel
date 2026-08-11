@@ -53,9 +53,6 @@ extern Result OpenAudio(const Util::Config::Node& config);
  */
 extern bool OutputAudio(unsigned numSamples, const float* leftFrontBuffer, const float* rightFrontBuffer, const float* leftRearBuffer, const float* rightRearBuffer, bool flipStereo);
 
-// Reconfigure libretro's audio pacing when the emulated PPC clock changes.
-extern void AdjustAudioForCPUFrequency(float ppc_frequency_mhz);
-
 /*
  * CloseAudio()
  *
