@@ -90,6 +90,22 @@ The primary integration target is `libretro/supermodel`. Pull requests should:
 5. Avoid claiming platform support that has not been revalidated after an
    upstream update.
 
+## Libretro continuous integration
+
+`.github/workflows/libretro-ci.yml` builds the actual Libretro core rather
+than the standalone Supermodel executable. Its desktop matrix currently
+covers Linux x86_64, Windows x86_64, macOS ARM64, and macOS x86_64.
+
+Each job starts from a clean checkout, builds through the unified root
+`Makefile`, verifies the binary format and target architecture, checks the
+required Libretro API exports, and audits runtime dependencies. The uploaded
+artifact contains the core, `supermodel_libretro.info`, and the required
+system assets under `system/supermodel/`.
+
+Compilation proves that the integration layer remains portable; it does not
+replace real-ROM runtime validation. A platform should only be described as
+runtime-tested after loading content in a frontend on that platform.
+
 ## Deferred standalone options
 
 The first Libretro submission intentionally exposes only settings that affect
