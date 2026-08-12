@@ -125,11 +125,49 @@ The following standalone options are recorded for later evaluation:
 | `FlipStereo` and audio balance controls | Defer as low-priority output/downmix controls; evaluate what belongs to RetroArch and what must occur before the four-channel-to-stereo mix. |
 | Network and true 57.524160 Hz output | Separate projects: network requires multi-cabinet transport, while true-Hz output requires fractional audio generation or resampling. |
 
+## CPU options
+
+`Emulated PowerPC Frequency` is the Libretro representation of standalone
+Supermodel's `PowerPCFrequency` setting. `Auto` preserves the current upstream
+stepping defaults (66, 100, or 166 MHz); the explicit values are emulated CPU
+clocks, not host-CPU or frontend performance settings. A content restart is
+required after changing the option.
+
+The ARM64 PowerPC JIT is imported from sgiannop's Libretro work and kept behind
+the build-time `HAVE_PPC_JIT` capability. It is shown only by targets that
+actually compile the backend (Android ARM64, Raspberry Pi 64-bit, and generic
+Linux AArch64, plus native macOS ARM64), is labelled experimental, and is
+disabled by default. The interpreter remains the correctness reference.
+
+On Apple Silicon the backend allocates its code cache with `MAP_JIT` and uses
+`pthread_jit_write_protect_np()` to alternate the current thread between write
+and execute access while emitting blocks. This follows the established pattern
+used by ARM64 Libretro dynarecs such as Flycast and ParaLLEl N64. It also
+requires the frontend executable to carry Apple's `allow-jit` entitlement; if
+allocation is denied, the core logs the failure and falls back to the PowerPC
+interpreter. Native Intel and osxcross universal builds do not expose this JIT.
+
+No `Frame Skip` core option is exposed. Current standalone Supermodel has no
+equivalent setting, and the former Libretro implementation only suppressed the
+final frontend presentation while `CModel3::RunFrame()` still performed the
+internal render. Frame duplication or dropping therefore remains frontend
+policy.
+
 Detailed macOS profiling also shows that `audio_batch_cb` can spend roughly
-0.2–7.9 ms per frame in frontend pacing while the Supermodel engine remains
-stable around 8.1–8.3 ms. Do not treat callback-inclusive “capacity” as pure
-emulator compute capacity. Any audio synchronization change must preserve the
-currently clean, crackle-free 60 Hz output and should be tested independently.
+0–9 ms per frame in frontend pacing. With the experimental ARM64 JIT enabled,
+the measured engine cost falls to about 5.4 ms in Daytona 2 and 4.9 ms in Sega
+Rally 2, while callback-inclusive capacity remains around 84 FPS. Do not treat
+that capacity as pure emulator compute capacity: audio/frontend pacing is now
+the main measured constraint. Its investigation is the highest-priority
+follow-up, and any synchronization change must preserve the currently clean,
+crackle-free 60 Hz output.
+
+A 90-second Daytona 2 interpreter run measured 7.93 ms in the PowerPC and
+7.95 ms in the engine, versus 5.37 and 5.43 ms respectively in the comparable
+JIT run. This is a roughly 32% reduction in CPU/engine time and raises measured
+engine capacity from about 126 to 184 FPS. Overall callback capacity improves
+only from about 78 to 84 FPS because the frontend consumes much of the freed
+frame budget in audio/pacing waits.
 
 ## Current validation and limitations
 
@@ -154,6 +192,8 @@ Validated on macOS ARM64:
   Libretro and Real3D framebuffers, and sustained execution of the frame loop;
 - visible boot of `dayto2pe` beyond its network-board check with standalone
   Supermodel NVRAM configured for a single cabinet;
+- successful `MAP_JIT` allocation and sustained ARM64 JIT execution in Daytona
+  2 and Sega Rally 2, with no evident gameplay, graphics, or audio regressions;
 - service-mode validation of the dedicated fishing profile: rod and fishing
   stick axes, analog `00-FF` reel speed, cast, and select; the Japan Standard
   `getbass` set additionally exposes and correctly reads the tension axis;
@@ -162,16 +202,19 @@ Validated on macOS ARM64:
 
 Still requiring validation or implementation:
 
+- investigate `audio_batch_cb`/frontend pacing, including RetroArch's
+  unsupported rate-control warning, without regressing clean 60 Hz audio;
 - visual correctness and extended gameplay testing;
 - Sega Bass Fishing / Get Bass extended gameplay testing beyond the validated
   service-mode input checks;
 - audio, controls, force feedback, and save states;
 - Linux, Windows, Android, and other advertised build targets;
-- PPC JIT integration on supported architectures;
+- broader PPC JIT compatibility testing on macOS ARM64, plus runtime validation
+  on Android ARM64, Raspberry Pi 64-bit, and generic Linux AArch64; compilation
+  alone does not establish game compatibility;
 - network-board emulation for multi-cabinet play: the current Libretro
   placeholder reports the board as detached. Single-cabinet operation works
-  when selected in the game's machine settings and stored in NVRAM;
-- frame-skip behavior against the current `CModel3::RunFrame()` interface.
+  when selected in the game's machine settings and stored in NVRAM.
 
 Libretro save RAM is canonical and is persisted by the frontend as a fixed-size
 `.srm`. Its payload uses the same block container as standalone Supermodel

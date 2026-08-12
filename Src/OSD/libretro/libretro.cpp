@@ -95,14 +95,9 @@ CoreOptions g_options = {
    /* music_volume         */ 100,
    /* legacy_sound_dsp     */ false,
    /* ppc_frequency        */ 0,
-   /* frameskip            */ 0,
    /* sound_enable         */ true,
    /* jit_enable           */
-#ifdef __aarch64__
-                              true,
-#else
                               false,
-#endif
    /* timing_overlay      */ false,
    /* gun_input           */ GunInput::Hybrid,
    /* star_wars_input     */ StarWarsInput::Hybrid,
@@ -160,7 +155,6 @@ static constexpr const char* NVRAM_HEADER_BLOCK = "Supermodel NVRAM State";
 static size_t g_cached_serialize_size = 0;
 static bool g_first_run = true;
 static bool g_nvram_initialized = false;
-static int g_skip_counter = 0;
 static bool g_context_ready = false;
 
 // Exact curve incorporated by the Rad Mobile/Rad Rally MAME work. It is the
@@ -543,7 +537,6 @@ bool retro_load_game(const struct retro_game_info *info)
    g_cached_serialize_size = 0;
    g_first_run = true;
    g_nvram_initialized = false;
-   g_skip_counter = 0;
    last_width = 0;
    last_height = 0;
    g_context_ready = false;
@@ -648,7 +641,6 @@ void retro_unload_game(void)
    g_cached_serialize_size = 0;
    g_first_run = true;
    g_nvram_initialized = false;
-   g_skip_counter = 0;
    last_width = 0;
    last_height = 0;
    g_context_ready = false;
@@ -688,9 +680,19 @@ void retro_run(void)
       unsigned old_crosshairs = g_options.crosshairs;
       GunInput old_gun_input = g_options.gun_input;
       StarWarsInput old_star_wars_input = g_options.star_wars_input;
-      update_core_options();
 #ifdef HAVE_PPC_JIT
-      ppc_set_jit_enabled(g_options.jit_enable);
+      bool old_jit_enable = g_options.jit_enable;
+#endif
+      update_core_options();
+
+#ifdef HAVE_PPC_JIT
+      if (g_options.jit_enable != old_jit_enable)
+      {
+         static const struct retro_message message = {
+            "ARM64 JIT Recompiler will apply after restarting the content.", 180
+         };
+         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
+      }
 #endif
 
       if (g_options.widescreen_mode != old_widescreen_mode)
@@ -818,18 +820,6 @@ void retro_run(void)
 
     if (input_poll_cb) input_poll_cb();
 
-   // Frame skip: determine whether to skip GPU rendering this frame
-   // Uses modulo to create consistent (skip N, render 1) pattern
-   // frameskip=1: S,R,S,R... (render 1 per 2 frames)
-   // frameskip=2: S,S,R,S,S,R... (render 1 per 3 frames)
-   // frameskip=3: S,S,S,R,S,S,S,R... (render 1 per 4 frames)
-   bool skipRender = false;
-   if (g_options.frameskip > 0)
-   {
-      g_skip_counter = (g_skip_counter + 1) % (g_options.frameskip + 1);
-      skipRender = (g_skip_counter != 0);  // Render only when counter == 0
-   }
-
    unsigned view_w, view_h, target_w, target_h;
    get_video_dimensions(view_w, view_h, target_w, target_h);
 
@@ -858,16 +848,8 @@ void retro_run(void)
 
    GLuint sm_fbo = wrapper.getSuperModelFBO();
 
-   if (skipRender)
    {
-      // Skipped frame: run emulation logic only, no GL work at all.
-      // video_cb(NULL) tells RetroArch to reuse the last displayed frame.
-      wrapper.Supermodel(game, true);
-      video_cb(NULL, target_w, target_h, 0);
-   }
-   else
-   {
-      // Full render: reset GL state, clear FBO, run emulation + rendering
+      // Reset GL state, clear the FBO, and run emulation plus rendering.
       glBindFramebuffer(GL_FRAMEBUFFER, sm_fbo);
 
       glDisable(GL_SCISSOR_TEST);
@@ -901,7 +883,7 @@ void retro_run(void)
       }
 #endif
 
-      wrapper.Supermodel(game, false);
+      wrapper.Supermodel(game);
 
 #if defined(CORE_GLES)
       if (s_gpuQueryOK) {
@@ -959,11 +941,6 @@ void retro_run(void)
          return std::chrono::duration<float, std::milli>(b - a).count();
       };
 
-      // Average over the period, never a single sample: with frameskip the render
-      // runs on 1 frame in N, and any fixed sampling period that shares a factor
-      // with N always lands on the same phase of the cycle and lies to you.
-      // renderTicks is also stale on skipped frames (Model3 only writes it when it
-      // actually renders), so it is averaged over rendered frames only.
       const float emu     = ms(t_frame_start, t_post);
       const float present = ms(t_post, t_end);
 
@@ -976,9 +953,10 @@ void retro_run(void)
       s_accRun += emu + present;
       if (emu + present > s_maxRun) s_maxRun = emu + present;
       s_accPpc += t.ppcTicks;
-      if (!skipRender) { s_accRender += t.renderTicks; s_renderedFrames++; }
+      s_accRender += t.renderTicks;
+      s_renderedFrames++;
 
-      if (++s_timingFrames >= 61) {   // 61: coprime with every frameskip cycle (1..4)
+      if (++s_timingFrames >= 60) {
          const float n = (float)s_timingFrames;
          s_frontendTimings.engineMs = s_accEngine / n;
          s_frontendTimings.audioSubmitMs = s_accAudioSubmit / n;

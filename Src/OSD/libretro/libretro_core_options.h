@@ -338,56 +338,41 @@ static struct retro_core_option_v2_definition option_defs[] = {
    },
    // CPU
    {
-      "supermodel_frameskip",
-      "Frame Skip",
-      NULL,
-      "Skip rendering every N frames to reduce GPU load on slow hardware. '0' disables frame skipping. Higher values improve speed at the cost of visual smoothness.",
-      NULL,
-      "cpu",
-      {
-         { "0", "Disabled" },
-         { "1", "Skip 1 (render every 2nd frame)" },
-         { "2", "Skip 2 (render every 3rd frame)" },
-         { "3", "Skip 3 (render every 4th frame)" },
-         { NULL, NULL },
-      },
-      "0"
-   },
-   {
       "supermodel_ppc_frequency",
-      "PowerPC CPU Frequency",
+      "Emulated PowerPC Frequency",
       NULL,
-      "Adjust PowerPC CPU frequency to trade cycle accuracy for performance on low-end hardware. 'Auto' follows the game's stepping (66/100/166 MHz): a Stepping 2.x game such as Daytona 2 runs at 166 MHz, which is over twice the CPU work of 70 MHz. Underclocking is the single biggest performance lever on weak hardware, at the cost of cycle accuracy.",
+      "Set the Model 3's emulated PowerPC clock. 'Auto' follows the game's stepping (66/100/166 MHz). Lower values reduce emulated CPU work but may change game timing or behavior. Restart content to apply.",
       NULL,
       "cpu",
       {
-         { "auto", "Auto (Default)" },
-         { "33",   "33 MHz (Half Speed - Aggressive)" },
-         { "50",   "50 MHz (0.75x Speed)" },
-         { "66",   "66 MHz (Step 1.0 Default)" },
-         { "70",   "70 MHz (Fast - Underclocked)" },
-         { "100",  "100 MHz (Step 1.5 Default)" },
-         { "133",  "133 MHz (2.0x Base)" },
-         { "166",  "166 MHz (Step 2.x Default)" },
-         { "200",  "200 MHz (Max)" },
+         { "auto", "Auto (Game Default: 66/100/166 MHz)" },
+         { "25",   "25 MHz" },
+         { "33",   "33 MHz" },
+         { "50",   "50 MHz" },
+         { "66",   "66 MHz" },
+         { "70",   "70 MHz" },
+         { "100",  "100 MHz" },
+         { "133",  "133 MHz" },
+         { "166",  "166 MHz" },
+         { "200",  "200 MHz" },
          { NULL, NULL },
       },
       "auto"
    },
-#ifdef __aarch64__
+#ifdef HAVE_PPC_JIT
    {
       "supermodel_jit_enable",
-      "JIT Recompiler (ARM64)",
+      "ARM64 JIT Recompiler (Experimental)",
       NULL,
-      "Enable the ARM64 JIT recompiler for the PowerPC CPU. Significantly improves performance on ARM64 devices. Disable to use the interpreter for debugging.",
+      "Enable the experimental ARM64 dynamic recompiler for the emulated PowerPC CPU. Disabled by default; the interpreter remains the correctness reference. Restart content to apply.",
       NULL,
       "cpu",
       {
-         { "enabled",  "Enabled" },
-         { "disabled", "Disabled (Interpreter)" },
+         { "disabled", "Disabled (Interpreter, Default)" },
+         { "enabled",  "Enabled (Experimental)" },
          { NULL, NULL },
       },
-      "enabled"
+      "disabled"
    },
 #endif
    { NULL, NULL, NULL, NULL, NULL, NULL, {{0}}, NULL },
@@ -487,11 +472,6 @@ void update_core_options(void)
          strcmp(brake_range, "75.3") == 0 ? 753 : atoi(brake_range) * 10;
    }
 
-   // Parse frame skip option
-   g_options.frameskip = atoi(option_get("supermodel_frameskip", "0"));
-   if (g_options.frameskip < 0) g_options.frameskip = 0;
-   if (g_options.frameskip > 3) g_options.frameskip = 3;
-
    // Parse PowerPC frequency option
    const char* ppc_freq = option_get("supermodel_ppc_frequency", "auto");
    if (strcmp(ppc_freq, "auto") == 0)
@@ -502,8 +482,8 @@ void update_core_options(void)
       g_options.ppc_frequency = (mhz > 0) ? mhz : 0;
    }
    
-#ifdef __aarch64__
-   g_options.jit_enable = strcmp(option_get("supermodel_jit_enable", "enabled"), "enabled") == 0;
+#ifdef HAVE_PPC_JIT
+   g_options.jit_enable = strcmp(option_get("supermodel_jit_enable", "disabled"), "enabled") == 0;
 #else
    g_options.jit_enable = false;
 #endif

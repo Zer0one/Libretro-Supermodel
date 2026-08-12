@@ -56,6 +56,7 @@ static void ppc_unimplemented(UINT32 op)
 	ErrorLog("PowerPC hit an unimplemented instruction. Halting emulation until reset.");
 	DebugLog("PowerPC encountered an unimplemented opcode %08X at %08X\n", op, ppc.pc);
 	ppc.fatalError = true;
+	ppc.interrupt_pending |= 0x8;
 }
 
 static void ppc_addx(UINT32 op)
@@ -94,16 +95,16 @@ static void ppc_addex(UINT32 op)
 {
 	UINT32 ra = REG(RA);
 	UINT32 rb = REG(RB);
-	UINT32 carry = (XER >> 29) & 0x1;
+	UINT32 carry = ppc.xer_ca;
 	UINT32 tmp;
 
 	tmp = rb + carry;
 	REG(RT) = ra + tmp;
 
 	if( ADD_CA(tmp, rb, carry) || ADD_CA(REG(RT), ra, tmp) )
-		XER |= XER_CA;
+		SET_XER_CA_SET();
 	else
-		XER &= ~XER_CA;
+		SET_XER_CA_CLR();
 
 	if( OEBIT ) {
 		SET_ADD_OV(REG(RT), ra, rb);
@@ -132,9 +133,9 @@ static void ppc_addic(UINT32 op)
 	REG(RT) = ra + i;
 
 	if( ADD_CA(REG(RT), ra, i) )
-		XER |= XER_CA;
+		SET_XER_CA_SET();
 	else
-		XER &= ~XER_CA;
+		SET_XER_CA_CLR();
 }
 
 static void ppc_addic_rc(UINT32 op)
@@ -145,9 +146,9 @@ static void ppc_addic_rc(UINT32 op)
 	REG(RT) = ra + i;
 
 	if( ADD_CA(REG(RT), ra, i) )
-		XER |= XER_CA;
+		SET_XER_CA_SET();
 	else
-		XER &= ~XER_CA;
+		SET_XER_CA_CLR();
 
 	SET_CR0(REG(RT));
 }
@@ -166,16 +167,16 @@ static void ppc_addis(UINT32 op)
 static void ppc_addmex(UINT32 op)
 {
 	UINT32 ra = REG(RA);
-	UINT32 carry = (XER >> 29) & 0x1;
+	UINT32 carry = ppc.xer_ca;
 	UINT32 tmp;
 
 	tmp = ra + carry;
 	REG(RT) = tmp + -1;
 
 	if( ADD_CA(tmp, ra, carry) || ADD_CA(REG(RT), tmp, -1) )
-		XER |= XER_CA;
+		SET_XER_CA_SET();
 	else
-		XER &= ~XER_CA;
+		SET_XER_CA_CLR();
 
 	if( OEBIT ) {
 		SET_ADD_OV(REG(RT), ra, carry - 1);
@@ -188,14 +189,14 @@ static void ppc_addmex(UINT32 op)
 static void ppc_addzex(UINT32 op)
 {
 	UINT32 ra = REG(RA);
-	UINT32 carry = (XER >> 29) & 0x1;
+	UINT32 carry = ppc.xer_ca;
 
 	REG(RT) = ra + carry;
 
 	if( ADD_CA(REG(RT), ra, carry) )
-		XER |= XER_CA;
+		SET_XER_CA_SET();
 	else
-		XER &= ~XER_CA;
+		SET_XER_CA_CLR();
 
 	if( OEBIT ) {
 		SET_ADD_OV(REG(RT), ra, carry);
@@ -1094,7 +1095,7 @@ static void ppc_srawx(UINT32 op)
 {
 	int sh = REG(RB) & 0x3f;
 
-	XER &= ~XER_CA;
+	SET_XER_CA_CLR();
 
 	if( sh > 31 ) {
 		if (REG(RS) & 0x80000000)
@@ -1102,12 +1103,12 @@ static void ppc_srawx(UINT32 op)
 		else
 			REG(RA) = 0;
 		if( REG(RA) )
-			XER |= XER_CA;
+			SET_XER_CA_SET();
 	}
 	else {
 		REG(RA) = (INT32)(REG(RS)) >> sh;
 		if( ((INT32)(REG(RS)) < 0) && (REG(RS) & BITMASK_0(sh)) )
-			XER |= XER_CA;
+			SET_XER_CA_SET();
 	}
 
 	if( RCBIT ) {
@@ -1119,9 +1120,9 @@ static void ppc_srawix(UINT32 op)
 {
 	int sh = SH;
 
-	XER &= ~XER_CA;
+	SET_XER_CA_CLR();
 	if( ((INT32)(REG(RS)) < 0) && (REG(RS) & BITMASK_0(sh)) )
-		XER |= XER_CA;
+		SET_XER_CA_SET();
 
 	REG(RA) = (INT32)(REG(RS)) >> sh;
 
@@ -1402,13 +1403,13 @@ static void ppc_subfex(UINT32 op)
 {
 	UINT32 ra = REG(RA);
 	UINT32 rb = REG(RB);
-	UINT32 carry = (XER >> 29) & 0x1;
+	UINT32 carry = ppc.xer_ca;
 	UINT32 r = ~ra + carry;
 	REG(RT) = rb + r;
 
 	SET_ADD_CA(r, ~ra, carry);		/* step 1 carry */
 	if( REG(RT) < r )				/* step 2 carry */
-		XER |= XER_CA;
+		SET_XER_CA_SET();
 
 	if( OEBIT ) {
 		SET_SUB_OV(REG(RT), rb, ra);
@@ -1431,13 +1432,13 @@ static void ppc_subfic(UINT32 op)
 static void ppc_subfmex(UINT32 op)
 {
 	UINT32 ra = REG(RA);
-	UINT32 carry = (XER >> 29) & 0x1;
+	UINT32 carry = ppc.xer_ca;
 	UINT32 r = ~ra + carry;
 	REG(RT) = r - 1;
 
 	SET_SUB_CA(r, ~ra, carry);		/* step 1 carry */
 	if( REG(RT) < r )
-		XER |= XER_CA;				/* step 2 carry */
+		SET_XER_CA_SET();			/* step 2 carry */
 
 	if( OEBIT ) {
 		SET_SUB_OV(REG(RT), -1, ra);
@@ -1450,7 +1451,7 @@ static void ppc_subfmex(UINT32 op)
 static void ppc_subfzex(UINT32 op)
 {
 	UINT32 ra = REG(RA);
-	UINT32 carry = (XER >> 29) & 0x1;
+	UINT32 carry = ppc.xer_ca;
 
 	REG(RT) = ~ra + carry;
 
@@ -1535,6 +1536,7 @@ static void ppc_invalid(UINT32 op)
 	ErrorLog("PowerPC hit an invalid instruction. Halting emulation until reset.");
 	DebugLog("ppc: Invalid opcode %08X PC : %X, %08X\n", op, ppc.pc, ppc.npc);
 	ppc.fatalError = true;
+	ppc.interrupt_pending |= 0x8;
 }
 
 
@@ -1919,10 +1921,11 @@ static void ppc_mftb(UINT32 op)
 	{
 		case 268:	REG(RT) = (UINT32)(ppc_read_timebase()); break;
 		case 269:	REG(RT) = (UINT32)(ppc_read_timebase() >> 32); break;
-		default:	
+		default:
 			ErrorLog("PowerPC read from an invalid register. Halting emulation until reset.");
 			DebugLog("ppc: Invalid timebase register %d at %08X\n", x, ppc.pc);
 			ppc.fatalError = true;
+			ppc.interrupt_pending |= 0x8;
 			break;
 	}
 }

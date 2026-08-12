@@ -553,7 +553,7 @@ QuitError:
   return 1;
 }
 
-int LibretroWrapper::Supermodel(const Game &game, bool skipRender)
+int LibretroWrapper::Supermodel(const Game &game)
 {
     const auto engineStart = std::chrono::steady_clock::now();
     if (paused)
@@ -565,9 +565,6 @@ int LibretroWrapper::Supermodel(const Game &game, bool skipRender)
     }
     else
     {
-        // Current upstream owns rendering inside RunFrame(). The frontend can
-        // still suppress presentation for frame skipping without changing the
-        // emulator's frame execution contract.
         Model3->RunFrame();
 
         const auto audioStart = std::chrono::steady_clock::now();

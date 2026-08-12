@@ -40,7 +40,6 @@ struct CoreOptions {
    int music_volume;
    bool legacy_sound_dsp;
    int ppc_frequency;
-   int frameskip;
    bool sound_enable;
    bool jit_enable;
    bool timing_overlay;      // draw the ImGui frame-timing overlay (costs a draw pass every frame)

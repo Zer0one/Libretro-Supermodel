@@ -132,7 +132,7 @@ SOURCES_CXX := $(CORE_DIR)/Src/CPU/PowerPC/PPCDisasm.cpp \
                $(CORE_DIR)/Src/Model3/TileGen.cpp \
                $(CORE_DIR)/Src/Model3/Model3.cpp \
                $(CORE_DIR)/Src/CPU/PowerPC/ppc.cpp \
-               $(if $(filter android aarch64 rpi64,$(platform)),$(CORE_DIR)/Src/CPU/PowerPC/Jit/JitArm64.cpp,) \
+               $(if $(filter android aarch64 rpi64 osx,$(platform)),$(CORE_DIR)/Src/CPU/PowerPC/Jit/JitArm64.cpp,) \
                $(CORE_DIR)/Src/Model3/SoundBoard.cpp \
                $(CORE_DIR)/Src/Sound/SCSP.cpp \
                $(CORE_DIR)/Src/Sound/SCSPDSP.cpp \
@@ -272,6 +272,13 @@ ifeq ($(platform),osx)
         CFLAGS += $(ARCHFLAGS)
         CXXFLAGS += $(ARCHFLAGS)
         LDFLAGS += $(ARCHFLAGS)
+
+        # The imported ARM64 backend uses Apple's MAP_JIT/W^X API on native
+        # Apple Silicon. Keep Intel and osxcross universal builds on the
+        # interpreter unless their JIT slices are configured independently.
+        ifeq ($(NATIVE_ARCH),arm64)
+            PLATFORM_DEFINES += -DHAVE_PPC_JIT
+        endif
     else
         # Cross-compile from Linux via osxcross (universal x86_64 + arm64 dylib).
         OSXCROSS_ROOT ?= /opt/osxcross
