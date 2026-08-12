@@ -219,6 +219,11 @@ Validated on macOS ARM64:
 - service-mode validation of the dedicated fishing profile: rod and fishing
   stick axes, analog `00-FF` reel speed, cast, and select; the Japan Standard
   `getbass` set additionally exposes and correctly reads the tension axis;
+- automated Save State save/load cycles for Daytona 2 PE, Sega Rally 2, and
+  Ocean Hunter, including a new-session load, legacy-state compatibility,
+  cross-game rejection, and checksum-corruption rejection; interactive loads
+  in all three games also restored their relevant video, audio, controls, and
+  force-feedback state without an observed anomaly;
 - exported `retro_init`, `retro_load_game`, `retro_run`, save-state, and unload
   entry points.
 
@@ -227,7 +232,8 @@ Still requiring validation or implementation:
 - visual correctness and extended gameplay testing;
 - Sega Bass Fishing / Get Bass extended gameplay testing beyond the validated
   service-mode input checks;
-- audio, controls, force feedback, and save states;
+- extended audio, controls, force-feedback, and Save State coverage across more
+  games;
 - Linux, Windows, Android, and other advertised build targets;
 - broader PPC JIT compatibility testing on macOS ARM64, plus runtime validation
   on Android ARM64, Raspberry Pi 64-bit, and generic Linux AArch64; compilation
@@ -244,3 +250,19 @@ data; when both sources exist, `.srm` wins and the decision is logged. The core
 never modifies `.nv`; if native import fails, default NVRAM is initialized and
 persisted to a new `.srm`. Older headerless `.srm` files from the initial
 Libretro port remain readable.
+
+Libretro Save States use standalone Supermodel's current version-6 header and
+ROM-set identifier before the normal subsystem blocks. This rejects states
+from an incompatible engine format or different game before any emulator
+memory is modified. A final Libretro-only integrity block contains a CRC32 of
+the complete preceding payload, allowing padded truncation and in-place data
+corruption to be detected even when a frontend supplies the expected buffer
+size. Standalone Supermodel safely ignores this additional named block. The
+core accepts standalone-compatible states without the integrity block and the
+older headerless Libretro layout, logging which compatibility path was used.
+
+Before loading, the core compares every block name and payload size against a
+layout generated from the running game. Memory reads are bounded to the
+selected block, and buffer overflow or underflow now propagates failure through
+`retro_serialize()` or `retro_unserialize()` instead of returning success after
+a partial operation.

@@ -35,6 +35,9 @@ guidance.
   16:9 framebuffer, with an optional wide lower-background layer. Plain 4:3
   stretching remains the frontend's responsibility.
 - **Libretro Portability:** Remapped configuration, NVRAM, and asset paths to follow official Libretro standards (`system` and `save` directories).
+- **Validated Save States:** Uses the current standalone format metadata plus
+  Libretro integrity checking, rejects incompatible/corrupt states before
+  modifying the machine, and remains compatible with older core states.
 - **No External GL Dependency:** GLEW replaced with `glsym` from libretro-common — no system GL extension library required on any platform.
 - **Android Support:** Full NDK integration with architecture-specific optimization (arm64, arm with NEON, x86_64, x86) and OpenGL ES 3.0.
 - **macOS Universal Binary:** Builds for both Intel (x86_64) and Apple Silicon (arm64) via osxcross with automatic CPU tuning.
