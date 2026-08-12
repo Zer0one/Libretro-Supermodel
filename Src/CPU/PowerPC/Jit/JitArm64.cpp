@@ -644,7 +644,7 @@ static void emit_ram_load32(Arm64Emitter &e)
 }
 
 // Emit: load 8-bit from RAM fast-path (W0=addr → W0=result), else call jit_read8.
-static void emit_ram_load8(Arm64Emitter &e)
+[[maybe_unused]] static void emit_ram_load8(Arm64Emitter &e)
 {
     e.CMP_W_IMM(W0, 0x800u, 1);
     uint32_t *slow = e.emit_B_COND_placeholder(A64_CS);
@@ -659,7 +659,7 @@ static void emit_ram_load8(Arm64Emitter &e)
 }
 
 // Emit: load 16-bit from RAM fast-path (W0=addr → W0=result), else call jit_read16.
-static void emit_ram_load16(Arm64Emitter &e, bool sign_extend)
+[[maybe_unused]] static void emit_ram_load16(Arm64Emitter &e, bool sign_extend)
 {
     e.CMP_W_IMM(W0, 0x800u, 1);
     uint32_t *slow = e.emit_B_COND_placeholder(A64_CS);
@@ -676,7 +676,7 @@ static void emit_ram_load16(Arm64Emitter &e, bool sign_extend)
 }
 
 // Emit: store 32-bit to RAM fast-path (W0=addr, W1=data), else call jit_write32.
-static void emit_ram_store32(Arm64Emitter &e)
+[[maybe_unused]] static void emit_ram_store32(Arm64Emitter &e)
 {
     e.CMP_W_IMM(W0, 0x800u, 1);
     uint32_t *slow = e.emit_B_COND_placeholder(A64_CS);
@@ -690,7 +690,7 @@ static void emit_ram_store32(Arm64Emitter &e)
 }
 
 // Emit: store 8-bit to RAM fast-path (W0=addr, W1=data), else call jit_write8.
-static void emit_ram_store8(Arm64Emitter &e)
+[[maybe_unused]] static void emit_ram_store8(Arm64Emitter &e)
 {
     e.CMP_W_IMM(W0, 0x800u, 1);
     uint32_t *slow = e.emit_B_COND_placeholder(A64_CS);
@@ -705,7 +705,7 @@ static void emit_ram_store8(Arm64Emitter &e)
 }
 
 // Emit: store 16-bit to RAM fast-path (W0=addr, W1=data), else call jit_write16.
-static void emit_ram_store16(Arm64Emitter &e)
+[[maybe_unused]] static void emit_ram_store16(Arm64Emitter &e)
 {
     e.CMP_W_IMM(W0, 0x800u, 1);
     uint32_t *slow = e.emit_B_COND_placeholder(A64_CS);
@@ -796,7 +796,7 @@ static void emit_epilogue_npc_reg(Arm64Emitter &e, int inst_count, uint32_t last
     e.RET();
 }
 
-static void emit_epilogue(Arm64Emitter &e, int inst_count, uint32_t last_pc, uint32_t next_pc)
+[[maybe_unused]] static void emit_epilogue(Arm64Emitter &e, int inst_count, uint32_t last_pc, uint32_t next_pc)
 {
     // ppc.icount -= inst_count
     e.LDR_W(W0, PPC_PTR, OFF_ICOUNT);

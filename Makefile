@@ -262,7 +262,8 @@ ifeq ($(platform),osx)
     LDFLAGS += -dynamiclib -fPIC
     CFLAGS += -fPIC
     CXXFLAGS += -fPIC
-    LIBS += -lm -framework OpenGL -framework CoreFoundation -lz
+    LIBS += -lm -framework OpenGL -framework CoreFoundation
+    PLATFORM_DEFINES += -DGL_SILENCE_DEPRECATION
 
     ifeq ($(system_platform),osx)
         # Native macOS build (CI macOS runner or local Mac developer build).
@@ -568,11 +569,29 @@ $(TARGET): $(OBJECTS)
 # ppc_ops.c contains #pragma STDC FENV_ACCESS ON which requires precise FP semantics
 # For Android DEBUG builds, also ensure -fPIC is applied to prevent relocation errors
 $(CORE_DIR)/Src/CPU/PowerPC/ppc.o: CXXFLAGS := $(filter-out -ffast-math -funsafe-math-optimizations,$(CXXFLAGS))
+$(CORE_DIR)/Src/CPU/PowerPC/ppc.o: CXXFLAGS += -Wno-unused-parameter
 ifeq ($(platform),android)
   ifeq ($(DEBUG),1)
     $(CORE_DIR)/Src/CPU/PowerPC/ppc.o: CXXFLAGS += -fPIC
   endif
 endif
+
+# These vendored/generated sources intentionally expose platform-dependent
+# parameters and legacy implementation details that are unused by this core.
+# Keep their known warning noise local instead of weakening warnings globally.
+MUSASHI_OBJECTS := $(MUSASHI_DIR)/m68kcpu.o \
+                   $(MUSASHI_GEN_DIR)/m68kops.o \
+                   $(MUSASHI_GEN_DIR)/m68kopac.o \
+                   $(MUSASHI_GEN_DIR)/m68kopdm.o \
+                   $(MUSASHI_GEN_DIR)/m68kopnz.o
+LIBRETRO_COMMON_WARNING_OBJECTS := $(LIBRETRO_COMM_DIR)/file/file_path.o \
+                                   $(LIBRETRO_COMM_DIR)/file/retro_dirent.o \
+                                   $(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.o \
+                                   $(LIBRETRO_COMM_DIR)/string/stdstring.o
+
+$(MUSASHI_OBJECTS): CFLAGS += -Wno-unused-parameter
+$(DEPS_DIR)/ugui/ugui.o: CFLAGS += -Wno-sign-compare -Wno-bitwise-op-parentheses -Wno-unused-but-set-variable
+$(LIBRETRO_COMMON_WARNING_OBJECTS): CFLAGS += -Wno-unused-parameter -Wno-sign-compare
 
 %.o: %.c
 	$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<

@@ -42,8 +42,11 @@ void Z80CTC::Write(UINT32 channel, UINT8 value)
 
             bool automaticTrigger = !chn.manualTrigger;
 
-            chn.timeConstant            = value ? value : 256;      // in the spec is value = 0 it's assumed to be 256
-            chn.counter                 = chn.timeConstant;
+            // The register is 8-bit, where zero encodes an effective value of
+            // 256. Keep the raw byte for save-state compatibility and expand
+            // it only when the counter or frequency calculation uses it.
+            chn.timeConstant            = value;
+            chn.counter                 = value ? value : 256;
             chn.waitingForTimeConstant  = false;
             chn.running                 = automaticTrigger;
         }
@@ -59,8 +62,9 @@ UINT32 Z80CTC::CalcFrequency(UINT32 channel, UINT32 inputFrequency)
     // in timer mode we divide by the system clock
 
     if (timerMode) {
-        UINT32  prescaler   = chn.prescaler256 ? 256 : 16;
-        auto    result      = inputFrequency / (chn.timeConstant * prescaler);
+        UINT32  prescaler    = chn.prescaler256 ? 256 : 16;
+        UINT32  timeConstant = chn.timeConstant ? chn.timeConstant : 256;
+        auto    result       = inputFrequency / (timeConstant * prescaler);
         return result;
     }
     else {

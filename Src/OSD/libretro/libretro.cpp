@@ -52,7 +52,9 @@ static StarWarsInput g_active_star_wars_input = StarWarsInput::Hybrid;
 static WidescreenMode g_active_widescreen_mode = WidescreenMode::Disabled;
 
 // GPU timer queries (double-buffered: write slot N, read slot N-1)
+#if defined(CORE_GLES)
 static GLuint s_gpuQuery[2]  = {0, 0};
+#endif
 static int    s_gpuSlot      = 0;
 static float  s_gpuMs        = 0.0f;
 static bool   s_gpuQueryOK   = false;
