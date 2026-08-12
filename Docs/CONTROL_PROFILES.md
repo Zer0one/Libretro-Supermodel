@@ -51,7 +51,9 @@ Model 3 game list is effectively complete.
   default to a transparent 100%. Their
   75.3% preset maps full physical travel to the exact `00-C0` range.
 - Single-view driving cabinets map VR1 to D-Pad Up. The Sega Rally 2-style
-  profile additionally maps Handbrake to South and Neutral to West.
+  profile additionally maps Handbrake to South.
+- All 4-speed profiles expose Neutral on West, alongside the right-stick
+  four-way gate and the L/R sequential controls.
 - Four-button VR cabinets use the D-Pad as a POV: Green/Down, Red/Right,
   Blue/Left, and Yellow/Up.
 - Harley-Davidson maps VR1 to D-Pad Up, Rear Brake to South, and Music Select to
