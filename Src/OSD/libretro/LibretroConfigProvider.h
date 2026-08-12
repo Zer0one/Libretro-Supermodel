@@ -185,13 +185,13 @@ namespace LibretroConfigProvider {
         config.Set<std::string>("InputGearShiftN", "KEY_T", "Input", "", "");
 
         // VR4 view change buttons (Daytona 2, Le Mans 24, Scud Race)
-        config.Set<std::string>("InputVR1", "KEY_A,JOY1_BUTTON2", "Input", "", ""); // Red: East
-        config.Set<std::string>("InputVR2", "KEY_S,JOY1_BUTTON3", "Input", "", ""); // Blue: West
-        config.Set<std::string>("InputVR3", "KEY_D,JOY1_BUTTON4", "Input", "", ""); // Yellow: North
-        config.Set<std::string>("InputVR4", "KEY_F,JOY1_BUTTON1", "Input", "", ""); // Green: South
+        config.Set<std::string>("InputVR1", "KEY_A,JOY1_POV1_RIGHT", "Input", "", ""); // Red: D-Pad Right
+        config.Set<std::string>("InputVR2", "KEY_S,JOY1_POV1_LEFT", "Input", "", ""); // Blue: D-Pad Left
+        config.Set<std::string>("InputVR3", "KEY_D,JOY1_POV1_UP", "Input", "", ""); // Yellow: D-Pad Up
+        config.Set<std::string>("InputVR4", "KEY_F,JOY1_POV1_DOWN", "Input", "", ""); // Green: D-Pad Down
 
         // Single view change button (Dirt Devils, ECA, Harley-Davidson, Sega Rally 2)
-        config.Set<std::string>("InputViewChange", "KEY_A,JOY1_BUTTON1", "Input", "", "");
+        config.Set<std::string>("InputViewChange", "KEY_A,JOY1_POV1_UP", "Input", "", "");
 
         // Handbrake (Sega Rally 2)
         config.Set<std::string>("InputHandBrake", "KEY_S,JOY1_BUTTON2", "Input", "", "");
@@ -644,7 +644,8 @@ namespace LibretroConfigProvider {
 
     inline void ApplyStandardJoystickLayout(Util::Config::Node &config, uint32_t inputs)
     {
-        // CLibretroInputSystem merges the d-pad and left analog stick into POV1.
+        // POV1 mirrors the Libretro D-Pad. RetroArch owns any optional
+        // analog-to-digital mapping selected by the user.
         config.Set<std::string>("InputJoyUp", "KEY_UP,JOY1_POV1_UP");
         config.Set<std::string>("InputJoyDown", "KEY_DOWN,JOY1_POV1_DOWN");
         config.Set<std::string>("InputJoyLeft", "KEY_LEFT,JOY1_POV1_LEFT");
@@ -836,13 +837,13 @@ namespace LibretroConfigProvider {
         }
         if (inputs & Game::INPUT_VR4)
         {
-            config.Set<std::string>("InputVR1", "KEY_A,JOY1_BUTTON2"); // Red: East
-            config.Set<std::string>("InputVR2", "KEY_S,JOY1_BUTTON3"); // Blue: West
-            config.Set<std::string>("InputVR3", "KEY_D,JOY1_BUTTON4"); // Yellow: North
-            config.Set<std::string>("InputVR4", "KEY_F,JOY1_BUTTON1"); // Green: South
+            config.Set<std::string>("InputVR1", "KEY_A,JOY1_POV1_RIGHT"); // Red: D-Pad Right
+            config.Set<std::string>("InputVR2", "KEY_S,JOY1_POV1_LEFT"); // Blue: D-Pad Left
+            config.Set<std::string>("InputVR3", "KEY_D,JOY1_POV1_UP"); // Yellow: D-Pad Up
+            config.Set<std::string>("InputVR4", "KEY_F,JOY1_POV1_DOWN"); // Green: D-Pad Down
         }
         if (inputs & Game::INPUT_VIEWCHANGE)
-            config.Set<std::string>("InputViewChange", "KEY_A,JOY1_BUTTON4"); // North
+            config.Set<std::string>("InputViewChange", "KEY_A,JOY1_POV1_UP"); // D-Pad Up
         if (inputs & Game::INPUT_HANDBRAKE)
         {
             config.Set<std::string>("InputHandBrake", "KEY_S,JOY1_BUTTON1"); // South

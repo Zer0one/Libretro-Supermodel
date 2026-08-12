@@ -201,10 +201,10 @@ bool CLibretroInputSystem::Poll()
         // CInputSystem POV directions are ordered Up, Down, Left, Right.
         // Keep this array in the same order: IsJoyPOVInDir() indexes it with
         // the POV_* constants declared by Supermodel.
-        m_joyPOV[joy][0] = (y < -THRESHOLD) || d_up;    // Up
-        m_joyPOV[joy][1] = (y >  THRESHOLD) || d_down;  // Down
-        m_joyPOV[joy][2] = (x < -THRESHOLD) || d_left;  // Left
-        m_joyPOV[joy][3] = (x >  THRESHOLD) || d_right; // Right
+        m_joyPOV[joy][0] = d_up;    // Up
+        m_joyPOV[joy][1] = d_down;  // Down
+        m_joyPOV[joy][2] = d_left;  // Left
+        m_joyPOV[joy][3] = d_right; // Right
 
         // ----- Buttons -----
         // Standard game buttons (0-3: B, A, Y, X)

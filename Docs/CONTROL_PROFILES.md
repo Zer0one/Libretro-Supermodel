@@ -50,11 +50,11 @@ Model 3 game list is effectively complete.
   same Driving-only application rule. Both are unipolar `00-FF` axes and
   default to a transparent 100%. Their
   75.3% preset maps full physical travel to the exact `00-C0` range.
-- Single-view driving cabinets map VR1 to North. The Sega Rally 2-style
+- Single-view driving cabinets map VR1 to D-Pad Up. The Sega Rally 2-style
   profile additionally maps Handbrake to South and Neutral to West.
-- Four-button VR cabinets follow the RetroPad color convention: Green/South,
-  Red/East, Blue/West, and Yellow/North.
-- Harley-Davidson maps VR1 to North, Rear Brake to South, and Music Select to
+- Four-button VR cabinets use the D-Pad as a POV: Green/Down, Red/Right,
+  Blue/Left, and Yellow/Up.
+- Harley-Davidson maps VR1 to D-Pad Up, Rear Brake to South, and Music Select to
   East.
 - Magical Truck exposes one cabinet side per RetroPad: each player's centered
   analog lever uses the left stick Y axis and each foot pedal uses South.
