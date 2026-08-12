@@ -160,14 +160,29 @@ final frontend presentation while `CModel3::RunFrame()` still performed the
 internal render. Frame duplication or dropping therefore remains frontend
 policy.
 
-Detailed macOS profiling also shows that `audio_batch_cb` can spend roughly
-0–9 ms per frame in frontend pacing. With the experimental ARM64 JIT enabled,
-the measured engine cost falls to about 5.4 ms in Daytona 2 and 4.9 ms in Sega
-Rally 2, while callback-inclusive capacity remains around 84 FPS. Do not treat
-that capacity as pure emulator compute capacity: audio/frontend pacing is now
-the main measured constraint. Its investigation is the highest-priority
-follow-up, and any synchronization change must preserve the currently clean,
-crackle-free 60 Hz output.
+Detailed macOS profiling shows that `audio_batch_cb` can spend roughly 0–9 ms
+per frame in frontend pacing. RetroArch 1.22.2's synchronous audio path accepts
+each complete Libretro batch and may block while the output FIFO drains; this
+variable time therefore completes the 16.67 ms frame budget rather than
+representing additional Supermodel audio emulation. With the experimental
+ARM64 JIT enabled, the measured engine cost falls to about 5.4 ms in Daytona 2
+and 4.9 ms in Sega Rally 2, while callback-inclusive capacity remains governed
+largely by frontend pacing. Do not treat that capacity as pure emulator compute
+capacity, and do not replace the synchronous path merely to reduce the timing
+overlay value: the current output is clean and stably paced at 60 Hz.
+
+The Libretro batch callback returns the number of frames processed. RetroArch
+1.22.2 currently returns the complete requested count after routing the batch
+through its audio pipeline, but the core still preserves any unaccepted frames
+in its ring buffer for compatibility with other conforming frontends. A partial
+submission is reported once at shutdown if it occurred during the session.
+
+RetroArch audio rate control requires a driver that exposes buffer occupancy.
+The SDL2 audio driver does not implement that interface and emits `Rate control
+was desired, but driver does not support needed features`; macOS `coreaudio3`
+does implement it and removes the warning. This is a frontend audio-driver
+capability, not a Supermodel core option. The controller driver is independent
+and may remain SDL2.
 
 A 90-second Daytona 2 interpreter run measured 7.93 ms in the PowerPC and
 7.95 ms in the engine, versus 5.37 and 5.43 ms respectively in the comparable
@@ -209,8 +224,6 @@ Validated on macOS ARM64:
 
 Still requiring validation or implementation:
 
-- investigate `audio_batch_cb`/frontend pacing, including RetroArch's
-  unsupported rate-control warning, without regressing clean 60 Hz audio;
 - visual correctness and extended gameplay testing;
 - Sega Bass Fishing / Get Bass extended gameplay testing beyond the validated
   service-mode input checks;
