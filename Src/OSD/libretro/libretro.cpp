@@ -97,6 +97,7 @@ CoreOptions g_options = {
    /* music_volume         */ 100,
    /* legacy_sound_dsp     */ false,
    /* ppc_frequency        */ 0,
+   /* emulation_threading  */ EmulationThreading::MultiThreadedGPU,
    /* sound_enable         */ true,
    /* jit_enable           */
                               false,
@@ -682,10 +683,20 @@ void retro_run(void)
       unsigned old_crosshairs = g_options.crosshairs;
       GunInput old_gun_input = g_options.gun_input;
       StarWarsInput old_star_wars_input = g_options.star_wars_input;
+      EmulationThreading old_emulation_threading =
+         g_options.emulation_threading;
 #ifdef HAVE_PPC_JIT
       bool old_jit_enable = g_options.jit_enable;
 #endif
       update_core_options();
+
+      if (g_options.emulation_threading != old_emulation_threading)
+      {
+         static const struct retro_message message = {
+            "Emulation Threading will apply after restarting the content.", 180
+         };
+         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
+      }
 
 #ifdef HAVE_PPC_JIT
       if (g_options.jit_enable != old_jit_enable)

@@ -350,6 +350,12 @@ namespace LibretroConfigProvider {
         config.Set("LegacySoundDSP", g_options.legacy_sound_dsp);
         config.Set("ForceFeedback", g_options.force_feedback);
         config.Set("PowerPCFrequency", static_cast<unsigned>(g_options.ppc_frequency));
+        config.Set("MultiThreaded",
+                   g_options.emulation_threading !=
+                       EmulationThreading::SingleThread);
+        config.Set("GPUMultiThreaded",
+                   g_options.emulation_threading ==
+                       EmulationThreading::MultiThreadedGPU);
     }
 
     struct ParsedCommandLine

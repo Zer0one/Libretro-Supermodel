@@ -26,6 +26,12 @@ enum class SteeringResponse {
    FBNeoLogarithmic
 };
 
+enum class EmulationThreading {
+   SingleThread,
+   MultiThreaded,
+   MultiThreadedGPU
+};
+
 struct CoreOptions {
    float resolution_multiplier;
    int upscale_mode;
@@ -40,6 +46,7 @@ struct CoreOptions {
    int music_volume;
    bool legacy_sound_dsp;
    int ppc_frequency;
+   EmulationThreading emulation_threading;
    bool sound_enable;
    bool jit_enable;
    bool timing_overlay;      // draw the ImGui frame-timing overlay (costs a draw pass every frame)

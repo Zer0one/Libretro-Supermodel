@@ -118,7 +118,6 @@ The following standalone options are recorded for later evaluation:
 | `CRTcolors` | Defer to RetroArch shaders unless a need for Supermodel's exact pre-output color transforms is demonstrated. |
 | `QuadRendering` | Defer pending renderer capability negotiation. The desktop path currently requests GLSL 4.5 while macOS OpenGL is limited to 4.1. |
 | `New3DEngine` / Legacy3D | Do not expose until the legacy renderer is consistently buildable and tested; it is unavailable on Apple and GLES targets. |
-| `MultiThreaded` / `GPUMultiThreaded` | Keep upstream defaults. Treat single-thread modes as diagnostics until cross-platform testing demonstrates a user-facing need. |
 | `EmulateDSB` | Defer a separate MPEG music-board switch; muting music is already possible, while disabling emulation is primarily a performance/debug choice. |
 | `NoWhiteFlash` | Defer as a renderer workaround; prefer a documented per-game reason rather than a generic default-facing switch. |
 | `CrosshairStyle=bmp` | Defer until bitmap asset discovery and portable packaging are specified. Vector crosshairs remain self-contained. |
@@ -126,6 +125,14 @@ The following standalone options are recorded for later evaluation:
 | Network and true 57.524160 Hz output | Separate projects: network requires multi-cabinet transport, while true-Hz output requires fractional audio generation or resampling. |
 
 ## CPU options
+
+`Emulation Threading` represents the three meaningful combinations of the
+standalone `MultiThreaded` and `GPUMultiThreaded` settings. `Single Thread`
+disables both; `Multi-threaded` runs the sound and drive boards on worker
+threads; and the default `Multi-threaded + GPU` mode additionally overlaps
+PowerPC emulation with graphics processing. The option is internal to
+Supermodel and is independent of RetroArch's frontend-side `Threaded Video`
+setting. A content restart is required after changing it.
 
 `Emulated PowerPC Frequency` is the Libretro representation of standalone
 Supermodel's `PowerPCFrequency` setting. `Auto` preserves the current upstream
