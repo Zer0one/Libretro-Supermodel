@@ -1400,6 +1400,8 @@ void set_input_descriptors(const Game *game)
             add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
                 RETRO_DEVICE_ID_ANALOG_Y,
                 "4-Speed: Gear 1 (Up) / Gear 2 (Down)");
+            add(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,
+                "4-Speed: Neutral");
          }
          if (profile->inputs & Game::INPUT_VR4)
          {
@@ -1419,9 +1421,6 @@ void set_input_descriptors(const Game *game)
          if (profile->inputs & Game::INPUT_HANDBRAKE)
          {
             add(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B, "Handbrake");
-            if (profile->inputs & Game::INPUT_SHIFT4)
-               add(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,
-                   "4-Speed: Neutral");
          }
          if (profile->inputs & Game::INPUT_HARLEY)
          {

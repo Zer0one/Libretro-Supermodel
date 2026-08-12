@@ -829,11 +829,13 @@ namespace LibretroConfigProvider {
         if (inputs & Game::INPUT_SHIFT4)
         {
             // The embedded 4-speed profile provides both forms at once:
-            // L/R step through gears, while the right stick is a 4-way gate.
+            // L/R step through gears, the right stick is a 4-way gate, and
+            // West selects the neutral position.
             config.Set<std::string>("InputGearShift1", "KEY_Q,JOY1_RYAXIS_NEG"); // up
             config.Set<std::string>("InputGearShift2", "KEY_W,JOY1_RYAXIS_POS"); // down
             config.Set<std::string>("InputGearShift3", "KEY_E,JOY1_RXAXIS_NEG"); // left
             config.Set<std::string>("InputGearShift4", "KEY_R,JOY1_RXAXIS_POS"); // right
+            config.Set<std::string>("InputGearShiftN", "KEY_T,JOY1_BUTTON3"); // West
         }
         if (inputs & Game::INPUT_VR4)
         {
@@ -847,10 +849,6 @@ namespace LibretroConfigProvider {
         if (inputs & Game::INPUT_HANDBRAKE)
         {
             config.Set<std::string>("InputHandBrake", "KEY_S,JOY1_BUTTON1"); // South
-            // This is the only 4-speed profile without VR4, so West is free
-            // for an explicit neutral position.
-            if (inputs & Game::INPUT_SHIFT4)
-                config.Set<std::string>("InputGearShiftN", "KEY_T,JOY1_BUTTON3");
         }
         if (inputs & Game::INPUT_HARLEY)
         {
