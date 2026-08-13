@@ -209,6 +209,12 @@ segments as reliable ordered packets. RetroArch disables pause, fast-forward,
 rewind, and Save State loading while the linked session is active. More than
 two cabinets and non-Daytona network-board protocols remain future work.
 
+Use a stable, low-latency wired LAN. The emulated cabinets exchange one network
+segment in lockstep, matching standalone Supermodel's send/receive behavior;
+network latency and jitter therefore stall emulation rather than being hidden
+by RetroArch's normal input rollback. A 250 ms bounded wait detects a broken
+link, but it is a safety timeout rather than a supported latency target.
+
 ## 🛠 Build Instructions
 
 **Unified Makefile System:** This core uses a single unified `Makefile` supporting 6 platforms:

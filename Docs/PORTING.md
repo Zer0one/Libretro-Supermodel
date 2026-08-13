@@ -370,6 +370,22 @@ each core sends one reliable packet per emulated network-board frame. For two
 nodes this replaces the TCP ring's returned local segment with a local copy,
 preserving the same communication-RAM order while avoiding a redundant packet.
 
+This exchange deliberately remains lockstep. The official netpacket API's
+`RETRO_NETPACKET_FLUSH_HINT` already flushes without blocking, and
+`retro_netpacket_poll_receive_t` explicitly supports a short bounded receive
+loop; the backend uses both. Standalone `CSimNetBoard` likewise sends and then
+waits for the corresponding segment every network-board frame. RetroArch's
+ordinary Netplay input prediction and rollback do not apply to custom
+netpacket payloads, so replacing the wait with stale or predicted cabinet data
+would change the emulated protocol rather than optimize its transport.
+
+A real wired IPv4 link between RetroArch 1.22.2 on Batocera x86-64 and
+RetroArch 1.21.0 on macOS ARM64 remained synchronized without timeouts. A
+controlled one-way 100 ± 25 ms delay kept the logical link alive but reduced
+the Batocera instance to roughly 14 FPS. This confirms that the current mode is
+intended for a stable low-latency LAN; the 250 ms wait is only a bounded failure
+guard and must not be interpreted as a performance target.
+
 The transport uses explicit little-endian protocol headers, validates the game
 family, role, segment size, frame number, and protocol version, and performs a
 short bounded receive poll inside `retro_run()`. A four-frame ready barrier
