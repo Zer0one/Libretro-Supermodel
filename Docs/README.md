@@ -104,15 +104,23 @@ Supermodel's own pre-output colour and gamma transform; it is separate from a
 RetroArch shader and also applies only to New3D. All three settings require a
 content restart because they affect renderer or OpenGL-context creation.
 
+`Supersampling` exposes standalone Supermodel's native 1x-8x supersampling
+pass on supported desktop OpenGL builds. It is applied on top of `Internal
+Resolution`: 2x evaluates four samples per output pixel, 3x evaluates nine,
+and 8x evaluates 64. The combined scale can consume substantial GPU time and
+memory, and changes require restarting the content.
+
 At resolutions above native, `2D Layer Upscaling Filter` selects Supermodel's
-own filter for tile layers before they are composited with the 3D scene. At
-496x384 the engine deliberately uses nearest-neighbor filtering regardless of
-this option.
+own `UpscaleMode` for tile layers before they are composited with the 3D scene.
+At 496x384 the engine deliberately uses nearest-neighbor filtering regardless
+of this option.
 
 `SCSP DSP Engine` defaults to the current MAME-derived implementation. The
 legacy ElSemi engine is retained as a compatibility choice for titles such as
-Fighting Vipers 2. Both this setting and the 2D filter require a content
-restart. Sound and DSB music volume follow standalone's full 0–200% range.
+Fighting Vipers 2; this is standalone's `LegacySoundDSP` setting. Both this
+setting and the 2D filter require a content restart. Sound and DSB music volume
+follow standalone's full 0–200% range. The separate standalone `EmulateDSB`
+switch is intentionally not exposed.
 
 ## Timing and synchronization
 

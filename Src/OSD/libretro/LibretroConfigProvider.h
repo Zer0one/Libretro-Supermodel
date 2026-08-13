@@ -338,6 +338,7 @@ namespace LibretroConfigProvider {
                    !use_legacy_3d && g_options.quad_rendering);
         config.Set("CRTcolors",
                    !use_legacy_3d ? g_options.crt_colors : 0);
+        config.Set("Supersampling", g_options.supersampling);
         config.Set("UpscaleMode", g_options.upscale_mode);
         config.Set("WideScreen",
                    g_options.widescreen_mode != WidescreenMode::Disabled);

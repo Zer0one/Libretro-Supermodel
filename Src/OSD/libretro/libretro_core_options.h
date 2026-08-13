@@ -200,6 +200,28 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "0"
    },
 #endif
+#ifdef HAVE_SUPERSAMPLING
+   {
+      "supermodel_supersampling",
+      "Supersampling",
+      NULL,
+      "Render each output pixel from multiple internal samples using Supermodel's native supersampling pass. The scale applies on top of Internal Resolution: 2x uses 4 samples per pixel, 3x uses 9, and 8x uses 64. Higher values can require substantial GPU time and memory. Takes effect after restarting content.",
+      NULL,
+      "video",
+      {
+         { "1", "1x (Disabled, Default)" },
+         { "2", "2x (4 Samples)" },
+         { "3", "3x (9 Samples)" },
+         { "4", "4x (16 Samples)" },
+         { "5", "5x (25 Samples)" },
+         { "6", "6x (36 Samples)" },
+         { "7", "7x (49 Samples)" },
+         { "8", "8x (64 Samples)" },
+         { NULL, NULL },
+      },
+      "1"
+   },
+#endif
    {
       "supermodel_timing_overlay",
       "Frame Timing Overlay",
@@ -647,6 +669,15 @@ void update_core_options(void)
       g_options.crt_colors = 0;
 #else
    g_options.crt_colors = 0;
+#endif
+
+#ifdef HAVE_SUPERSAMPLING
+   g_options.supersampling =
+      atoi(option_get("supermodel_supersampling", "1"));
+   if (g_options.supersampling < 1 || g_options.supersampling > 8)
+      g_options.supersampling = 1;
+#else
+   g_options.supersampling = 1;
 #endif
 
    g_options.upscale_mode = atoi(option_get("supermodel_upscale_mode", "2"));

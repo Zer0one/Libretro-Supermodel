@@ -116,6 +116,7 @@ platform-name checks:
 | `HAVE_LEGACY3D` | Exposes runtime selection between New3D and experimental Legacy3D and negotiates a desktop OpenGL compatibility context for the latter. Forced `RENDERER=legacy` builds remain fixed to Legacy3D. |
 | `HAVE_QUAD_RENDERING` | Exposes New3D native-quad rendering and requests an OpenGL 4.5 core context when enabled. |
 | `HAVE_CRT_COLOURS` | Exposes Supermodel's native New3D pre-output colour/gamma transforms. |
+| `HAVE_SUPERSAMPLING` | Exposes Supermodel's native 1x-8x supersampling pass on desktop OpenGL builds. |
 
 The root Makefile derives these defines from the renderer sources and graphics
 API supported by each build. A future macOS or GLES implementation should
@@ -132,12 +133,9 @@ The following standalone options are recorded for later evaluation:
 
 | Option | Current decision |
 | --- | --- |
-| `Supersampling` | Defer: distinct from, but easily confused with, Libretro internal resolution and frontend downscaling. Define a clear UX before exposing it. |
-| `EmulateDSB` | Defer a separate MPEG music-board switch; muting music is already possible, while disabling emulation is primarily a performance/debug choice. |
 | `NoWhiteFlash` | Defer as a renderer workaround; prefer a documented per-game reason rather than a generic default-facing switch. |
 | `CrosshairStyle=bmp` | Defer until bitmap asset discovery and portable packaging are specified. Vector crosshairs remain self-contained. |
 | `FlipStereo` and audio balance controls | Defer as low-priority output/downmix controls; evaluate what belongs to RetroArch and what must occur before the four-channel-to-stereo mix. |
-| Per-game `Country` and `Link/Cabinet` settings | Planned: expose supported values through Core Options and update only the corresponding game-specific EEPROM fields, preserving all unrelated machine settings and producing the checksum expected by each game. `Link/Cabinet` configuration is distinct from implementing network-board transport. |
 | Network and true 57.524160 Hz output | Separate projects: network requires multi-cabinet transport, while true-Hz output requires fractional audio generation or resampling. |
 
 ## CPU options

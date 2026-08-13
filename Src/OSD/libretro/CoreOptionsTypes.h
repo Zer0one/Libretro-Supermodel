@@ -54,6 +54,7 @@ struct CoreOptions {
    Renderer3D renderer_3d;
    bool quad_rendering;
    int crt_colors;
+   int supersampling;
    int upscale_mode;
    WidescreenMode widescreen_mode;
    unsigned crosshairs;      // native Supermodel mask: 0=off, 1=P1, 2=P2, 3=both
