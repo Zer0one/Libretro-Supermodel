@@ -136,7 +136,7 @@ The following standalone options are recorded for later evaluation:
 | `NoWhiteFlash` | Defer as a renderer workaround; prefer a documented per-game reason rather than a generic default-facing switch. |
 | `CrosshairStyle=bmp` | Defer until bitmap asset discovery and portable packaging are specified. Vector crosshairs remain self-contained. |
 | `FlipStereo` and audio balance controls | Defer as low-priority output/downmix controls; evaluate what belongs to RetroArch and what must occur before the four-channel-to-stereo mix. |
-| Network and true 57.524160 Hz output | Separate projects: network requires multi-cabinet transport, while true-Hz output requires fractional audio generation or resampling. |
+| True 57.524160 Hz output | Requires fractional audio generation or resampling; the current core deliberately retains standalone's default 60 Hz cadence. |
 
 ## CPU options
 
@@ -352,6 +352,36 @@ normal NVRAM block interface after the frontend `.srm` or native `.nv` has been
 loaded. The Daytona USA 2 family currently exposes Country, Link Mode, Car
 Number, and Cabinet Type. The core preserves unrelated bits, writes both
 settings copies, regenerates CRC-16/XMODEM, and does not alter backup RAM.
+
+## Libretro linked-cabinet transport
+
+The Libretro backend registers `RETRO_ENVIRONMENT_SET_NETPACKET_INTERFACE` in
+`retro_init()`. This lets RetroArch manage peer discovery and transport while
+the core sends the actual emulated network-board data. The bundled
+`libretro.h` predates the API, so `LibretroNetPacket.h` backports only the
+official compatible declarations instead of replacing the entire vendored
+libretro-common snapshot.
+
+`CLibretroNetBoard` is independent from standalone `CSimNetBoard`: standalone
+continues to use its SDL_net TCP ring. The first Libretro protocol version is
+deliberately limited to two Daytona USA 2 cabinets. RetroArch client 0 must be
+the Model 3 Master and client 1 the Slave. After a bidirectional role handshake,
+each core sends one reliable packet per emulated network-board frame. For two
+nodes this replaces the TCP ring's returned local segment with a local copy,
+preserving the same communication-RAM order while avoiding a redundant packet.
+
+The transport uses explicit little-endian protocol headers, validates the game
+family, role, segment size, frame number, and protocol version, and performs a
+short bounded receive poll inside `retro_run()`. A four-frame ready barrier
+prevents one frontend from entering the first blocking exchange while its peer
+is still completing the Netplay handshake. A localhost test with isolated
+Master/Slave NVRAM reached the normal linked game flow and remained synchronized
+until both RetroArch instances were deliberately closed.
+
+Expansion to more than two cabinets requires generalizing machine enumeration
+and segment ordering. Games using Supermodel's type-2 network-board protocol
+(Le Mans 24, Virtual-On 2, and Dirt Devils) require their separate status and
+playable/relay index layout before they can be enabled.
 
 Libretro Save States use standalone Supermodel's current version-6 header and
 ROM-set identifier before the normal subsystem blocks. This rejects states

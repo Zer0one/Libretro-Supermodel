@@ -3176,7 +3176,7 @@ Result CModel3::Init(void)
   PCIBus.AttachDevice(16,this);
 
 #ifdef SUPERMODEL_OSD_LIBRETRO
-  NetBoard = new CLibretroNetBoard();
+  NetBoard = new CLibretroNetBoard(m_config);
 #else
   if (m_config["SimulateNet"].ValueAs<bool>())
     NetBoard = new CSimNetBoard(m_config);

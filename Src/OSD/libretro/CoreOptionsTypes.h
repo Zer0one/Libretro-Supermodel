@@ -45,6 +45,7 @@ enum class FourSpeedShifter {
 
 struct CoreOptions {
    bool initial_nvram_setup;
+   bool network_board;
    bool nvram_settings_enabled;
    int nvram_country;
    int nvram_link_mode;

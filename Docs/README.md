@@ -189,6 +189,26 @@ currently expose Country, Link Mode, Car Number, and Cabinet Type. Changes are
 written to the frontend `.srm` with the required redundant copy and checksum;
 restart the content before expecting the game to use the new machine setting.
 
+### Experimental linked cabinets
+
+`System > Network Board (Experimental)` connects two Daytona USA 2 cabinets
+through RetroArch Netplay and Libretro's netpacket API. It is disabled by
+default and currently supports the Daytona USA 2 family with exactly two
+players. The standalone emulator's SDL_net transport is not used or modified.
+
+Configure both instances before starting Netplay:
+
+- enable `NVRAM Settings` and `Network Board (Experimental)`;
+- set the RetroArch host to `Link Mode: Master`, normally with `Car Number: 1`;
+- set the client to `Link Mode: Slave` with a different car number;
+- restart the content on both sides, then host/join the same content through
+  RetroArch Netplay.
+
+The core validates opposite cabinet roles and exchanges the Model 3 network
+segments as reliable ordered packets. RetroArch disables pause, fast-forward,
+rewind, and Save State loading while the linked session is active. More than
+two cabinets and non-Daytona network-board protocols remain future work.
+
 ## 🛠 Build Instructions
 
 **Unified Makefile System:** This core uses a single unified `Makefile` supporting 6 platforms:
