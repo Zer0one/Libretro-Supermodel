@@ -230,8 +230,6 @@ Validated on macOS ARM64:
 Still requiring validation or implementation:
 
 - visual correctness and extended gameplay testing;
-- Sega Bass Fishing / Get Bass extended gameplay testing beyond the validated
-  service-mode input checks;
 - extended audio, controls, force-feedback, and Save State coverage across more
   games;
 - Linux, Windows, Android, and other advertised build targets;
@@ -239,8 +237,9 @@ Still requiring validation or implementation:
   on Android ARM64, Raspberry Pi 64-bit, and generic Linux AArch64; compilation
   alone does not establish game compatibility;
 - network-board emulation for multi-cabinet play: the current Libretro
-  placeholder reports the board as detached. Single-cabinet operation works
-  when selected in the game's machine settings and stored in NVRAM.
+  placeholder reports the board as detached. Automatic initial NVRAM setup
+  selects Single/No Link for the known affected revisions; actual linked-cabinet
+  transport remains unimplemented.
 
 Libretro save RAM is canonical and is persisted by the frontend as a fixed-size
 `.srm`. Its payload uses the same block container as standalone Supermodel
@@ -248,8 +247,15 @@ NVRAM, with zero padding after the final block. A native `<rom-set>.nv` in the
 frontend save directory is imported only when the frontend supplied no `.srm`
 data; when both sources exist, `.srm` wins and the decision is logged. The core
 never modifies `.nv`; if native import fails, default NVRAM is initialized and
-persisted to a new `.srm`. Older headerless `.srm` files from the initial
-Libretro port remain readable.
+persisted to a new `.srm`. With `Automatic Initial NVRAM Setup` enabled, the
+core instead supplies a game-generated 93C46 EEPROM template for known Daytona
+USA 2, Scud Race, Dirt Devils, and Star Wars Trilogy revisions whenever no
+valid save source exists. These templates configure Single/No Link or disable
+unsupported lever feedback as appropriate. They include the checksums written
+by each game's Service menu; backup RAM is not templated. This is a one-time
+initialization: an existing `.srm` or valid `.nv` is never patched, and deleting
+the `.srm` explicitly requests regeneration. Older headerless `.srm` files from
+the initial Libretro port remain readable.
 
 Libretro Save States use standalone Supermodel's current version-6 header and
 ROM-set identifier before the normal subsystem blocks. This rejects states

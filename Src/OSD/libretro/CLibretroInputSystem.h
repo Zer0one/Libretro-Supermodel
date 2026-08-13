@@ -43,6 +43,7 @@ private:
     int16_t m_joyButtons[2][NUM_JOY_BUTTONS];
     int16_t m_joyAxes[2][NUM_JOY_AXES];
     uint8_t m_joyPOV[2][4]; // Up, Down, Left, Right
+    unsigned m_hGatePosition; // active diagonal: 0=center, 1-4=gear position
     bool m_keyState[512];  // Add this for keyboard
     
     // Supermodel mouse numbers:

@@ -6,6 +6,11 @@
 // --- Core Options ---
 static struct retro_core_option_v2_category option_cats[] = {
    {
+      "system",
+      "System",
+      "Configure machine initialization and persistence."
+   },
+   {
       "video",
       "Video",
       "Configure graphics and rendering options."
@@ -29,6 +34,21 @@ static struct retro_core_option_v2_category option_cats[] = {
 };
 
 static struct retro_core_option_v2_definition option_defs[] = {
+   // System
+   {
+      "supermodel_initial_nvram_setup",
+      "Automatic Initial NVRAM Setup",
+      NULL,
+      "When no frontend .srm or valid standalone .nv exists, initialize known games with the cabinet settings required to boot without unsupported linked cabinets or lever feedback. Existing saves are never modified. Delete the game's .srm to regenerate this initial setup. Restart content to apply.",
+      NULL,
+      "system",
+      {
+         { "enabled",  NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
    // Video
    {
       "supermodel_resolution",
@@ -113,14 +133,15 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "supermodel_gun_input",
       "Gun Input Mode",
       NULL,
-      "Input source for analog-gun games. Hybrid accepts RetroArch Lightgun, Mouse, and the left Analog Stick through one virtual cursor. Dedicated modes restrict input to the selected source. Changes take effect immediately.",
+      "Input source for analog-gun games. Standard accepts RetroArch Lightgun, Mouse, and the left Analog Stick through one virtual cursor. Mouse + Analog Stick excludes Lightgun coordinates while retaining both relative cursor sources. Dedicated modes restrict input to the selected source. Changes take effect immediately.",
       NULL,
       "input",
       {
-         { "hybrid",   "Hybrid (Lightgun / Mouse / Analog)" },
-         { "lightgun", "Lightgun" },
-         { "mouse",    "Mouse" },
-         { "analog",   "Analog Stick Cursor" },
+         { "hybrid",   "Standard" },
+         { "lightgun", "Lightgun Only" },
+         { "mouse_analog", "Mouse + Analog Stick" },
+         { "mouse",    "Mouse Only" },
+         { "analog",   "Analog Stick Only" },
          { NULL, NULL },
       },
       "hybrid"
@@ -129,13 +150,13 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "supermodel_star_wars_input",
       "Star Wars Trilogy Input Mode",
       NULL,
-      "Input source for the arcade analog joystick used by Star Wars Trilogy Arcade. Hybrid accepts the Mouse and left Analog Stick through one virtual control, with the last moved source taking priority. Changes take effect immediately.",
+      "Input source for the arcade analog joystick used by Star Wars Trilogy Arcade. Standard accepts the Mouse and left Analog Stick through one virtual control, with the last moved source taking priority. Changes take effect immediately.",
       NULL,
       "input",
       {
-         { "hybrid", "Hybrid (Mouse / Analog Stick)" },
-         { "mouse",  "Mouse" },
-         { "analog", "Analog Stick" },
+         { "hybrid", "Standard" },
+         { "mouse",  "Mouse Only" },
+         { "analog", "Analog Stick Only" },
          { NULL, NULL },
       },
       "hybrid"
@@ -153,6 +174,20 @@ static struct retro_core_option_v2_definition option_defs[] = {
          { NULL, NULL },
       },
       "disabled"
+   },
+   {
+      "supermodel_four_speed_shifter",
+      "4-Speed Shifter",
+      NULL,
+      "Applied only to recognized 4-Speed driving games. Standard assigns each of the four remappable directional inputs directly to one gear. H-Gate interprets them as Up, Down, Left, and Right, selecting gears from the four diagonal positions. Neutral remains on West and L/R remain sequential shift controls. Changes take effect immediately.",
+      NULL,
+      "input",
+      {
+         { "h_gate",   "H-Gate Mode" },
+         { "standard", "Standard" },
+         { NULL, NULL },
+      },
+      "h_gate"
    },
    {
       "supermodel_steering_response",
@@ -408,6 +443,10 @@ static const char* option_get(const char* key, const char* default_value)
 // --- Update Core Options ---
 void update_core_options(void)
 {
+   g_options.initial_nvram_setup =
+      strcmp(option_get("supermodel_initial_nvram_setup", "enabled"),
+             "enabled") == 0;
+
    const char* resolution = option_get("supermodel_resolution", "native");
    if (strcmp(resolution, "half") == 0)
       g_options.resolution_multiplier = 0.5f;
@@ -455,6 +494,8 @@ void update_core_options(void)
       const char *gun_input = option_get("supermodel_gun_input", "hybrid");
       g_options.gun_input = strcmp(gun_input, "lightgun") == 0 ? GunInput::Lightgun
                           : strcmp(gun_input, "mouse") == 0    ? GunInput::Mouse
+                          : strcmp(gun_input, "mouse_analog") == 0
+                                                               ? GunInput::MouseAnalog
                           : strcmp(gun_input, "analog") == 0   ? GunInput::AnalogSticks
                                                                : GunInput::Hybrid;
    }
@@ -468,6 +509,11 @@ void update_core_options(void)
             ? StarWarsInput::AnalogSticks
             : StarWarsInput::Hybrid;
    }
+   g_options.four_speed_shifter =
+      strcmp(option_get("supermodel_four_speed_shifter", "h_gate"),
+             "h_gate") == 0
+         ? FourSpeedShifter::HGate
+         : FourSpeedShifter::Standard;
    g_options.force_feedback = strcmp(option_get("supermodel_force_feedback", "disabled"), "enabled") == 0;
    {
       const char *response = option_get("supermodel_steering_response", "linear");

@@ -122,6 +122,20 @@ is the theoretical rate implied by all time spent inside `retro_run` and is not
 the displayed frame rate. `Audio/pacing` may include intentional frontend
 waiting when RetroArch audio synchronization is enabled.
 
+For broad boot testing, `Scripts/libretro_smoke_test.py` enumerates the sets in
+`Games.xml` and launches each available ROM in a separate temporary RetroArch
+environment. `--seconds` is converted to a deterministic `--max-frames` count,
+so it measures emulated time even when `--fast-forward` is enabled. On macOS,
+the script records the actual RetroArch window through ScreenCaptureKit and
+uses FFmpeg to extract the final video frame. Results include one named `.mov`,
+final-frame `.png`, and log per set, generated isolated `.srm` files, and
+CSV/JSON summaries containing missing ROMs, timeouts, non-zero exits, and crash
+signals. These results are persistent and default to a timestamped folder under
+`~/Documents/RetroArch/supermodel-smoke/`; only each game's disposable RetroArch
+runtime environment uses temporary storage. The calling terminal needs macOS
+Screen Recording permission. Run the script with `--help` for platform paths
+and filters.
+
 Controller mappings and RetroArch input labels are selected automatically from
 the control signature declared by the loaded game. See
 [Libretro control profiles](CONTROL_PROFILES.md) for the complete catalog and
@@ -131,8 +145,15 @@ NVRAM is normally persisted by the frontend as `<content>.srm`. To import a
 standalone Supermodel save, place `<rom-set>.nv` directly in the frontend save
 directory. The core reads `.nv` only when no `.srm` data was supplied. If both
 are present, `.srm` takes precedence and the ignored `.nv` path is reported in
-the log. An invalid `.nv` is ignored and replaced by default machine settings
-in a new `.srm`. The core never writes or overwrites the native `.nv` file.
+the log. `Automatic Initial NVRAM Setup` is enabled by default. When neither a
+frontend `.srm` nor a valid native `.nv` exists, it initializes known Daytona
+USA 2, Scud Race, Dirt Devils, and Star Wars Trilogy revisions with the machine
+settings needed to boot without unsupported cabinet links or lever feedback.
+Only the initial EEPROM is supplied; backup RAM starts empty. Existing saves
+are never modified, and deleting a game's `.srm` regenerates the initial setup
+on its next launch. Disable the option before first launch to retain the game's
+unconfigured factory defaults. The core never writes or overwrites native
+`.nv` files.
 
 ## 🛠 Build Instructions
 

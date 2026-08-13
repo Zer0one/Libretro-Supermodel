@@ -30,8 +30,12 @@ Model 3 game list is effectively complete.
 - Driving variants share the same base implementation. `shift4`,
   `shiftupdown`, `viewchange`, `vr4`, `handbrake`, and `harley` enable only the
   corresponding controls.
-- A recognized 4-speed driving profile maps L/R to sequential shift and the
-  right analog stick to the four-position gear gate at the same time.
+- A recognized 4-speed driving profile maps L/R to sequential shift and uses
+  the four remappable half-axis inputs as an H-gate by default:
+  Up/Left selects Gear 1, Down/Left Gear 2, Up/Right Gear 3, and Down/Right
+  Gear 4. The `4-Speed Shifter` core option can switch to `Standard`, where
+  each half-axis directly selects one gear. The option and its input
+  descriptions update immediately.
 - Driving profiles expose only the linear steering axis to RetroArch. Digital
   sources such as the D-pad can be assigned to it using the frontend's native
   remapping, without a second digital steering path inside the core.
@@ -68,17 +72,19 @@ Model 3 game list is effectively complete.
   Reel is an analog `00-FF` speed value on all fishing cabinets.
 - Twin-stick cabinets map the left/right shot triggers to L2/R2 and the
   left/right turbo buttons to L/R.
-- Gun games default to `Hybrid (Lightgun / Mouse / Analog)`. Absolute
-  RetroLightgun coordinates, relative RetroMouse movement, and each RetroPad's
+- Gun games default to `Standard`, combining Lightgun, Mouse, and Analog Stick.
+  Absolute RetroLightgun coordinates, relative RetroMouse movement, and each RetroPad's
   left stick update one shared cursor per player. Dedicated Lightgun, Mouse,
-  and Analog Stick Cursor modes restrict polling to the selected source.
-- Hybrid shot inputs are deliberately parallel: Lightgun Trigger/Reload and
-  RetroPad South/East are Left/Right Shot. Lightgun Aux A is accepted as an
+  and Analog Stick modes restrict polling to the selected source. Mouse
+  + Analog Stick keeps both relative cursor sources active without consuming
+  RetroLightgun coordinates.
+- Standard-mode shot inputs are deliberately parallel: Lightgun
+  Trigger/Reload and RetroPad South/East are Left/Right Shot. Lightgun Aux A is accepted as an
   additional Right Shot binding. `IS_OFFSCREEN` is position state and is never
   treated as a pressed button.
-- The core option can restrict the profile to Lightgun, Mouse, or Analog
-  Sticks. It is
-  applied immediately; content does not need to be reloaded.
+- The core option can restrict the profile to Lightgun, Mouse, Mouse + Analog
+  Stick, or Analog Sticks. It is applied immediately; content does not need to
+  be reloaded.
 - P1 and P2 remain logically independent. Actual two-mouse or two-lightgun
   operation still depends on the frontend input driver; RetroArch's macOS
   `cocoa` driver currently reports neither multi-mouse nor native lightgun

@@ -18,6 +18,7 @@
 #include "LibretroTiming.h"
 #include "Game.h"
 #include "LibretroBlockFileMemory.h"
+#include "InitialNvramTemplates.h"
 #include "LibretroInputProfiles.h"
 #include "LibretroWrapper.h"
 #include <GL/glew.h>
@@ -86,6 +87,7 @@ char retro_save_directory[4096];
 char retro_base_directory[4096];
 
 CoreOptions g_options = {
+   /* initial_nvram_setup */ true,
    /* resolution_multiplier */ 1,
    /* upscale_mode          */ 2,
    /* widescreen_mode      */ WidescreenMode::Disabled,
@@ -106,6 +108,7 @@ CoreOptions g_options = {
    /* timing_overlay      */ false,
    /* gun_input           */ GunInput::Hybrid,
    /* star_wars_input     */ StarWarsInput::Hybrid,
+   /* four_speed_shifter  */ FourSpeedShifter::HGate,
 };
 
 static bool widescreen_enabled()
@@ -289,6 +292,33 @@ static bool unserialize_nvram(const char* source, bool allow_legacy_layout)
    }
 
    wrapper.getEmulator()->LoadNVRAM(&memFile);
+   return true;
+}
+
+static bool apply_initial_nvram_template(void)
+{
+   const LibretroInitialNvram::Template *initial =
+      LibretroInitialNvram::Find(wrapper.getGame().name);
+   if (!initial)
+      return false;
+
+   // Build the normal, standalone-compatible container around the emulator's
+   // genuinely empty backup RAM, then replace only the 93C46 machine settings.
+   // Each template already contains the checksum written by the game's own
+   // Service menu, so no game-specific checksum implementation is needed.
+   serialize_nvram();
+   CBlockFileMemory memFile(g_nvram_buffer, NVRAM_BUFFER_SIZE);
+   if (memFile.FindBlock("93C46") != Result::OKAY)
+      return false;
+   memFile.Write(initial->eeprom.data(),
+                 static_cast<uint32_t>(sizeof(initial->eeprom)));
+   if (memFile.HasError() ||
+       !unserialize_nvram("automatic initial NVRAM template", false))
+      return false;
+
+   log_cb(RETRO_LOG_INFO,
+          "[Supermodel] Applied automatic initial NVRAM setup for %s\n",
+          wrapper.getGame().name.c_str());
    return true;
 }
 
@@ -689,6 +719,8 @@ void retro_run(void)
       unsigned old_crosshairs = g_options.crosshairs;
       GunInput old_gun_input = g_options.gun_input;
       StarWarsInput old_star_wars_input = g_options.star_wars_input;
+      FourSpeedShifter old_four_speed_shifter =
+         g_options.four_speed_shifter;
       EmulationThreading old_emulation_threading =
          g_options.emulation_threading;
 #ifdef HAVE_PPC_JIT
@@ -767,6 +799,15 @@ void retro_run(void)
                    "[Supermodel] Star Wars Trilogy Input applied immediately.\n");
       }
 
+      if (g_options.four_speed_shifter != old_four_speed_shifter)
+      {
+         if (g_has_active_input_game)
+            set_input_descriptors(&g_active_input_game);
+         if (log_cb)
+            log_cb(RETRO_LOG_INFO,
+                   "[Supermodel] 4-Speed Shifter applied immediately.\n");
+      }
+
       if (g_options.crosshairs != old_crosshairs)
          wrapper.SetCrosshairs(g_options.crosshairs);
 
@@ -827,13 +868,30 @@ void retro_run(void)
             log_cb(RETRO_LOG_WARN,
                    "[Supermodel] Native .nv is invalid; ignoring it and initializing new .srm save RAM\n");
             g_nvram_initialized = true;
-            serialize_nvram();
+            const bool has_initial_template =
+               LibretroInitialNvram::Find(wrapper.getGame().name) != nullptr;
+            const bool template_applied = g_options.initial_nvram_setup &&
+               apply_initial_nvram_template();
+            if (!template_applied)
+            {
+               serialize_nvram();
+               if (g_options.initial_nvram_setup && has_initial_template)
+                  log_cb(RETRO_LOG_ERROR,
+                         "[Supermodel] Unable to apply automatic initial NVRAM setup for %s\n",
+                         wrapper.getGame().name.c_str());
+            }
          }
       }
       else
       {
          log_cb(RETRO_LOG_INFO, "[Supermodel] No NVRAM data found, using defaults\n");
          g_nvram_initialized = true;
+         if (g_options.initial_nvram_setup &&
+             !apply_initial_nvram_template() &&
+             LibretroInitialNvram::Find(wrapper.getGame().name))
+            log_cb(RETRO_LOG_ERROR,
+                   "[Supermodel] Unable to apply automatic initial NVRAM setup for %s\n",
+                   wrapper.getGame().name.c_str());
       }
    }
 
@@ -1234,6 +1292,9 @@ void set_controller_info(const Game &game)
       case GunInput::Mouse:
          device_name = "Gun (Mouse)";
          break;
+      case GunInput::MouseAnalog:
+         device_name = "Gun (Mouse + Analog Stick)";
+         break;
       case GunInput::AnalogSticks:
          device_name = "Gun (Analog Sticks)";
          break;
@@ -1380,6 +1441,25 @@ void set_input_descriptors(const Game *game)
                    RETRO_DEVICE_ID_MOUSE_LEFT, "Left Shot");
                add(port, RETRO_DEVICE_MOUSE, 0,
                    RETRO_DEVICE_ID_MOUSE_RIGHT, "Right Shot");
+               break;
+
+            case GunInput::MouseAnalog:
+               add(port, RETRO_DEVICE_MOUSE, 0,
+                   RETRO_DEVICE_ID_MOUSE_X, "Gun Yaw (Mouse)");
+               add(port, RETRO_DEVICE_MOUSE, 0,
+                   RETRO_DEVICE_ID_MOUSE_Y, "Gun Pitch (Mouse)");
+               add(port, RETRO_DEVICE_MOUSE, 0,
+                   RETRO_DEVICE_ID_MOUSE_LEFT, "Left Shot (Mouse)");
+               add(port, RETRO_DEVICE_MOUSE, 0,
+                   RETRO_DEVICE_ID_MOUSE_RIGHT, "Right Shot (Mouse)");
+               add(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
+                   RETRO_DEVICE_ID_ANALOG_X, "Gun Yaw (Analog Cursor)");
+               add(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
+                   RETRO_DEVICE_ID_ANALOG_Y, "Gun Pitch (Analog Cursor)");
+               add(port, RETRO_DEVICE_JOYPAD, 0,
+                   RETRO_DEVICE_ID_JOYPAD_B, "Left Shot (Analog)");
+               add(port, RETRO_DEVICE_JOYPAD, 0,
+                   RETRO_DEVICE_ID_JOYPAD_A, "Right Shot (Analog)");
                break;
 
             case GunInput::AnalogSticks:
@@ -1540,12 +1620,22 @@ void set_input_descriptors(const Game *game)
 
          if (profile->inputs & Game::INPUT_SHIFT4)
          {
-            add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
-                RETRO_DEVICE_ID_ANALOG_X,
-                "4-Speed: Gear 3 (Left) / Gear 4 (Right)");
-            add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
-                RETRO_DEVICE_ID_ANALOG_Y,
-                "4-Speed: Gear 1 (Up) / Gear 2 (Down)");
+            if (g_options.four_speed_shifter == FourSpeedShifter::HGate)
+            {
+               add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+                   RETRO_DEVICE_ID_ANALOG_X, "H-Gate: Left / Right");
+               add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+                   RETRO_DEVICE_ID_ANALOG_Y, "H-Gate: Up / Down");
+            }
+            else
+            {
+               add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+                   RETRO_DEVICE_ID_ANALOG_X,
+                   "4-Speed: Gear 3 (Left) / Gear 4 (Right)");
+               add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+                   RETRO_DEVICE_ID_ANALOG_Y,
+                   "4-Speed: Gear 1 (Up) / Gear 2 (Down)");
+            }
             add(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,
                 "4-Speed: Neutral");
          }

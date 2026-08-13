@@ -17,6 +17,7 @@ CLibretroInputSystem::CLibretroInputSystem()
     memset(m_joyButtons, 0, sizeof(m_joyButtons));
     memset(m_joyAxes,    0, sizeof(m_joyAxes));
     memset(m_joyPOV,     0, sizeof(m_joyPOV));
+    m_hGatePosition = 0;
     memset(m_keyState,   0, sizeof(m_keyState));
     memset(m_mouseAxes,  0, sizeof(m_mouseAxes));
     memset(m_mouseButtons, 0, sizeof(m_mouseButtons));
@@ -253,8 +254,67 @@ bool CLibretroInputSystem::Poll()
 
     }
 
+    // The four logical gear inputs are deliberately kept behind virtual
+    // joystick buttons. RetroArch always exposes the same four remappable
+    // right-stick half-axes; this decoder alone decides whether they select
+    // gears directly or describe an H-gate position.
+    constexpr unsigned kGearButtonFirst = 16; // JOY1_BUTTON17 -> array index 16
+    constexpr int kStandardThreshold = 21845; // approximately 2/3 axis travel
+    constexpr int kHGateEnterThreshold = 16000;
+    constexpr int kHGateReleaseThreshold = 12000;
+    const int rightX = m_joyAxes[0][AXIS_RX];
+    const int rightY = m_joyAxes[0][AXIS_RY];
+
+    if (g_options.four_speed_shifter == FourSpeedShifter::Standard)
+    {
+        m_hGatePosition = 0;
+        m_joyButtons[0][kGearButtonFirst + 0] = rightY < -kStandardThreshold; // Gear 1: Up
+        m_joyButtons[0][kGearButtonFirst + 1] = rightY >  kStandardThreshold; // Gear 2: Down
+        m_joyButtons[0][kGearButtonFirst + 2] = rightX < -kStandardThreshold; // Gear 3: Left
+        m_joyButtons[0][kGearButtonFirst + 3] = rightX >  kStandardThreshold; // Gear 4: Right
+    }
+    else
+    {
+        unsigned candidate = 0;
+        if (rightX < -kHGateEnterThreshold)
+        {
+            if (rightY < -kHGateEnterThreshold) candidate = 1;      // Up/Left
+            else if (rightY > kHGateEnterThreshold) candidate = 2; // Down/Left
+        }
+        else if (rightX > kHGateEnterThreshold)
+        {
+            if (rightY < -kHGateEnterThreshold) candidate = 3;      // Up/Right
+            else if (rightY > kHGateEnterThreshold) candidate = 4; // Down/Right
+        }
+
+        // Retain the active diagonal inside a smaller release threshold. This
+        // prevents noisy axes from repeatedly releasing and pressing the same
+        // gear near a quadrant boundary, while returning to center still
+        // releases all virtual buttons. CGearShift4Input retains the selected
+        // gear after that release, as a physical shifter would.
+        if (candidate == 0 && m_hGatePosition != 0)
+        {
+            const bool left = rightX < -kHGateReleaseThreshold;
+            const bool right = rightX > kHGateReleaseThreshold;
+            const bool up = rightY < -kHGateReleaseThreshold;
+            const bool down = rightY > kHGateReleaseThreshold;
+            const bool stillInPosition =
+                (m_hGatePosition == 1 && left && up) ||
+                (m_hGatePosition == 2 && left && down) ||
+                (m_hGatePosition == 3 && right && up) ||
+                (m_hGatePosition == 4 && right && down);
+            if (stillInPosition)
+                candidate = m_hGatePosition;
+        }
+        m_hGatePosition = candidate;
+        for (unsigned gear = 1; gear <= 4; ++gear)
+            m_joyButtons[0][kGearButtonFirst + gear - 1] =
+                m_hGatePosition == gear;
+    }
+
     // ----- Virtual gun cursors (Supermodel MOUSE5 and MOUSE6) -----
-    // MOUSE5/MOUSE6 combine the sources selected by Gun Input Mode. Dedicated
+    // MOUSE5/MOUSE6 combine the sources selected by Gun Input Mode. Mouse +
+    // Analog Stick is the Hybrid path with Lightgun input excluded. Dedicated
     // Mouse mode consumes only RetroMouse relative movement and buttons;
     // existing Lightgun and Hybrid behavior retains its raw-mouse fallback.
     const int minX = static_cast<int>(m_dispX);
@@ -285,9 +345,11 @@ bool CLibretroInputSystem::Poll()
         const bool allowMouse =
             g_options.gun_input == GunInput::Hybrid ||
             g_options.gun_input == GunInput::Lightgun ||
+            g_options.gun_input == GunInput::MouseAnalog ||
             g_options.gun_input == GunInput::Mouse;
         const bool allowAnalog =
             g_options.gun_input == GunInput::Hybrid ||
+            g_options.gun_input == GunInput::MouseAnalog ||
             g_options.gun_input == GunInput::AnalogSticks;
         if (!m_gunCursorInitialized[port])
         {
