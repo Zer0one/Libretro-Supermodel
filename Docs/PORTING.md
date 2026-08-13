@@ -106,6 +106,24 @@ Compilation proves that the integration layer remains portable; it does not
 replace real-ROM runtime validation. A platform should only be described as
 runtime-tested after loading content in a frontend on that platform.
 
+## Renderer capabilities
+
+Renderer options are controlled by build capabilities rather than runtime
+platform-name checks:
+
+| Define | Core behavior |
+| --- | --- |
+| `HAVE_LEGACY3D` | Exposes runtime selection between New3D and experimental Legacy3D and negotiates a desktop OpenGL compatibility context for the latter. Forced `RENDERER=legacy` builds remain fixed to Legacy3D. |
+| `HAVE_QUAD_RENDERING` | Exposes New3D native-quad rendering and requests an OpenGL 4.5 core context when enabled. |
+| `HAVE_CRT_COLOURS` | Exposes Supermodel's native New3D pre-output colour/gamma transforms. |
+
+The root Makefile derives these defines from the renderer sources and graphics
+API supported by each build. A future macOS or GLES implementation should
+enable the corresponding capability only after its renderer path and Libretro
+context negotiation are actually supported. Legacy3D deliberately carries a
+frontend-crash warning: the compatibility profile and fixed-function entry
+points cannot be made safe through a fallback after context creation.
+
 ## Deferred standalone options
 
 The first Libretro submission intentionally exposes only settings that affect
@@ -115,9 +133,6 @@ The following standalone options are recorded for later evaluation:
 | Option | Current decision |
 | --- | --- |
 | `Supersampling` | Defer: distinct from, but easily confused with, Libretro internal resolution and frontend downscaling. Define a clear UX before exposing it. |
-| `CRTcolors` | Defer to RetroArch shaders unless a need for Supermodel's exact pre-output color transforms is demonstrated. |
-| `QuadRendering` | Defer pending renderer capability negotiation. The desktop path currently requests GLSL 4.5 while macOS OpenGL is limited to 4.1. |
-| `New3DEngine` / Legacy3D | Do not expose until the legacy renderer is consistently buildable and tested; it is unavailable on Apple and GLES targets. |
 | `EmulateDSB` | Defer a separate MPEG music-board switch; muting music is already possible, while disabling emulation is primarily a performance/debug choice. |
 | `NoWhiteFlash` | Defer as a renderer workaround; prefer a documented per-game reason rather than a generic default-facing switch. |
 | `CrosshairStyle=bmp` | Defer until bitmap asset discovery and portable packaging are specified. Vector crosshairs remain self-contained. |

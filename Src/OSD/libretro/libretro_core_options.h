@@ -67,6 +67,58 @@ static struct retro_core_option_v2_definition option_defs[] = {
       },
       "native"
    },
+#if defined(HAVE_LEGACY3D) && !defined(USE_LEGACY3D)
+   {
+      "supermodel_renderer_3d",
+      "3D Renderer",
+      NULL,
+      "Select Supermodel's 3D engine. New3D is the current renderer. Legacy3D uses the desktop OpenGL compatibility profile and may perform better on older or integrated GPUs. Legacy3D is experimental and may crash the frontend or fail to initialize on unsupported OpenGL drivers. Takes effect after restarting content.",
+      NULL,
+      "video",
+      {
+         { "new3d",    "New3D (Default)" },
+         { "legacy3d", "Legacy3D (Experimental)" },
+         { NULL, NULL },
+      },
+      "new3d"
+   },
+#endif
+#ifdef HAVE_QUAD_RENDERING
+   {
+      "supermodel_quad_rendering",
+      "Quad Rendering",
+      NULL,
+      "Render Model 3 quadrilaterals as native quads through New3D's geometry-shader path instead of splitting them into triangles. Requires OpenGL 4.5 and takes effect after restarting content. Ignored by Legacy3D.",
+      NULL,
+      "video",
+      {
+         { "disabled", NULL },
+         { "enabled",  NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+#endif
+#ifdef HAVE_CRT_COLOURS
+   {
+      "supermodel_crt_colors",
+      "CRT Colour",
+      NULL,
+      "Apply Supermodel's native pre-output colour and gamma adaptation. This is distinct from a frontend CRT shader, and applies to New3D after restarting content. Ignored by Legacy3D.",
+      NULL,
+      "video",
+      {
+         { "0", "None (Default)" },
+         { "1", "ARI/D93 (Japan)" },
+         { "2", "PVM-20M2U/D93" },
+         { "3", "BT.601 525/D93" },
+         { "4", "BT.601 525/D65 (USA)" },
+         { "5", "BT.601 625/D65 (Europe/Australia)" },
+         { NULL, NULL },
+      },
+      "0"
+   },
+#endif
    {
       "supermodel_timing_overlay",
       "Frame Timing Overlay",
@@ -458,6 +510,33 @@ void update_core_options(void)
       g_options.resolution_multiplier = 4.0f;
    else
       g_options.resolution_multiplier = 1.0f;  // native
+
+#if defined(USE_LEGACY3D)
+   g_options.renderer_3d = Renderer3D::Legacy3D;
+#elif defined(HAVE_LEGACY3D)
+   g_options.renderer_3d =
+      strcmp(option_get("supermodel_renderer_3d", "new3d"),
+             "legacy3d") == 0
+         ? Renderer3D::Legacy3D : Renderer3D::New3D;
+#else
+   g_options.renderer_3d = Renderer3D::New3D;
+#endif
+
+#ifdef HAVE_QUAD_RENDERING
+   g_options.quad_rendering =
+      strcmp(option_get("supermodel_quad_rendering", "disabled"),
+             "enabled") == 0;
+#else
+   g_options.quad_rendering = false;
+#endif
+
+#ifdef HAVE_CRT_COLOURS
+   g_options.crt_colors = atoi(option_get("supermodel_crt_colors", "0"));
+   if (g_options.crt_colors < 0 || g_options.crt_colors > 5)
+      g_options.crt_colors = 0;
+#else
+   g_options.crt_colors = 0;
+#endif
 
    g_options.upscale_mode = atoi(option_get("supermodel_upscale_mode", "2"));
    if (g_options.upscale_mode < 0 || g_options.upscale_mode > 3)

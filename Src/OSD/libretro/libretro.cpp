@@ -89,6 +89,9 @@ char retro_base_directory[4096];
 CoreOptions g_options = {
    /* initial_nvram_setup */ true,
    /* resolution_multiplier */ 1,
+   /* renderer_3d          */ Renderer3D::New3D,
+   /* quad_rendering       */ false,
+   /* crt_colors           */ 0,
    /* upscale_mode          */ 2,
    /* widescreen_mode      */ WidescreenMode::Disabled,
    /* crosshairs           */ 0,
@@ -587,6 +590,10 @@ bool retro_load_game(const struct retro_game_info *info)
    s_accPpc = s_accRender = s_renderedFrames = s_timingFrames = 0;
    s_frameIntervals = 0;
 
+   // The selected renderer determines which OpenGL profile the frontend must
+   // create, so options have to be read before SET_HW_RENDER is negotiated.
+   update_core_options();
+
    hw_render.context_reset   = context_reset;
    hw_render.context_destroy = context_destroy;
    hw_render.depth           = true;
@@ -598,13 +605,35 @@ bool retro_load_game(const struct retro_game_info *info)
    hw_render.version_major = 3;
    hw_render.version_minor = 0;
 #else
-   // The current renderer follows upstream Supermodel and requires a desktop
-   // OpenGL 4.1 core profile. RETRO_HW_CONTEXT_OPENGL requests a legacy
-   // compatibility context (2.1 on macOS), which cannot compile its shaders.
-   hw_render.context_type = RETRO_HW_CONTEXT_OPENGL_CORE;
-   hw_render.version_major = 4;
-   hw_render.version_minor = 1;
+   // Legacy3D uses fixed-function compatibility entry points. New3D uses a
+   // core profile, raised from 4.1 to 4.5 when geometry-shader-based native
+   // quad rendering is requested.
+   const bool active_quad_rendering =
+      g_options.renderer_3d == Renderer3D::New3D &&
+      g_options.quad_rendering;
+#ifdef HAVE_LEGACY3D
+   if (g_options.renderer_3d == Renderer3D::Legacy3D)
+   {
+      hw_render.context_type = RETRO_HW_CONTEXT_OPENGL;
+      hw_render.version_major = 0;
+      hw_render.version_minor = 0;
+   }
+   else
 #endif
+   {
+      hw_render.context_type = RETRO_HW_CONTEXT_OPENGL_CORE;
+      hw_render.version_major = 4;
+      hw_render.version_minor = active_quad_rendering ? 5 : 1;
+   }
+#endif
+   log_cb(RETRO_LOG_INFO,
+          "[Supermodel] Renderer context: %s, OpenGL %u.%u%s\n",
+          g_options.renderer_3d == Renderer3D::Legacy3D ?
+             "Legacy3D compatibility" : "New3D core",
+          hw_render.version_major, hw_render.version_minor,
+          g_options.renderer_3d == Renderer3D::New3D &&
+             g_options.quad_rendering ?
+                ", Quad Rendering enabled" : "");
    if (!environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render)) {
        log_cb(RETRO_LOG_ERROR, "[Supermodel] HW Render Context negotiation failed.\n");
        return false;
@@ -627,7 +656,6 @@ bool retro_load_game(const struct retro_game_info *info)
    }
 
    
-   update_core_options();
    g_active_widescreen_mode = g_options.widescreen_mode;
    g_active_gun_input = g_options.gun_input;
    g_active_star_wars_input = g_options.star_wars_input;
@@ -713,6 +741,9 @@ void retro_run(void)
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &options_updated) && options_updated)
    {
       float old_multiplier = g_options.resolution_multiplier;
+      Renderer3D old_renderer_3d = g_options.renderer_3d;
+      bool old_quad_rendering = g_options.quad_rendering;
+      int old_crt_colors = g_options.crt_colors;
       WidescreenMode old_widescreen_mode = g_options.widescreen_mode;
       int old_upscale_mode = g_options.upscale_mode;
       bool old_legacy_sound_dsp = g_options.legacy_sound_dsp;
@@ -727,6 +758,16 @@ void retro_run(void)
       bool old_jit_enable = g_options.jit_enable;
 #endif
       update_core_options();
+
+      if (g_options.renderer_3d != old_renderer_3d ||
+          g_options.quad_rendering != old_quad_rendering ||
+          g_options.crt_colors != old_crt_colors)
+      {
+         static const struct retro_message message = {
+            "3D Renderer, Quad Rendering and CRT Colour changes require restarting the content.", 240
+         };
+         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
+      }
 
       if (g_options.emulation_threading != old_emulation_threading)
       {

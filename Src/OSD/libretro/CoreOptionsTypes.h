@@ -21,6 +21,11 @@ enum class WidescreenMode {
    WidescreenWideBackground
 };
 
+enum class Renderer3D {
+   New3D,
+   Legacy3D
+};
+
 enum class SteeringResponse {
    Linear,
    Progressive,
@@ -41,6 +46,9 @@ enum class FourSpeedShifter {
 struct CoreOptions {
    bool initial_nvram_setup;
    float resolution_multiplier;
+   Renderer3D renderer_3d;
+   bool quad_rendering;
+   int crt_colors;
    int upscale_mode;
    WidescreenMode widescreen_mode;
    unsigned crosshairs;      // native Supermodel mask: 0=off, 1=P1, 2=P2, 3=both

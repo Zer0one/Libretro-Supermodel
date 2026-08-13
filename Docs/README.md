@@ -86,6 +86,24 @@ than the native 4:3 mode, so its performance should be measured separately.
 Changes to `Widescreen Mode` take effect after restarting the content, matching
 the renderer-initialization semantics of standalone Supermodel.
 
+## Renderer options
+
+Desktop builds that include both Supermodel renderers expose `3D Renderer`.
+`New3D` remains the default. `Legacy3D` is experimental, uses the desktop
+OpenGL compatibility profile, and may crash the frontend or fail to initialize
+when the selected video driver does not provide the required fixed-function
+OpenGL support. The option is omitted when Legacy3D is not part of the build,
+including current macOS and normal GLES builds. This capability-based check
+allows a future platform port to expose it without adding a platform-name
+exception.
+
+`Quad Rendering` is available only on builds that can negotiate an OpenGL 4.5
+core context. It uses New3D's geometry-shader path to render Model 3
+quadrilaterals directly and is ignored by Legacy3D. `CRT Colour` applies
+Supermodel's own pre-output colour and gamma transform; it is separate from a
+RetroArch shader and also applies only to New3D. All three settings require a
+content restart because they affect renderer or OpenGL-context creation.
+
 At resolutions above native, `2D Layer Upscaling Filter` selects Supermodel's
 own filter for tile layers before they are composited with the 3D scene. At
 496x384 the engine deliberately uses nearest-neighbor filtering regardless of
@@ -312,7 +330,7 @@ cp supermodel_libretro.dylib ~/.config/retroarch/cores/
 **Build Details:**
 - **Deployment Target:** macOS 10.15 (Catalina) and newer
 - **Architecture:** Universal binary (x86_64 + arm64)
-- **Renderer:** Modern OpenGL 3.2+ (Legacy3D excluded)
+- **Renderer:** New3D with OpenGL 4.1 (Legacy3D and Quad Rendering excluded)
 - **Build Time:** ~90 seconds on 4 cores
 
 ---

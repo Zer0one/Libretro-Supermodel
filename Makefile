@@ -230,6 +230,21 @@ ifdef DROP_LEGACY3D
 endif
 endif
 
+# Renderer capabilities exposed to the Libretro option layer. Keep these as
+# feature defines rather than platform tests so future ports only need to
+# enable the capability here.
+ifneq ($(filter $(CORE_DIR)/Src/Graphics/Legacy3D/Legacy3D.cpp,$(SOURCES_CXX)),)
+    RENDERER_DEFINES += -DHAVE_LEGACY3D
+endif
+
+ifneq ($(filter $(platform),osx android rpi64 aarch64),$(platform))
+    RENDERER_DEFINES += -DHAVE_QUAD_RENDERING
+endif
+
+ifneq ($(filter $(platform),android rpi64 aarch64),$(platform))
+    RENDERER_DEFINES += -DHAVE_CRT_COLOURS
+endif
+
 # GIT version
 GIT_VERSION := " $(shell git rev-parse --short HEAD || echo unknown)"
 ifneq ($(GIT_VERSION)," unknown")

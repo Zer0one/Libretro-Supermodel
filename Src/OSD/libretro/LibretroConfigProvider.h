@@ -331,6 +331,13 @@ namespace LibretroConfigProvider {
 
         config.Set("XResolution", width);
         config.Set("YResolution", height);
+        const bool use_legacy_3d =
+            g_options.renderer_3d == Renderer3D::Legacy3D;
+        config.Set("New3DEngine", !use_legacy_3d);
+        config.Set("QuadRendering",
+                   !use_legacy_3d && g_options.quad_rendering);
+        config.Set("CRTcolors",
+                   !use_legacy_3d ? g_options.crt_colors : 0);
         config.Set("UpscaleMode", g_options.upscale_mode);
         config.Set("WideScreen",
                    g_options.widescreen_mode != WidescreenMode::Disabled);
