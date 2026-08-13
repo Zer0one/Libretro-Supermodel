@@ -122,6 +122,7 @@ The following standalone options are recorded for later evaluation:
 | `NoWhiteFlash` | Defer as a renderer workaround; prefer a documented per-game reason rather than a generic default-facing switch. |
 | `CrosshairStyle=bmp` | Defer until bitmap asset discovery and portable packaging are specified. Vector crosshairs remain self-contained. |
 | `FlipStereo` and audio balance controls | Defer as low-priority output/downmix controls; evaluate what belongs to RetroArch and what must occur before the four-channel-to-stereo mix. |
+| Per-game `Country` and `Link/Cabinet` settings | Planned: expose supported values through Core Options and update only the corresponding game-specific EEPROM fields, preserving all unrelated machine settings and producing the checksum expected by each game. `Link/Cabinet` configuration is distinct from implementing network-board transport. |
 | Network and true 57.524160 Hz output | Separate projects: network requires multi-cabinet transport, while true-Hz output requires fractional audio generation or resampling. |
 
 ## CPU options
