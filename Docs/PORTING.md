@@ -273,6 +273,88 @@ initialization: an existing `.srm` or valid `.nv` is never patched, and deleting
 the `.srm` explicitly requests regeneration. Older headerless `.srm` files from
 the initial Libretro port remain readable.
 
+### Model 3 EEPROM checksums
+
+The 93C46 device does not impose a checksum. Each game writes and validates its
+own 64-word EEPROM layout. Analysis of first-boot, Service-configured, embedded
+template, and standalone NVRAM samples identified three checksum families. The
+word values below are the 16-bit values seen by the emulated machine; bytes in
+each word are therefore processed most-significant byte first.
+
+| EEPROM format | Checksum | Covered logical bytes |
+| --- | --- | --- |
+| `M3SEGA`, format word `0xA3xx` | Sega CRC-CCITT variant described below, stored in word 3 | 12 through 69 |
+| Other `M3SEGA` layouts | CRC-16/XMODEM (`poly=0x1021`, `init=0x0000`, `xorout=0x0000`), stored in word 3 | 12 through 69 |
+| Tagged `M3SEGA SRC2` and `M3SEGA SWTA` layouts | CRC-16/GENIBUS (`poly=0x1021`, `init=0xFFFF`, `xorout=0xFFFF`), stored in word 5 | 16 through 127 |
+
+The `0xA3xx` games use the standard 256-entry `0x1021` lookup table but a
+non-standard 32-bit working state. The game routine is equivalent to the
+following pseudocode, where `table` contains the normal big-endian CRC-CCITT
+table and all arithmetic is 32-bit:
+
+```text
+state = 0xDEBDEB00
+for byte in eeprom[12..69]:
+    index = rotl32(state, 9) & 0x1FE
+    state = ((state ^ (table[index / 2] << 8)) | byte) << 8
+index = rotl32(state, 9) & 0x1FE
+state ^= table[index / 2] << 8
+checksum = rotl32(state, 24) & 0xFFFF
+```
+
+This classification reproduced all 84 checksum-bearing samples available
+during analysis: 48 XMODEM, 23 Sega-variant, and 13 tagged GENIBUS images.
+Four Virtua Fighter 3 samples use an older duplicated `SEGA` layout and require
+separate analysis; two Fighting Vipers 2 smoke-test images remained erased.
+Country and Link/Cabinet options must additionally map the corresponding fields
+per game or game family and update redundant copies or sequence fields where
+present; checksum support alone is not sufficient to patch those settings
+safely.
+
+For Daytona USA 2, controlled Service-menu samples locate `Country` in the
+high byte of EEPROM words 12 and 41 (primary and redundant settings copies):
+
+| Country | Stored value |
+| --- | --- |
+| Japan | `0x01` |
+| USA | `0x02` |
+| Export | `0x03` |
+| Australia | `0x04` |
+| Korea | `0x05` |
+
+The settings sequence counter is duplicated in words 6 and 35. Entering and
+Saving through the Service menu also normalized unrelated fields in the
+original template. The game-aware NVRAM settings implementation therefore does
+not copy those incidental changes and updates only
+both Country copies and the checksum. It leaves the sequence counter unchanged
+because both redundant settings copies are replaced atomically.
+
+Additional controlled Daytona USA 2 samples locate the Link, Car Number, and
+Cabinet settings in the same two settings copies:
+
+| Setting | Primary / redundant words | Stored value |
+| --- | --- | --- |
+| Link: Single | 15 / 44, high byte | `0x00` |
+| Link: Master | 15 / 44, high byte | `0x01` |
+| Link: Slave | 15 / 44, high byte | `0x02` |
+| Link: Live | 15 / 44, high byte | `0x03` |
+| Car Number | 15 / 44, low byte | displayed number minus one (`0x00` through `0x0F`) |
+| Cabinet: Deluxe | 16 / 45, high byte | `0x00` |
+| Cabinet: Twin | 16 / 45, high byte | `0x01` |
+
+The low byte of words 16 and 45 was unchanged in the Cabinet samples and must
+therefore be preserved. Each Service save advanced both copies of the sequence
+counter by one; samples matching the base value (`Slave`, car 1, and `Twin`)
+confirm the base configuration rather than introducing a third encoding.
+
+`System > NVRAM Settings` is disabled by default. Enabling it dynamically
+exposes only the fields supported by the loaded game family. Each field
+defaults to `Keep Current`; selected values are applied through Supermodel's
+normal NVRAM block interface after the frontend `.srm` or native `.nv` has been
+loaded. The Daytona USA 2 family currently exposes Country, Link Mode, Car
+Number, and Cabinet Type. The core preserves unrelated bits, writes both
+settings copies, regenerates CRC-16/XMODEM, and does not alter backup RAM.
+
 Libretro Save States use standalone Supermodel's current version-6 header and
 ROM-set identifier before the normal subsystem blocks. This rejects states
 from an incompatible engine format or different game before any emulator

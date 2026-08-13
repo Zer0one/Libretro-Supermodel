@@ -173,6 +173,14 @@ on its next launch. Disable the option before first launch to retain the game's
 unconfigured factory defaults. The core never writes or overwrites native
 `.nv` files.
 
+`System > NVRAM Settings` provides optional game-aware editing and is disabled
+by default. When enabled, only settings known for the currently loaded game or
+game family are displayed. Every field defaults to `Keep Current`, so merely
+enabling the feature does not modify a save. Daytona USA 2 and Power Edition
+currently expose Country, Link Mode, Car Number, and Cabinet Type. Changes are
+written to the frontend `.srm` with the required redundant copy and checksum;
+restart the content before expecting the game to use the new machine setting.
+
 ## 🛠 Build Instructions
 
 **Unified Makefile System:** This core uses a single unified `Makefile` supporting 6 platforms:

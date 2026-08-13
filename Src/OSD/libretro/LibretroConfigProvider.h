@@ -185,10 +185,10 @@ namespace LibretroConfigProvider {
         config.Set<std::string>("InputGearShiftN", "KEY_T", "Input", "", "");
 
         // VR4 view change buttons (Daytona 2, Le Mans 24, Scud Race)
-        config.Set<std::string>("InputVR1", "KEY_A,JOY1_POV1_RIGHT", "Input", "", ""); // Red: D-Pad Right
-        config.Set<std::string>("InputVR2", "KEY_S,JOY1_POV1_LEFT", "Input", "", ""); // Blue: D-Pad Left
-        config.Set<std::string>("InputVR3", "KEY_D,JOY1_POV1_UP", "Input", "", ""); // Yellow: D-Pad Up
-        config.Set<std::string>("InputVR4", "KEY_F,JOY1_POV1_DOWN", "Input", "", ""); // Green: D-Pad Down
+        config.Set<std::string>("InputVR1", "KEY_A,JOY1_POV1_UP", "Input", "", ""); // Red: D-Pad Up
+        config.Set<std::string>("InputVR2", "KEY_S,JOY1_POV1_DOWN", "Input", "", ""); // Blue: D-Pad Down
+        config.Set<std::string>("InputVR3", "KEY_D,JOY1_POV1_LEFT", "Input", "", ""); // Yellow: D-Pad Left
+        config.Set<std::string>("InputVR4", "KEY_F,JOY1_POV1_RIGHT", "Input", "", ""); // Green: D-Pad Right
 
         // Single view change button (Dirt Devils, ECA, Harley-Davidson, Sega Rally 2)
         config.Set<std::string>("InputViewChange", "KEY_A,JOY1_POV1_UP", "Input", "", "");
@@ -853,10 +853,10 @@ namespace LibretroConfigProvider {
         }
         if (inputs & Game::INPUT_VR4)
         {
-            config.Set<std::string>("InputVR1", "KEY_A,JOY1_POV1_RIGHT"); // Red: D-Pad Right
-            config.Set<std::string>("InputVR2", "KEY_S,JOY1_POV1_LEFT"); // Blue: D-Pad Left
-            config.Set<std::string>("InputVR3", "KEY_D,JOY1_POV1_UP"); // Yellow: D-Pad Up
-            config.Set<std::string>("InputVR4", "KEY_F,JOY1_POV1_DOWN"); // Green: D-Pad Down
+            config.Set<std::string>("InputVR1", "KEY_A,JOY1_POV1_UP"); // Red: D-Pad Up
+            config.Set<std::string>("InputVR2", "KEY_S,JOY1_POV1_DOWN"); // Blue: D-Pad Down
+            config.Set<std::string>("InputVR3", "KEY_D,JOY1_POV1_LEFT"); // Yellow: D-Pad Left
+            config.Set<std::string>("InputVR4", "KEY_F,JOY1_POV1_RIGHT"); // Green: D-Pad Right
         }
         if (inputs & Game::INPUT_VIEWCHANGE)
             config.Set<std::string>("InputViewChange", "KEY_A,JOY1_POV1_UP"); // D-Pad Up

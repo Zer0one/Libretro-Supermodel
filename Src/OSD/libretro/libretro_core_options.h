@@ -49,6 +49,87 @@ static struct retro_core_option_v2_definition option_defs[] = {
       },
       "enabled"
    },
+   {
+      "supermodel_nvram_settings",
+      "NVRAM Settings",
+      NULL,
+      "Enable game-aware NVRAM settings. Only options supported by the loaded game or game family are shown. Selected values are written to both redundant settings copies and the game checksum is regenerated. Restart content to apply gameplay changes.",
+      NULL,
+      "system",
+      {
+         { "disabled", NULL },
+         { "enabled",  NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "supermodel_nvram_country",
+      "Country",
+      NULL,
+      "Set the machine country stored in NVRAM. Keep Current preserves the existing value.",
+      NULL,
+      "system",
+      {
+         { "current",   "Keep Current" },
+         { "japan",     "Japan" },
+         { "usa",       "USA" },
+         { "export",    "Export" },
+         { "australia", "Australia" },
+         { "korea",     "Korea" },
+         { NULL, NULL },
+      },
+      "current"
+   },
+   {
+      "supermodel_nvram_link_mode",
+      "Link Mode",
+      NULL,
+      "Set the cabinet link mode stored in NVRAM. Keep Current preserves the existing value.",
+      NULL,
+      "system",
+      {
+         { "current", "Keep Current" },
+         { "single",  "Single" },
+         { "master",  "Master" },
+         { "slave",   "Slave" },
+         { "live",    "Live" },
+         { NULL, NULL },
+      },
+      "current"
+   },
+   {
+      "supermodel_nvram_car_number",
+      "Car Number",
+      NULL,
+      "Set the linked-cabinet car number stored in NVRAM. Keep Current preserves the existing value.",
+      NULL,
+      "system",
+      {
+         { "current", "Keep Current" },
+         { "1",  NULL }, { "2",  NULL }, { "3",  NULL }, { "4",  NULL },
+         { "5",  NULL }, { "6",  NULL }, { "7",  NULL }, { "8",  NULL },
+         { "9",  NULL }, { "10", NULL }, { "11", NULL }, { "12", NULL },
+         { "13", NULL }, { "14", NULL }, { "15", NULL }, { "16", NULL },
+         { NULL, NULL },
+      },
+      "current"
+   },
+   {
+      "supermodel_nvram_cabinet",
+      "Cabinet Type",
+      NULL,
+      "Set the cabinet type stored in NVRAM. Keep Current preserves the existing value.",
+      NULL,
+      "system",
+      {
+         { "current", "Keep Current" },
+         { "deluxe",  "Deluxe" },
+         { "twin",    "Twin" },
+         { NULL, NULL },
+      },
+      "current"
+   },
    // Video
    {
       "supermodel_resolution",
@@ -498,6 +579,36 @@ void update_core_options(void)
    g_options.initial_nvram_setup =
       strcmp(option_get("supermodel_initial_nvram_setup", "enabled"),
              "enabled") == 0;
+
+   g_options.nvram_settings_enabled =
+      strcmp(option_get("supermodel_nvram_settings", "disabled"),
+             "enabled") == 0;
+   {
+      const char *country = option_get("supermodel_nvram_country", "current");
+      g_options.nvram_country = strcmp(country, "japan") == 0 ? 1
+                              : strcmp(country, "usa") == 0 ? 2
+                              : strcmp(country, "export") == 0 ? 3
+                              : strcmp(country, "australia") == 0 ? 4
+                              : strcmp(country, "korea") == 0 ? 5 : -1;
+   }
+   {
+      const char *link = option_get("supermodel_nvram_link_mode", "current");
+      g_options.nvram_link_mode = strcmp(link, "single") == 0 ? 0
+                                : strcmp(link, "master") == 0 ? 1
+                                : strcmp(link, "slave") == 0 ? 2
+                                : strcmp(link, "live") == 0 ? 3 : -1;
+   }
+   {
+      const char *car = option_get("supermodel_nvram_car_number", "current");
+      g_options.nvram_car_number = strcmp(car, "current") == 0 ? -1 : atoi(car);
+      if (g_options.nvram_car_number < 1 || g_options.nvram_car_number > 16)
+         g_options.nvram_car_number = -1;
+   }
+   {
+      const char *cabinet = option_get("supermodel_nvram_cabinet", "current");
+      g_options.nvram_cabinet = strcmp(cabinet, "deluxe") == 0 ? 0
+                              : strcmp(cabinet, "twin") == 0 ? 1 : -1;
+   }
 
    const char* resolution = option_get("supermodel_resolution", "native");
    if (strcmp(resolution, "half") == 0)
