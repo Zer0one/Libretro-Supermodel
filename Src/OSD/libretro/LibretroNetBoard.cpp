@@ -275,6 +275,15 @@ bool CLibretroNetBoard::IsGame(const char *gameName) const
   return m_gameInfo.name == gameName || m_gameInfo.parent == gameName;
 }
 
+const char *CLibretroNetBoard::NetworkFamily() const
+{
+  if (IsGame("daytona2"))
+    return "daytona2";
+  if (IsGame("scud"))
+    return "scud";
+  return nullptr;
+}
+
 Result CLibretroNetBoard::Init(UINT8 *netRAMPtr, UINT8 *netBufferPtr)
 {
   m_ram = netRAMPtr;
@@ -286,9 +295,10 @@ Result CLibretroNetBoard::Init(UINT8 *netRAMPtr, UINT8 *netBufferPtr)
 
   if (!requested)
     return Result::OKAY;
-  if (!IsGame("daytona2"))
+  const char *networkFamily = NetworkFamily();
+  if (!networkFamily)
   {
-    InfoLog("Libretro Network Board is currently limited to Daytona 2; "
+    InfoLog("Libretro Network Board does not yet support this game; "
             "ignoring it for %s", m_gameInfo.name.c_str());
     return Result::OKAY;
   }
@@ -296,9 +306,10 @@ Result CLibretroNetBoard::Init(UINT8 *netRAMPtr, UINT8 *netBufferPtr)
     return ErrorLog("Libretro netpacket interface is unavailable");
 
   m_attached = true;
-  m_gameHash = HashName("daytona2");
+  m_gameHash = HashName(networkFamily);
   Reset();
-  InfoLog("Libretro network board attached (Daytona 2, two cabinets)");
+  InfoLog("Libretro network board attached (%s family, two cabinets)",
+          networkFamily);
   return Result::OKAY;
 }
 
@@ -396,7 +407,7 @@ void CLibretroNetBoard::DrainPackets()
               queued.sender, packet.role == 0 ? "Master" : "Slave");
       if (packet.role == m_localRole)
       {
-        EnterError("Both Daytona 2 cabinets use the same Link Mode");
+        EnterError("Both linked cabinets use the same Link Mode");
         return;
       }
       m_peerId = queued.sender;
@@ -439,7 +450,7 @@ void CLibretroNetBoard::EnterReadyState()
   m_segmentSize = ReadNetRAM16(0x404);
   if (!m_segmentSize || 0x100u + 3u * m_segmentSize > 0x10000u)
   {
-    EnterError("Daytona 2 reported an invalid network segment size");
+    EnterError("The game reported an invalid network segment size");
     return;
   }
 
@@ -470,14 +481,14 @@ void CLibretroNetBoard::ExchangeFrame()
 {
   if (!SessionActive())
   {
-    EnterError("Netpacket session ended while Daytona 2 link was active");
+    EnterError("Netpacket session ended while the cabinet link was active");
     return;
   }
 
   uint16_t peer = 0;
   if (!SessionPeer(peer) || peer != m_peerId)
   {
-    EnterError("Daytona 2 peer disconnected");
+    EnterError("Linked-cabinet peer disconnected");
     return;
   }
 
@@ -489,7 +500,7 @@ void CLibretroNetBoard::ExchangeFrame()
   if (!SendPacket(BuildPacket(kPacketFrame, nextFrame,
                               localSegment.data(), localSegment.size()), peer))
   {
-    EnterError("Unable to send Daytona 2 network frame");
+    EnterError("Unable to send linked-cabinet network frame");
     return;
   }
   if (nextFrame == 1)
@@ -508,7 +519,7 @@ void CLibretroNetBoard::ExchangeFrame()
     {
       if (received->second.size() != m_segmentSize)
       {
-        EnterError("Peer sent a Daytona 2 network segment of the wrong size");
+        EnterError("Peer sent a network segment of the wrong size");
         return;
       }
 
@@ -531,7 +542,7 @@ void CLibretroNetBoard::ExchangeFrame()
   }
   while (SessionActive() && std::chrono::steady_clock::now() < deadline);
 
-  EnterError("Timed out waiting for the Daytona 2 peer frame");
+  EnterError("Timed out waiting for the linked-cabinet peer frame");
 }
 
 void CLibretroNetBoard::SwapCommBanks()

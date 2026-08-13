@@ -12,8 +12,8 @@
 namespace Util { namespace Config { class Node; } }
 
 // Model 3 network-board simulation transported through libretro's netpacket
-// interface. The first implementation deliberately targets a two-cabinet
-// Daytona 2 link; the native standalone CSimNetBoard transport is unchanged.
+// interface. The first implementation deliberately targets two-cabinet Type 1
+// links; the native standalone CSimNetBoard transport is unchanged.
 class CLibretroNetBoard final : public INetBoard
 {
 public:
@@ -80,6 +80,7 @@ private:
   std::map<uint32_t, std::vector<uint8_t>> m_framePackets;
 
   bool IsGame(const char *gameName) const;
+  const char *NetworkFamily() const;
   uint16_t ReadNetRAM16(unsigned index) const;
   void WriteCommWord(unsigned index, uint16_t value);
   void SwapCommBanks();

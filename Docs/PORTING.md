@@ -364,11 +364,12 @@ libretro-common snapshot.
 
 `CLibretroNetBoard` is independent from standalone `CSimNetBoard`: standalone
 continues to use its SDL_net TCP ring. The first Libretro protocol version is
-deliberately limited to two Daytona USA 2 cabinets. RetroArch client 0 must be
-the Model 3 Master and client 1 the Slave. After a bidirectional role handshake,
-each core sends one reliable packet per emulated network-board frame. For two
-nodes this replaces the TCP ring's returned local segment with a local copy,
-preserving the same communication-RAM order while avoiding a redundant packet.
+deliberately limited to two Type 1 cabinets and currently recognizes the
+Daytona USA 2 and Scud Race families. RetroArch client 0 must be the Model 3
+Master and client 1 the Slave. After a bidirectional role handshake, each core
+sends one reliable packet per emulated network-board frame. For two nodes this
+replaces the TCP ring's returned local segment with a local copy, preserving
+the same communication-RAM order while avoiding a redundant packet.
 
 This exchange deliberately remains lockstep. The official netpacket API's
 `RETRO_NETPACKET_FLUSH_HINT` already flushes without blocking, and
@@ -379,20 +380,21 @@ ordinary Netplay input prediction and rollback do not apply to custom
 netpacket payloads, so replacing the wait with stale or predicted cabinet data
 would change the emulated protocol rather than optimize its transport.
 
-A real wired IPv4 link between RetroArch 1.22.2 on Batocera x86-64 and
-RetroArch 1.21.0 on macOS ARM64 remained synchronized without timeouts. A
-controlled one-way 100 ± 25 ms delay kept the logical link alive but reduced
-the Batocera instance to roughly 14 FPS. This confirms that the current mode is
-intended for a stable low-latency LAN; the 250 ms wait is only a bounded failure
-guard and must not be interpreted as a performance target.
+A real wired IPv4 Daytona USA 2 link between RetroArch 1.22.2 on Batocera
+x86-64 and RetroArch 1.21.0 on macOS ARM64 remained synchronized without
+timeouts. A controlled one-way 100 ± 25 ms delay kept the logical link alive
+but reduced the Batocera instance to roughly 14 FPS. This confirms that the
+current mode is intended for a stable low-latency LAN; the 250 ms wait is only
+a bounded failure guard and must not be interpreted as a performance target.
 
 The transport uses explicit little-endian protocol headers, validates the game
 family, role, segment size, frame number, and protocol version, and performs a
 short bounded receive poll inside `retro_run()`. A four-frame ready barrier
 prevents one frontend from entering the first blocking exchange while its peer
-is still completing the Netplay handshake. A localhost test with isolated
-Master/Slave NVRAM reached the normal linked game flow and remained synchronized
-until both RetroArch instances were deliberately closed.
+is still completing the Netplay handshake. Localhost tests with isolated
+Master/Slave NVRAM reached normal linked gameplay in both Daytona USA 2 Power
+Edition and Scud Race; Scud Race completed synchronized race startup and
+gameplay without a timeout or visible divergence.
 
 Expansion to more than two cabinets requires generalizing machine enumeration
 and segment ordering. Games using Supermodel's type-2 network-board protocol

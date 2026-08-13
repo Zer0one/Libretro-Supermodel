@@ -185,16 +185,19 @@ unconfigured factory defaults. The core never writes or overwrites native
 by default. When enabled, only settings known for the currently loaded game or
 game family are displayed. Every field defaults to `Keep Current`, so merely
 enabling the feature does not modify a save. Daytona USA 2 and Power Edition
-currently expose Country, Link Mode, Car Number, and Cabinet Type. Changes are
-written to the frontend `.srm` with the required redundant copy and checksum;
-restart the content before expecting the game to use the new machine setting.
+expose Country, Link Mode, Car Number, and Cabinet Type. Scud Race and Scud
+Race Plus expose Link Mode, Car Number, and Cabinet Type; Country is omitted
+because that family uses a different encoding. Changes are written to the
+frontend `.srm` with the required redundant copy and checksum; restart the
+content before expecting the game to use the new machine setting.
 
 ### Experimental linked cabinets
 
-`System > Network Board (Experimental)` connects two Daytona USA 2 cabinets
+`System > Network Board (Experimental)` connects two supported Type 1 cabinets
 through RetroArch Netplay and Libretro's netpacket API. It is disabled by
-default and currently supports the Daytona USA 2 family with exactly two
-players. The standalone emulator's SDL_net transport is not used or modified.
+default and currently supports the Daytona USA 2 and Scud Race families with
+exactly two players. The standalone emulator's SDL_net transport is not used
+or modified.
 
 Configure both instances before starting Netplay:
 
@@ -207,7 +210,8 @@ Configure both instances before starting Netplay:
 The core validates opposite cabinet roles and exchanges the Model 3 network
 segments as reliable ordered packets. RetroArch disables pause, fast-forward,
 rewind, and Save State loading while the linked session is active. More than
-two cabinets and non-Daytona network-board protocols remain future work.
+two cabinets, the remaining Type 1 families, and Type 2 network-board games
+remain future work.
 
 Use a stable, low-latency wired LAN. The emulated cabinets exchange one network
 segment in lockstep, matching standalone Supermodel's send/receive behavior;

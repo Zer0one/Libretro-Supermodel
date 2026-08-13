@@ -41,6 +41,12 @@ inline unsigned GetCapabilities(const Game *game)
       game->parent == "daytona2")
     return Country | LinkMode | CarNumber | Cabinet;
 
+  // Scud Race's A218 settings use the same duplicated link, car-number and
+  // cabinet fields as Daytona 2. Country uses a different encoding, so it is
+  // intentionally not exposed for this family.
+  if (game->name == "scud" || game->parent == "scud")
+    return LinkMode | CarNumber | Cabinet;
+
   return None;
 }
 
@@ -70,10 +76,11 @@ inline uint16_t Crc16Xmodem(const uint16_t *words)
 inline ApplyResult Apply(const Game &game, uint16_t *words,
                          const Selection &selection)
 {
-  if (!words || GetCapabilities(&game) == None)
+  const unsigned capabilities = GetCapabilities(&game);
+  if (!words || capabilities == None)
     return ApplyResult::Unsupported;
 
-  // Refuse to interpret a different EEPROM layout as Daytona settings.
+  // Supported families use the M3SEGA/A2 settings layout.
   if (words[0] != 0x4d33 || words[1] != 0x5345 || words[2] != 0x4741 ||
       (words[4] & 0xff00) != 0xa200)
     return ApplyResult::InvalidLayout;
@@ -92,23 +99,27 @@ inline ApplyResult Apply(const Game &game, uint16_t *words,
     word = updated;
   };
 
-  if (selection.country >= 1 && selection.country <= 5)
+  if ((capabilities & Country) &&
+      selection.country >= 1 && selection.country <= 5)
   {
     replaceHighByte(words[12], selection.country);
     replaceHighByte(words[41], selection.country);
   }
-  if (selection.linkMode >= 0 && selection.linkMode <= 3)
+  if ((capabilities & LinkMode) &&
+      selection.linkMode >= 0 && selection.linkMode <= 3)
   {
     replaceHighByte(words[15], selection.linkMode);
     replaceHighByte(words[44], selection.linkMode);
   }
-  if (selection.carNumber >= 1 && selection.carNumber <= 16)
+  if ((capabilities & CarNumber) &&
+      selection.carNumber >= 1 && selection.carNumber <= 16)
   {
     const unsigned stored = static_cast<unsigned>(selection.carNumber - 1);
     replaceLowByte(words[15], stored);
     replaceLowByte(words[44], stored);
   }
-  if (selection.cabinet >= 0 && selection.cabinet <= 1)
+  if ((capabilities & Cabinet) &&
+      selection.cabinet >= 0 && selection.cabinet <= 1)
   {
     replaceHighByte(words[16], selection.cabinet);
     replaceHighByte(words[45], selection.cabinet);
