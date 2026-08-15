@@ -53,7 +53,7 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "supermodel_network_board",
       "Network Board",
       NULL,
-      "Connect the Model 3 network board, equivalent to the standalone Network setting. Some games expose their Network Assignments in the Service Menu only while the board is connected. Requires a content restart. Linked play through RetroArch Netplay remains experimental and is currently verified only for two-cabinet Daytona 2 and Scud Race links.",
+      "Connect the Model 3 network board, equivalent to the standalone Network setting. Some games expose their Network Assignments in the Service Menu only while the board is connected. Requires a content restart. Experimental linked play through RetroArch Netplay is available for Daytona USA 2, Harley-Davidson, Scud Race, and Sega Rally 2 families.",
       NULL,
       "system",
       {
@@ -62,6 +62,33 @@ static struct retro_core_option_v2_definition option_defs[] = {
          { NULL, NULL },
       },
       "disabled"
+   },
+   {
+      "supermodel_network_cabinets",
+      "Linked Cabinets",
+      NULL,
+      "Set the total number of Model 3 cabinets expected in the RetroArch Netplay session. The host waits for this exact number before starting the emulated cabinet link. Every instance must use the same value. Two- and three-cabinet sessions have been tested; larger values remain experimental. Requires a content restart.",
+      NULL,
+      "system",
+      {
+         { "2",  "2 Cabinets (Default)" },
+         { "3",  "3 Cabinets" },
+         { "4",  "4 Cabinets" },
+         { "5",  "5 Cabinets" },
+         { "6",  "6 Cabinets" },
+         { "7",  "7 Cabinets" },
+         { "8",  "8 Cabinets" },
+         { "9",  "9 Cabinets" },
+         { "10", "10 Cabinets" },
+         { "11", "11 Cabinets" },
+         { "12", "12 Cabinets" },
+         { "13", "13 Cabinets" },
+         { "14", "14 Cabinets" },
+         { "15", "15 Cabinets" },
+         { "16", "16 Cabinets" },
+         { NULL, NULL },
+      },
+      "2"
    },
    {
       "supermodel_nvram_settings",
@@ -552,6 +579,11 @@ void update_core_options(void)
    g_options.network_board =
       strcmp(option_get("supermodel_network_board", "disabled"),
              "enabled") == 0;
+
+   g_options.network_cabinets = static_cast<unsigned>(
+      atoi(option_get("supermodel_network_cabinets", "2")));
+   if (g_options.network_cabinets < 2 || g_options.network_cabinets > 16)
+      g_options.network_cabinets = 2;
 
    g_options.nvram_settings_enabled =
       strcmp(option_get("supermodel_nvram_settings", "disabled"),

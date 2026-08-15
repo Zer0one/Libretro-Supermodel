@@ -245,25 +245,36 @@ Rally 2 that expose Network Assignments in the Service Menu only when the board
 is present. Restart content after changing the option.
 
 The same option enables experimental linked play when a supported RetroArch
-Netplay session is active. The netpacket transport currently supports exactly
-two cabinets from the Daytona USA 2 and Scud Race families. Other network-board
-families expose the emulated hardware and their Service Menu configuration,
-but their linked-play transport is not yet implemented. The standalone
-emulator's SDL_net transport is not used or modified.
+Netplay session is active. The netpacket transport currently recognizes the
+Daytona USA 2, Harley-Davidson, Scud Race, and Sega Rally 2 families. Set
+`System > Linked Cabinets` to the total number of cabinets expected in the
+session; every instance must use the same value. The protocol accepts 2 to 16
+cabinets. Runtime testing currently covers two-cabinet links and a
+three-cabinet Harley-Davidson link; larger sessions remain unverified. Other
+network-board families expose the emulated hardware and their Service Menu
+configuration, but their linked-play transport is not yet implemented. The
+standalone emulator's SDL_net transport is not used or modified.
 
 Configure both instances before starting Netplay:
 
-- set `System > Network Board` to `Connected` and enable `NVRAM Settings`;
-- set the RetroArch host to `Link Mode: Master`, normally with `Car Number: 1`;
-- set the client to `Link Mode: Slave` with a different car number;
-- restart the content on both sides, then host/join the same content through
-  RetroArch Netplay.
+- set `System > Network Board` to `Connected`, select the same
+  `Linked Cabinets` value on every instance, and enable `NVRAM Settings`;
+- set the RetroArch host to `Link Mode: Master`, normally with cabinet/car
+  number 1;
+- set every client to `Link Mode: Slave`, using a different cabinet/car number
+  where the game exposes one;
+- restart the content on every instance, then host/join the same content
+  through RetroArch Netplay.
 
-The core validates opposite cabinet roles and exchanges the Model 3 network
-segments as reliable ordered packets. RetroArch disables pause, fast-forward,
-rewind, and Save State loading while the linked session is active. More than
-two cabinets, the remaining Type 1 families, and Type 2 network-board games
-remain future work.
+The core uses RetroArch's official Netpacket interface exclusively: frontend
+client identifiers, broadcast packets, callbacks, and receive polling provide
+the complete transport. It opens no sockets, performs no private discovery or
+IPC, and adds no fallback transport. The RetroArch host must be the Model 3
+Master and every client a Slave. The core derives a common cabinet roster from
+the frontend identifiers and reconstructs the standalone network ring's
+per-cabinet segment order. RetroArch disables pause, fast-forward, rewind, and
+Save State loading while the linked session is active. The remaining Type 1
+families and Type 2 network-board games remain future work.
 
 Use a stable, low-latency wired LAN. The emulated cabinets exchange one network
 segment in lockstep, matching standalone Supermodel's send/receive behavior;

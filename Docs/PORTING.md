@@ -160,6 +160,16 @@ actually compile the backend (Android ARM64, Raspberry Pi 64-bit, and generic
 Linux AArch64, plus native macOS ARM64), is labelled experimental, and is
 disabled by default. The interpreter remains the correctness reference.
 
+Native floating-point translation is currently disabled inside the ARM64 JIT,
+while integer, control-flow, and memory instructions remain JIT-compiled. This
+targeted fallback fixes a reproducible gameplay divergence in Harley-Davidson:
+with native FP translation, the attract-mode riders repeatedly collide with
+walls; interpreting PPC floating-point instructions restores the reference
+behaviour and retains substantial JIT performance headroom. Future work should
+identify the exact FP/FPSCR semantic mismatch, validate it instruction by
+instruction against the interpreter, and re-enable native FP only after broad
+gameplay regression testing.
+
 On Apple Silicon the backend allocates its code cache with `MAP_JIT` and uses
 `pthread_jit_write_protect_np()` to alternate the current thread between write
 and execute access while emitting blocks. This follows the established pattern
@@ -247,13 +257,16 @@ Still requiring validation or implementation:
 - extended audio, controls, force-feedback, and Save State coverage across more
   games;
 - Linux, Windows, Android, and other advertised build targets;
+- diagnose and correct the ARM64 JIT floating-point/FPSCR semantic mismatch
+  exposed by Harley-Davidson's attract-mode AI, then replace the current FP-only
+  interpreter fallback after cross-game regression testing;
 - broader PPC JIT compatibility testing on macOS ARM64, plus runtime validation
   on Android ARM64, Raspberry Pi 64-bit, and generic Linux AArch64; compilation
   alone does not establish game compatibility;
-- network-board emulation for multi-cabinet play: the current Libretro
-  placeholder reports the board as detached. Automatic initial NVRAM setup
-  selects Single/No Link for the known affected revisions; actual linked-cabinet
-  transport remains unimplemented.
+- linked-cabinet runtime validation beyond three cabinets, and transport
+  implementation for the remaining Type 1 and Type 2 network-board families;
+  automatic initial NVRAM setup continues to select Single/No Link for known
+  affected revisions when linked play is not configured.
 
 Libretro save RAM is canonical and is persisted by the frontend as a fixed-size
 `.srm`. Its payload uses the same block container as standalone Supermodel
@@ -399,13 +412,22 @@ standalone's `Network` boolean and attaches the board for every Type 1 or Type
 expose board-dependent Service Menu pages even when no Netplay session exists.
 The option is hidden for games without a network board.
 
-The first Libretro transport protocol remains deliberately limited to two Type
-1 cabinets and currently recognizes the Daytona USA 2 and Scud Race families.
-RetroArch client 0 must be the Model 3 Master and client 1 the Slave. After a
-bidirectional role handshake, each core sends one reliable packet per emulated
-network-board frame. For two nodes this replaces the TCP ring's returned local
-segment with a local copy, preserving the same communication-RAM order while
-avoiding a redundant packet.
+The version-2 Libretro transport recognizes the Daytona USA 2,
+Harley-Davidson, Scud Race, and Sega Rally 2 Type 1 families and accepts a
+configured total of 2 to 16 cabinets. RetroArch client 0 must be the Model 3
+Master and every other client a Slave. Every participant broadcasts its role
+and expected cabinet count, then derives the same sorted roster from the
+frontend-provided client identifiers. After this handshake, each core
+broadcasts one reliable segment per emulated network-board frame and rebuilds
+the circular communication-RAM order relative to its own roster position. The
+final local segment is copied directly, avoiding a redundant loopback packet.
+
+This implementation is intentionally API-native and KISS. It uses only the
+official Libretro Netpacket interface, including RetroArch-assigned client
+identifiers, broadcasts, callbacks, and receive polling. It opens no core-owned
+sockets, performs no private peer discovery or IPC, and provides no hidden
+fallback transport. Standalone `CSimNetBoard` and its SDL_net TCP ring remain
+unchanged.
 
 This exchange deliberately remains lockstep. The official netpacket API's
 `RETRO_NETPACKET_FLUSH_HINT` already flushes without blocking, and
@@ -428,14 +450,16 @@ family, role, segment size, frame number, and protocol version, and performs a
 short bounded receive poll inside `retro_run()`. A four-frame ready barrier
 prevents one frontend from entering the first blocking exchange while its peer
 is still completing the Netplay handshake. Localhost tests with isolated
-Master/Slave NVRAM reached normal linked gameplay in both Daytona USA 2 Power
-Edition and Scud Race; Scud Race completed synchronized race startup and
-gameplay without a timeout or visible divergence.
-
-Expansion to more than two cabinets requires generalizing machine enumeration
-and segment ordering. Games using Supermodel's type-2 network-board protocol
-(Le Mans 24, Virtual-On 2, and Dirt Devils) require their separate status and
-playable/relay index layout before they can be enabled.
+Master/Slave NVRAM reached normal linked gameplay in Daytona USA 2 Power
+Edition, Scud Race, Sega Rally 2, and Harley-Davidson. Harley-Davidson also
+completed a three-instance linked race with a stable link and no observed
+protocol divergence. Running three complete Model 3 instances on the test Mac
+reduced available performance headroom, so this validates the three-cabinet
+protocol rather than establishing a performance target. Values from 4 to 16
+remain structurally supported but require runtime validation. Games using
+Supermodel's type-2 network-board protocol (Le Mans 24, Virtual-On 2, and Dirt
+Devils) still require their separate status and playable/relay index layout
+before they can be enabled.
 
 Libretro Save States use standalone Supermodel's current version-6 header and
 ROM-set identifier before the normal subsystem blocks. This rejects states
