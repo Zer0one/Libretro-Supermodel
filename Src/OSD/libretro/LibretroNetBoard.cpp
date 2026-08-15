@@ -313,7 +313,7 @@ const char *CLibretroNetBoard::NetworkFamily() const
 
 bool CLibretroNetBoard::HasNetpacketTransport() const
 {
-  return IsGame("daytona2") || IsGame("scud");
+  return IsGame("daytona2") || IsGame("scud") || IsGame("srally2");
 }
 
 Result CLibretroNetBoard::Init(UINT8 *netRAMPtr, UINT8 *netBufferPtr)
