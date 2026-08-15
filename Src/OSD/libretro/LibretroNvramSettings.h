@@ -678,7 +678,7 @@ inline uint16_t CrcTableEntry(unsigned index)
   return crc;
 }
 
-inline uint32_t RotateLeft32(uint32_t value, unsigned count)
+inline uint32_t RotateLeft32Value(uint32_t value, unsigned count)
 {
   return (value << count) | (value >> (32 - count));
 }
@@ -694,14 +694,14 @@ inline uint16_t SegaA3Checksum(const uint16_t *words)
     };
     for (uint8_t byte : bytes)
     {
-      const unsigned index = (RotateLeft32(state, 9) & 0x1fe) >> 1;
+      const unsigned index = (RotateLeft32Value(state, 9) & 0x1fe) >> 1;
       state = ((state ^ (static_cast<uint32_t>(CrcTableEntry(index)) << 8)) |
                byte) << 8;
     }
   }
-  const unsigned index = (RotateLeft32(state, 9) & 0x1fe) >> 1;
+  const unsigned index = (RotateLeft32Value(state, 9) & 0x1fe) >> 1;
   state ^= static_cast<uint32_t>(CrcTableEntry(index)) << 8;
-  return static_cast<uint16_t>(RotateLeft32(state, 24));
+  return static_cast<uint16_t>(RotateLeft32Value(state, 24));
 }
 
 inline bool IsM3Sega(const uint16_t *words)
