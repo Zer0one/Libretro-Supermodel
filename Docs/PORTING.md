@@ -306,9 +306,9 @@ state ^= table[index / 2] << 8
 checksum = rotl32(state, 24) & 0xFFFF
 ```
 
-This classification reproduced all 332 checksum-bearing samples in the final
-controlled campaign: 153 XMODEM, 150 Sega-A3, and 29 tagged GENIBUS images.
-The remaining 17 of the 349 samples established that Fighting Vipers 2 and
+This classification reproduced all 334 checksum-bearing samples in the final
+controlled campaign: 155 XMODEM, 150 Sega-A3, and 29 tagged GENIBUS images.
+The remaining 17 of the 351 samples established that Fighting Vipers 2 and
 Virtua Fighter 3 keep these operator settings in Backup RAM rather than in
 their erased/older EEPROM layouts. Their confirmed byte offsets are 94
 (Difficulty) and 111 (Country) for Fighting Vipers 2, and 122886 (Difficulty)
@@ -319,7 +319,7 @@ Checksum support alone is not sufficient to patch settings safely. The core
 uses a per-family descriptor for each exposed value and replaces only the
 confirmed byte or masked word field. It preserves unrelated bits, revision
 data, and sequence counters; duplicated XMODEM records are updated atomically.
-All 349 parent values and 507 applicable release-clone values were replayed
+All 351 parent values and 509 applicable release-clone values were replayed
 against the campaign samples after implementation.
 
 For Daytona USA 2, controlled Service-menu samples locate `Country` in the

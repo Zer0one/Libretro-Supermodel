@@ -198,13 +198,13 @@ field: the selected values are applied at startup and therefore replace later
 Service Menu changes. If it is disabled, the core does not modify these fields.
 A game cannot inherit selections made for another game. Values are listed in
 their stored order, which may differ from the order in which the Service Menu
-cycles them. The available fields are derived from a controlled 349-sample
+cycles them. The available fields are derived from a controlled 351-sample
 Service-menu campaign:
 
 | Game family | Available settings |
 | --- | --- |
 | Sega Bass Fishing / Get Bass | Country, Difficulty |
-| Daytona USA 2 | Country, Difficulty, Link Mode, Car Number, Cabinet Type |
+| Daytona USA 2 | Country, Difficulty, Link Mode, Car Number, Cabinet Type, Vocal |
 | Dirt Devils | Country, Difficulty, Link Mode, Machine Number |
 | Emergency Call Ambulance | Difficulty |
 | Fighting Vipers 2 | Country, Difficulty |
