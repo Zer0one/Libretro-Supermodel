@@ -8,7 +8,7 @@ static struct retro_core_option_v2_category option_cats[] = {
    {
       "system",
       "System",
-      "Configure machine initialization and persistence."
+      "Configure machine initialization, persistence, and networking."
    },
    {
       "video",
@@ -39,7 +39,7 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "supermodel_initial_nvram_setup",
       "Automatic Initial NVRAM Setup",
       NULL,
-      "When no frontend .srm or valid standalone .nv exists, initialize known games with the cabinet settings required to boot without unsupported linked cabinets or lever feedback. Existing saves are never modified. Delete the game's .srm to regenerate this initial setup. Restart content to apply.",
+      "When no frontend .srm or valid standalone .nv exists, initialize supported games with Single, Stand Alone, or No Link and set Star Wars Trilogy Arcade to the Upright cabinet. Other EEPROM fields retain the validated smoke-test values for that ROM set. Existing saves are never modified. Delete the game's .srm to regenerate this initial setup. Restart content to apply.",
       NULL,
       "system",
       {
@@ -51,14 +51,14 @@ static struct retro_core_option_v2_definition option_defs[] = {
    },
    {
       "supermodel_network_board",
-      "Network Board (Experimental)",
+      "Network Board",
       NULL,
-      "Connect two supported Type 1 cabinets (currently Daytona 2 and Scud Race) through RetroArch Netplay using the Libretro netpacket API. The RetroArch host must use NVRAM Link Mode Master and the client Link Mode Slave, with different car numbers. Requires a content restart and a frontend with netpacket support. The initial implementation supports two cabinets only.",
+      "Connect the Model 3 network board, equivalent to the standalone Network setting. Some games expose their Network Assignments in the Service Menu only while the board is connected. Requires a content restart. Linked play through RetroArch Netplay remains experimental and is currently verified only for two-cabinet Daytona 2 and Scud Race links.",
       NULL,
       "system",
       {
-         { "disabled", NULL },
-         { "enabled",  NULL },
+         { "disabled", "Disconnected" },
+         { "enabled",  "Connected" },
          { NULL, NULL },
       },
       "disabled"
@@ -67,7 +67,7 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "supermodel_nvram_settings",
       "NVRAM Settings",
       NULL,
-      "Enable game-aware NVRAM settings. Only options supported by the loaded game or game family are shown. Selected values are written to both redundant settings copies and the game checksum is regenerated. Restart content to apply gameplay changes.",
+      "Let RetroArch manage the supported NVRAM settings for each game. When enabled, every displayed value is applied at startup and overrides later Service Menu changes. When disabled, the core does not modify these fields. Settings saved for other games are never reused. Restart content to apply.",
       NULL,
       "system",
       {
@@ -76,73 +76,6 @@ static struct retro_core_option_v2_definition option_defs[] = {
          { NULL, NULL },
       },
       "disabled"
-   },
-   {
-      "supermodel_nvram_country",
-      "Country",
-      NULL,
-      "Set the machine country stored in NVRAM. Keep Current preserves the existing value.",
-      NULL,
-      "system",
-      {
-         { "current",   "Keep Current" },
-         { "japan",     "Japan" },
-         { "usa",       "USA" },
-         { "export",    "Export" },
-         { "australia", "Australia" },
-         { "korea",     "Korea" },
-         { NULL, NULL },
-      },
-      "current"
-   },
-   {
-      "supermodel_nvram_link_mode",
-      "Link Mode",
-      NULL,
-      "Set the cabinet link mode stored in NVRAM. Keep Current preserves the existing value.",
-      NULL,
-      "system",
-      {
-         { "current", "Keep Current" },
-         { "single",  "Single" },
-         { "master",  "Master" },
-         { "slave",   "Slave" },
-         { "live",    "Live" },
-         { NULL, NULL },
-      },
-      "current"
-   },
-   {
-      "supermodel_nvram_car_number",
-      "Car Number",
-      NULL,
-      "Set the linked-cabinet car number stored in NVRAM. Keep Current preserves the existing value.",
-      NULL,
-      "system",
-      {
-         { "current", "Keep Current" },
-         { "1",  NULL }, { "2",  NULL }, { "3",  NULL }, { "4",  NULL },
-         { "5",  NULL }, { "6",  NULL }, { "7",  NULL }, { "8",  NULL },
-         { "9",  NULL }, { "10", NULL }, { "11", NULL }, { "12", NULL },
-         { "13", NULL }, { "14", NULL }, { "15", NULL }, { "16", NULL },
-         { NULL, NULL },
-      },
-      "current"
-   },
-   {
-      "supermodel_nvram_cabinet",
-      "Cabinet Type",
-      NULL,
-      "Set the cabinet type stored in NVRAM. Keep Current preserves the existing value.",
-      NULL,
-      "system",
-      {
-         { "current", "Keep Current" },
-         { "deluxe",  "Deluxe" },
-         { "twin",    "Twin" },
-         { NULL, NULL },
-      },
-      "current"
    },
    // Video
    {
@@ -287,7 +220,7 @@ static struct retro_core_option_v2_definition option_defs[] = {
       NULL,
       "Select which native Supermodel vector crosshair is displayed in light gun games.",
       NULL,
-      "video",
+      "input",
       {
          { "0", "Disabled" },
          { "1", "Player 1 Only" },
@@ -623,32 +556,6 @@ void update_core_options(void)
    g_options.nvram_settings_enabled =
       strcmp(option_get("supermodel_nvram_settings", "disabled"),
              "enabled") == 0;
-   {
-      const char *country = option_get("supermodel_nvram_country", "current");
-      g_options.nvram_country = strcmp(country, "japan") == 0 ? 1
-                              : strcmp(country, "usa") == 0 ? 2
-                              : strcmp(country, "export") == 0 ? 3
-                              : strcmp(country, "australia") == 0 ? 4
-                              : strcmp(country, "korea") == 0 ? 5 : -1;
-   }
-   {
-      const char *link = option_get("supermodel_nvram_link_mode", "current");
-      g_options.nvram_link_mode = strcmp(link, "single") == 0 ? 0
-                                : strcmp(link, "master") == 0 ? 1
-                                : strcmp(link, "slave") == 0 ? 2
-                                : strcmp(link, "live") == 0 ? 3 : -1;
-   }
-   {
-      const char *car = option_get("supermodel_nvram_car_number", "current");
-      g_options.nvram_car_number = strcmp(car, "current") == 0 ? -1 : atoi(car);
-      if (g_options.nvram_car_number < 1 || g_options.nvram_car_number > 16)
-         g_options.nvram_car_number = -1;
-   }
-   {
-      const char *cabinet = option_get("supermodel_nvram_cabinet", "current");
-      g_options.nvram_cabinet = strcmp(cabinet, "deluxe") == 0 ? 0
-                              : strcmp(cabinet, "twin") == 0 ? 1 : -1;
-   }
 
    const char* resolution = option_get("supermodel_resolution", "native");
    if (strcmp(resolution, "half") == 0)

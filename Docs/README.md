@@ -172,36 +172,88 @@ standalone Supermodel save, place `<rom-set>.nv` directly in the frontend save
 directory. The core reads `.nv` only when no `.srm` data was supplied. If both
 are present, `.srm` takes precedence and the ignored `.nv` path is reported in
 the log. `Automatic Initial NVRAM Setup` is enabled by default. When neither a
-frontend `.srm` nor a valid native `.nv` exists, it initializes known Daytona
-USA 2, Scud Race, Dirt Devils, and Star Wars Trilogy revisions with the machine
-settings needed to boot without unsupported cabinet links or lever feedback.
-Only the initial EEPROM is supplied; backup RAM starts empty. Existing saves
-are never modified, and deleting a game's `.srm` regenerates the initial setup
-on its next launch. Disable the option before first launch to retain the game's
-unconfigured factory defaults. The core never writes or overwrites native
-`.nv` files.
+frontend `.srm` nor a valid native `.nv` exists, it uses the same field-level
+NVRAM patcher as `NVRAM Settings` to select `Single`, `Stand Alone`, or `No
+Link` in every supported linked-cabinet game and the `Upright` cabinet in Star
+Wars Trilogy Arcade. It never copies a complete `.srm` or Backup RAM image and
+does not disable lever feedback. Unrelated EEPROM fields retain the validated
+smoke-test state. Existing saves are never
+modified, and deleting a game's `.srm` regenerates the initial setup on its
+next launch. For each affected released ROM set, the core starts from that
+set's validated smoke-test EEPROM data so the field-level update exists before
+the first emulated frame; Backup RAM is not copied. Disable the option before
+first launch to retain the game's unconfigured factory defaults. The core
+never writes or overwrites native `.nv` files.
 
 `System > NVRAM Settings` provides optional game-aware editing and is disabled
-by default. When enabled, only settings known for the currently loaded game or
-game family are displayed. Every field defaults to `Keep Current`, so merely
-enabling the feature does not modify a save. Daytona USA 2 and Power Edition
-expose Country, Link Mode, Car Number, and Cabinet Type. Scud Race and Scud
-Race Plus expose Link Mode, Car Number, and Cabinet Type; Country is omitted
-because that family uses a different encoding. Changes are written to the
-frontend `.srm` with the required redundant copy and checksum; restart the
-content before expecting the game to use the new machine setting.
+by default. Every supported game has independent option keys. When enabled,
+the menu displays only the parameters for the currently loaded game, and each
+parameter contains all and only the values supported by that game. Every field
+has a concrete game-specific default, marked `(Default)` in its value list. If
+the game supports linked cabinets, its link field defaults to the corresponding
+`Single`, `No Link`, or `Stand Alone` mode; Star Wars Trilogy Arcade defaults
+to the `Upright` cabinet. If
+the option is enabled, RetroArch becomes authoritative for every displayed
+field: the selected values are applied at startup and therefore replace later
+Service Menu changes. If it is disabled, the core does not modify these fields.
+A game cannot inherit selections made for another game. Values are listed in
+their stored order, which may differ from the order in which the Service Menu
+cycles them. The available fields are derived from a controlled 349-sample
+Service-menu campaign:
+
+| Game family | Available settings |
+| --- | --- |
+| Sega Bass Fishing / Get Bass | Country, Difficulty |
+| Daytona USA 2 | Country, Difficulty, Link Mode, Car Number, Cabinet Type |
+| Dirt Devils | Country, Difficulty, Link Mode, Machine Number |
+| Emergency Call Ambulance | Difficulty |
+| Fighting Vipers 2 | Country, Difficulty |
+| Harley-Davidson | Country, Difficulty, Link Mode, Cabinet Number, Cabinet Type |
+| L.A. Machineguns | Country, Difficulty, Cabinet Type |
+| Le Mans 24 | Country, Difficulty, Link Mode, Cabinet Number, Cabinet Type, Special Car |
+| The Lost World | Country, Difficulty |
+| Magical Truck Adventure | Country, Difficulty, Christmas Mode |
+| The Ocean Hunter | Country, Difficulty, Cabinet Type |
+| Scud Race / Scud Race Plus | Country, Difficulty, Link Mode, Car Number, Cabinet Type |
+| Ski Champ | Country, Link Mode, Cabinet Number |
+| Spikeout / Spikeout Final Edition | Country, Difficulty, Link Mode |
+| Sega Rally 2 | Country, Difficulty, combined Link Configuration, Cabinet Type |
+| Star Wars Trilogy Arcade | Country, Difficulty, Cabinet Type |
+| Virtua Fighter 3 | Country, Difficulty |
+| Virtual On 2 | Country, Difficulty, Link Mode, Seat, Display Type |
+| Virtual Striker 2 | Country, Difficulty |
+| Virtual Striker 2 '98 | Country, Difficulty |
+| Virtual Striker 2 '99 | Country, Difficulty |
+
+Ordinary release clones inherit their parent's layout while preserving
+revision-specific data. Prototypes, location tests (`lostwsgp`, `swtrilgyp`,
+and `ecap`), and the `mgtrkbad` bad dump are not patched. Country is omitted
+where that Service setting does not apply: `scudau`, `vs215o`, `vs29815`,
+`vs299j`, and `vs29915j`. EEPROM games
+receive the appropriate XMODEM, Sega-A3, or GENIBUS checksum and redundant-copy
+updates. Fighting Vipers 2 and Virtua Fighter 3 instead patch their confirmed
+Backup RAM operator bytes, which do not require a checksum. Restart content
+before expecting the game to use a changed machine setting.
 
 ### Experimental linked cabinets
 
-`System > Network Board (Experimental)` connects two supported Type 1 cabinets
-through RetroArch Netplay and Libretro's netpacket API. It is disabled by
-default and currently supports the Daytona USA 2 and Scud Race families with
-exactly two players. The standalone emulator's SDL_net transport is not used
-or modified.
+`System > Network Board` is the Libretro equivalent of standalone
+Supermodel's `Network` setting. It is disabled by default and is shown only for
+games whose `Games.xml` entry includes a network board. Connecting it makes the
+hardware visible to the game; this is also required for games such as Sega
+Rally 2 that expose Network Assignments in the Service Menu only when the board
+is present. Restart content after changing the option.
+
+The same option enables experimental linked play when a supported RetroArch
+Netplay session is active. The netpacket transport currently supports exactly
+two cabinets from the Daytona USA 2 and Scud Race families. Other network-board
+families expose the emulated hardware and their Service Menu configuration,
+but their linked-play transport is not yet implemented. The standalone
+emulator's SDL_net transport is not used or modified.
 
 Configure both instances before starting Netplay:
 
-- enable `NVRAM Settings` and `Network Board (Experimental)`;
+- set `System > Network Board` to `Connected` and enable `NVRAM Settings`;
 - set the RetroArch host to `Link Mode: Master`, normally with `Car Number: 1`;
 - set the client to `Link Mode: Slave` with a different car number;
 - restart the content on both sides, then host/join the same content through

@@ -11,9 +11,9 @@
 
 namespace Util { namespace Config { class Node; } }
 
-// Model 3 network-board simulation transported through libretro's netpacket
-// interface. The first implementation deliberately targets two-cabinet Type 1
-// links; the native standalone CSimNetBoard transport is unchanged.
+// Model 3 network-board simulation. Board presence follows the standalone
+// Network setting for every family recognized by CSimNetBoard; transport
+// through libretro's netpacket interface remains separately capability-gated.
 class CLibretroNetBoard final : public INetBoard
 {
 public:
@@ -47,6 +47,7 @@ public:
   void WriteIORegister(unsigned reg, UINT16 data) override;
 
 private:
+  enum class GameType { Unsupported, Type1, Type2 };
   enum class State { Start, Init, Testing, Ready, Error };
 
   struct ParsedPacket
@@ -65,7 +66,9 @@ private:
   UINT8 *m_externalCommRAM = nullptr;
   bool m_attached = false;
   bool m_running = false;
+  bool m_transportSupported = false;
   bool m_commBank = false;
+  GameType m_gameType = GameType::Unsupported;
   State m_state = State::Start;
   uint16_t m_irq2Ack = 0;
   uint16_t m_status0 = 0;
@@ -80,7 +83,9 @@ private:
   std::map<uint32_t, std::vector<uint8_t>> m_framePackets;
 
   bool IsGame(const char *gameName) const;
+  GameType DetectGameType() const;
   const char *NetworkFamily() const;
+  bool HasNetpacketTransport() const;
   uint16_t ReadNetRAM16(unsigned index) const;
   void WriteCommWord(unsigned index, uint16_t value);
   void SwapCommBanks();

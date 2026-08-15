@@ -262,14 +262,20 @@ frontend save directory is imported only when the frontend supplied no `.srm`
 data; when both sources exist, `.srm` wins and the decision is logged. The core
 never modifies `.nv`; if native import fails, default NVRAM is initialized and
 persisted to a new `.srm`. With `Automatic Initial NVRAM Setup` enabled, the
-core instead supplies a game-generated 93C46 EEPROM template for known Daytona
-USA 2, Scud Race, Dirt Devils, and Star Wars Trilogy revisions whenever no
-valid save source exists. These templates configure Single/No Link or disable
-unsupported lever feedback as appropriate. They include the checksums written
-by each game's Service menu; backup RAM is not templated. This is a one-time
-initialization: an existing `.srm` or valid `.nv` is never patched, and deleting
-the `.srm` explicitly requests regeneration. Older headerless `.srm` files from
-the initial Libretro port remain readable.
+core uses the same field-level patcher and checksum implementations as the
+game-specific NVRAM options whenever no valid save source exists. It selects
+the available `Single`, `Stand Alone`, or `No Link` value in every supported
+linked-cabinet game and the `Upright` cabinet in Star Wars Trilogy Arcade. No
+complete `.srm` or Backup RAM image is copied, lever feedback is not modified,
+and unrelated operator fields retain the smoke-test factory state. This is a
+one-time initialization: an existing
+`.srm` or valid `.nv` is never patched, and deleting the `.srm` explicitly
+requests regeneration. A blank EEPROM does not yet contain a game-specific
+layout, so every affected released ROM set has its own 64-word seed extracted
+from the validated smoke-test campaign. The seed is installed before the first
+emulated frame and then passed through the normal field patcher; Backup RAM is
+left pristine. Older headerless `.srm` files from the initial Libretro port
+remain readable.
 
 ### Model 3 EEPROM checksums
 
@@ -300,14 +306,21 @@ state ^= table[index / 2] << 8
 checksum = rotl32(state, 24) & 0xFFFF
 ```
 
-This classification reproduced all 84 checksum-bearing samples available
-during analysis: 48 XMODEM, 23 Sega-variant, and 13 tagged GENIBUS images.
-Four Virtua Fighter 3 samples use an older duplicated `SEGA` layout and require
-separate analysis; two Fighting Vipers 2 smoke-test images remained erased.
-Country and Link/Cabinet options must additionally map the corresponding fields
-per game or game family and update redundant copies or sequence fields where
-present; checksum support alone is not sufficient to patch those settings
-safely.
+This classification reproduced all 332 checksum-bearing samples in the final
+controlled campaign: 153 XMODEM, 150 Sega-A3, and 29 tagged GENIBUS images.
+The remaining 17 of the 349 samples established that Fighting Vipers 2 and
+Virtua Fighter 3 keep these operator settings in Backup RAM rather than in
+their erased/older EEPROM layouts. Their confirmed byte offsets are 94
+(Difficulty) and 111 (Country) for Fighting Vipers 2, and 122886 (Difficulty)
+and 122910 (Country) for Virtua Fighter 3. Boot-and-clean-close tests verified
+that these four bytes require no additional Backup RAM checksum.
+
+Checksum support alone is not sufficient to patch settings safely. The core
+uses a per-family descriptor for each exposed value and replaces only the
+confirmed byte or masked word field. It preserves unrelated bits, revision
+data, and sequence counters; duplicated XMODEM records are updated atomically.
+All 349 parent values and 507 applicable release-clone values were replayed
+against the campaign samples after implementation.
 
 For Daytona USA 2, controlled Service-menu samples locate `Country` in the
 high byte of EEPROM words 12 and 41 (primary and redundant settings copies):
@@ -346,12 +359,28 @@ counter by one; samples matching the base value (`Slave`, car 1, and `Twin`)
 confirm the base configuration rather than introducing a third encoding.
 
 `System > NVRAM Settings` is disabled by default. Enabling it dynamically
-exposes only the fields supported by the loaded game family. Each field
-defaults to `Keep Current`; selected values are applied through Supermodel's
-normal NVRAM block interface after the frontend `.srm` or native `.nv` has been
-loaded. The Daytona USA 2 family currently exposes Country, Link Mode, Car
-Number, and Cabinet Type. The core preserves unrelated bits, writes both
-settings copies, regenerates CRC-16/XMODEM, and does not alter backup RAM.
+exposes only the fields supported by the loaded ROM set. At initial core-option
+registration, every supported parent and clone receives independent persistent
+keys for every parameter it supports. Each key has a concrete default read from
+that game's smoke-test NVRAM, except that every linked-cabinet field defaults to
+the game's non-linked `Single`, `No Link`, or `Stand Alone` mode and Star Wars
+Trilogy Arcade defaults to the `Upright` cabinet. The selected default is
+labelled `(Default)` and there is no `Keep Current` sentinel.
+Consequently a selection for one set cannot leak
+into another, while each visible parameter still offers all and only the values
+valid for that set. When enabled, all displayed selections are applied through
+Supermodel's normal NVRAM block interface after the frontend `.srm` or native
+`.nv` has been loaded, making the frontend authoritative over later Service
+Menu changes. When disabled, the patcher is not invoked. Options are ordered by
+their progressively encoded stored values except where a composite field (for
+example Sega Rally 2's role/car configuration) requires semantic labels.
+
+Parent layouts are shared only with structurally compatible release clones.
+Prototypes, location tests (`lostwsgp`, `swtrilgyp`, and `ecap`), and
+`mgtrkbad` are excluded. Country is selectively
+hidden for `scudau`, `vs215o`, `vs29815`, `vs299j`, and `vs29915j`, where the
+corresponding regional Service Menu does not expose that setting. No complete
+sample EEPROM or Backup RAM image is ever copied over an existing save.
 
 ## Libretro linked-cabinet transport
 
@@ -363,13 +392,20 @@ official compatible declarations instead of replacing the entire vendored
 libretro-common snapshot.
 
 `CLibretroNetBoard` is independent from standalone `CSimNetBoard`: standalone
-continues to use its SDL_net TCP ring. The first Libretro protocol version is
-deliberately limited to two Type 1 cabinets and currently recognizes the
-Daytona USA 2 and Scud Race families. RetroArch client 0 must be the Model 3
-Master and client 1 the Slave. After a bidirectional role handshake, each core
-sends one reliable packet per emulated network-board frame. For two nodes this
-replaces the TCP ring's returned local segment with a local copy, preserving
-the same communication-RAM order while avoiding a redundant packet.
+continues to use its SDL_net TCP ring. Board presence and linked transport are
+separate in the Libretro backend: `System > Network Board` mirrors
+standalone's `Network` boolean and attaches the board for every Type 1 or Type
+2 family recognized by `CSimNetBoard`. This lets games detect the hardware and
+expose board-dependent Service Menu pages even when no Netplay session exists.
+The option is hidden for games without a network board.
+
+The first Libretro transport protocol remains deliberately limited to two Type
+1 cabinets and currently recognizes the Daytona USA 2 and Scud Race families.
+RetroArch client 0 must be the Model 3 Master and client 1 the Slave. After a
+bidirectional role handshake, each core sends one reliable packet per emulated
+network-board frame. For two nodes this replaces the TCP ring's returned local
+segment with a local copy, preserving the same communication-RAM order while
+avoiding a redundant packet.
 
 This exchange deliberately remains lockstep. The official netpacket API's
 `RETRO_NETPACKET_FLUSH_HINT` already flushes without blocking, and

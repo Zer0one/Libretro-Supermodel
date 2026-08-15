@@ -47,10 +47,6 @@ struct CoreOptions {
    bool initial_nvram_setup;
    bool network_board;
    bool nvram_settings_enabled;
-   int nvram_country;
-   int nvram_link_mode;
-   int nvram_car_number;
-   int nvram_cabinet;
    float resolution_multiplier;
    Renderer3D renderer_3d;
    bool quad_rendering;

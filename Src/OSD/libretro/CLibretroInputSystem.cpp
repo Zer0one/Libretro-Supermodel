@@ -512,7 +512,11 @@ bool CLibretroInputSystem::Poll()
         m_analogJoystickCursorX, minX, maxX);
     m_analogJoystickCursorY = std::clamp(
         m_analogJoystickCursorY, minY, maxY);
-    m_mouseAxes[analogJoystickDev][AXIS_X] = m_analogJoystickCursorX;
+    // The arcade analog joystick's horizontal electrical range is opposite to
+    // Libretro's mouse and joypad convention. Invert the shared virtual output
+    // so every Star Wars input mode has the same orientation.
+    m_mouseAxes[analogJoystickDev][AXIS_X] =
+        minX + (maxX - m_analogJoystickCursorX);
     m_mouseAxes[analogJoystickDev][AXIS_Y] = m_analogJoystickCursorY;
     m_mouseAxes[analogJoystickDev][AXIS_Z] = 0;
     m_mouseWheelDir[analogJoystickDev] = 0;
