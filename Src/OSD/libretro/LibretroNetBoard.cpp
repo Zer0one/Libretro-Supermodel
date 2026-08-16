@@ -320,8 +320,7 @@ const char *CLibretroNetBoard::NetworkFamily() const
 
 bool CLibretroNetBoard::HasNetpacketTransport() const
 {
-  return IsGame("daytona2") || IsGame("harley") || IsGame("scud") ||
-         IsGame("srally2");
+  return m_gameType == GameType::Type1;
 }
 
 Result CLibretroNetBoard::Init(UINT8 *netRAMPtr, UINT8 *netBufferPtr)
