@@ -238,22 +238,22 @@ before expecting the game to use a changed machine setting.
 ### Experimental linked cabinets
 
 `System > Network Board` is the Libretro equivalent of standalone
-Supermodel's `Network` setting. It is disabled by default and is shown only for
-games whose `Games.xml` entry includes a network board. Connecting it makes the
-hardware visible to the game; this is also required for games such as Sega
+Supermodel's `Network` setting. It is connected by default and is shown only
+for games whose `Games.xml` entry includes a network board. Connecting it makes
+the hardware visible to the game; this is also required for games such as Sega
 Rally 2 that expose Network Assignments in the Service Menu only when the board
 is present. Restart content after changing the option.
 
 The same option enables experimental linked play when a supported RetroArch
-Netplay session is active. The netpacket transport currently recognizes the
-Daytona USA 2, Harley-Davidson, Scud Race, and Sega Rally 2 families. Set
-`System > Linked Cabinets` to the total number of cabinets expected in the
+Netplay session is active. The netpacket transport recognizes the Daytona USA
+2, Harley-Davidson, Scud Race, Sega Rally 2, Ski Champ, and Spikeout Type 1
+families, plus the Le Mans 24, Virtual-On 2, and Dirt Devils Type 2 families.
+Set `System > Linked Cabinets` to the total number of cabinets expected in the
 session; every instance must use the same value. The protocol accepts 2 to 16
 cabinets. Runtime testing currently covers two-cabinet links and a
-three-cabinet Harley-Davidson link; larger sessions remain unverified. Other
-network-board families expose the emulated hardware and their Service Menu
-configuration, but their linked-play transport is not yet implemented. The
-standalone emulator's SDL_net transport is not used or modified.
+three-cabinet Harley-Davidson link; larger sessions and Type 2 role
+combinations require broader cross-host validation. The standalone emulator's
+SDL_net transport is not used or modified.
 
 Configure both instances before starting Netplay:
 
@@ -261,8 +261,9 @@ Configure both instances before starting Netplay:
   `Linked Cabinets` value on every instance, and enable `NVRAM Settings`;
 - set the RetroArch host to `Link Mode: Master`, normally with cabinet/car
   number 1;
-- set every client to `Link Mode: Slave`, using a different cabinet/car number
-  where the game exposes one;
+- set every client to a non-Master link role supported by the game (`Slave`
+  for Type 1, or the appropriate Slave/Relay/Satellite role for Type 2), using
+  a different cabinet/car number where the game exposes one;
 - restart the content on every instance, then host/join the same content
   through RetroArch Netplay.
 
@@ -270,11 +271,13 @@ The core uses RetroArch's official Netpacket interface exclusively: frontend
 client identifiers, broadcast packets, callbacks, and receive polling provide
 the complete transport. It opens no sockets, performs no private discovery or
 IPC, and adds no fallback transport. The RetroArch host must be the Model 3
-Master and every client a Slave. The core derives a common cabinet roster from
+Master and every client must use a non-Master role supported by that game. The
+core derives a common cabinet roster from
 the frontend identifiers and reconstructs the standalone network ring's
 per-cabinet segment order. RetroArch disables pause, fast-forward, rewind, and
-Save State loading while the linked session is active. The remaining Type 1
-families and Type 2 network-board games remain future work.
+Save State loading while the linked session is active. All currently recognized
+Type 1 and Type 2 families use this API-native transport; untested cabinet
+counts and role combinations remain future work.
 
 Use a stable, low-latency wired LAN. The emulated cabinets exchange one network
 segment in lockstep, matching standalone Supermodel's send/receive behavior;

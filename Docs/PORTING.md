@@ -240,6 +240,10 @@ Validated on macOS ARM64:
   Supermodel NVRAM configured for a single cabinet;
 - successful `MAP_JIT` allocation and sustained ARM64 JIT execution in Daytona
   2 and Sega Rally 2, with no evident gameplay, graphics, or audio regressions;
+- correct New3D rendering of Star Wars Trilogy Arcade's close-range Death Star
+  surface after compiling the 3D renderers without fast-math, preserving the
+  engine's explicit NaN/Inf fog-value sanitization;
+- visually aligned 61-frame averages in the optional Frame Timing Overlay;
 - service-mode validation of the dedicated fishing profile: rod and fishing
   stick axes, analog `00-FF` reel speed, cast, and select; the Japan Standard
   `getbass` set additionally exposes and correctly reads the tension axis;
@@ -254,6 +258,12 @@ Validated on macOS ARM64:
 Still requiring validation or implementation:
 
 - visual correctness and extended gameplay testing;
+- diagnose Batocera mouse delivery to the Libretro core. The physical mouse is
+  visible through evdev and Batocera correctly generated both
+  `input_player1_mouse_index = 0` and Star Wars `Mouse Only`, but no relative
+  movement reached the emulated control. Keep the eventual fix within the
+  frontend and Libretro input APIs rather than adding a private device-input
+  fallback;
 - extended audio, controls, force-feedback, and Save State coverage across more
   games;
 - Linux, Windows, Android, and other advertised build targets;
@@ -263,8 +273,8 @@ Still requiring validation or implementation:
 - broader PPC JIT compatibility testing on macOS ARM64, plus runtime validation
   on Android ARM64, Raspberry Pi 64-bit, and generic Linux AArch64; compilation
   alone does not establish game compatibility;
-- linked-cabinet runtime validation beyond three cabinets, and transport
-  implementation for the remaining Type 1 and Type 2 network-board families;
+- linked-cabinet runtime validation beyond three cabinets and broader
+  cross-host validation of the implemented Type 1 and Type 2 families;
   automatic initial NVRAM setup continues to select Single/No Link for known
   affected revisions when linked play is not configured.
 
@@ -410,17 +420,20 @@ separate in the Libretro backend: `System > Network Board` mirrors
 standalone's `Network` boolean and attaches the board for every Type 1 or Type
 2 family recognized by `CSimNetBoard`. This lets games detect the hardware and
 expose board-dependent Service Menu pages even when no Netplay session exists.
-The option is hidden for games without a network board.
+The option defaults to connected and is hidden for games without a network
+board.
 
 The version-2 Libretro transport recognizes the Daytona USA 2,
-Harley-Davidson, Scud Race, and Sega Rally 2 Type 1 families and accepts a
-configured total of 2 to 16 cabinets. RetroArch client 0 must be the Model 3
-Master and every other client a Slave. Every participant broadcasts its role
-and expected cabinet count, then derives the same sorted roster from the
-frontend-provided client identifiers. After this handshake, each core
-broadcasts one reliable segment per emulated network-board frame and rebuilds
-the circular communication-RAM order relative to its own roster position. The
-final local segment is copied directly, avoiding a redundant loopback packet.
+Harley-Davidson, Scud Race, Sega Rally 2, Ski Champ, and Spikeout Type 1
+families, plus the Le Mans 24, Virtual-On 2, and Dirt Devils Type 2 families.
+It accepts a configured total of 2 to 16 cabinets. RetroArch client 0 must be
+the Model 3 Master and every other client a non-Master role supported by that
+game. Every participant broadcasts its role and expected cabinet count, then
+derives the same sorted roster from the frontend-provided client identifiers.
+After this handshake, each core broadcasts one reliable segment per emulated
+network-board frame and rebuilds the circular communication-RAM order relative
+to its own roster position. The final local segment is copied directly,
+avoiding a redundant loopback packet.
 
 This implementation is intentionally API-native and KISS. It uses only the
 official Libretro Netpacket interface, including RetroArch-assigned client
@@ -456,10 +469,9 @@ completed a three-instance linked race with a stable link and no observed
 protocol divergence. Running three complete Model 3 instances on the test Mac
 reduced available performance headroom, so this validates the three-cabinet
 protocol rather than establishing a performance target. Values from 4 to 16
-remain structurally supported but require runtime validation. Games using
-Supermodel's type-2 network-board protocol (Le Mans 24, Virtual-On 2, and Dirt
-Devils) still require their separate status and playable/relay index layout
-before they can be enabled.
+remain structurally supported but require runtime validation. Type 2 uses its
+separate status and playable/relay index layout; the game-specific combinations
+still require broader cross-host coverage.
 
 Libretro Save States use standalone Supermodel's current version-6 header and
 ROM-set identifier before the normal subsystem blocks. This rejects states
