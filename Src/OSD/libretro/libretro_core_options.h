@@ -291,6 +291,20 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "hybrid"
    },
    {
+      "supermodel_star_wars_upright_x_inversion",
+      "Star Wars Trilogy Upright Mode X-Axis Inversion Fix",
+      NULL,
+      "Invert the horizontal analog input when Star Wars Trilogy Arcade's NVRAM cabinet type is Upright, matching the cabinet-specific axis orientation. Disable this when the frontend or input device already applies the required inversion. Changes take effect immediately.",
+      NULL,
+      "input",
+      {
+         { "enabled",  "ON" },
+         { "disabled", "Disable" },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
+   {
       "supermodel_force_feedback",
       "Force Feedback",
       NULL,
@@ -687,6 +701,9 @@ void update_core_options(void)
             ? StarWarsInput::AnalogSticks
             : StarWarsInput::Hybrid;
    }
+   g_options.star_wars_upright_x_inversion =
+      strcmp(option_get("supermodel_star_wars_upright_x_inversion", "enabled"),
+             "enabled") == 0;
    g_options.four_speed_shifter =
       strcmp(option_get("supermodel_four_speed_shifter", "h_gate"),
              "h_gate") == 0

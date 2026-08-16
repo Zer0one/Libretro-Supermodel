@@ -167,6 +167,12 @@ the control signature declared by the loaded game. See
 [Libretro control profiles](CONTROL_PROFILES.md) for the complete catalog and
 the fallback rules.
 
+`Input > Star Wars Trilogy Upright Mode X-Axis Inversion Fix` is enabled by
+default and reverses the horizontal analog input only when Star Wars Trilogy
+Arcade is configured as an Upright cabinet. Disable it if the frontend or input
+device already applies that inversion. The option changes only input
+interpretation and does not modify NVRAM.
+
 NVRAM is normally persisted by the frontend as `<content>.srm`. To import a
 standalone Supermodel save, place `<rom-set>.nv` directly in the frontend save
 directory. The core reads `.nv` only when no `.srm` data was supplied. If both
