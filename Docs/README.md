@@ -30,7 +30,7 @@ guidance.
 - **Synchronous A/V Timing:** Matches standalone Supermodel's default 60 Hz cadence and 735-sample stereo audio packets; RetroArch owns final A/V synchronization.
 - **Improved Input Mapping:** Full support for Analog/Digital gamepads and keyboard out of the box with improved deadzone handling.
 - **Configurable Service & Test Buttons:** Service and Test buttons are now mappable through the RetroArch input configuration.
-- **Force Feedback / Rumble:** Full force feedback support for steering wheel games via the Libretro rumble interface.
+- **Force Feedback / Rumble:** Enabled by default for supported steering-wheel games via the Libretro rumble interface.
 - **True Widescreen:** Expands the 3D horizontal field of view into a native
   16:9 framebuffer, with an optional wide lower-background layer. Plain 4:3
   stretching remains the frontend's responsibility.
@@ -110,6 +110,10 @@ Resolution`: 2x evaluates four samples per output pixel, 3x evaluates nine,
 and 8x evaluates 64. The combined scale can consume substantial GPU time and
 memory, and changes require restarting the content.
 
+`Disable White Flash` mirrors standalone Supermodel's `NoWhiteFlash` setting.
+It suppresses the white frame normally produced when a game disables 3D
+rendering, is off by default, and requires restarting the content.
+
 At resolutions above native, `2D Layer Upscaling Filter` selects Supermodel's
 own `UpscaleMode` for tile layers before they are composited with the 3D scene.
 At 496x384 the engine deliberately uses nearest-neighbor filtering regardless
@@ -124,16 +128,22 @@ switch is intentionally not exposed.
 
 ## Timing and synchronization
 
-The core reports `60 FPS` video and `44100 Hz` stereo audio to the frontend,
-and consumes one fixed packet of 735 audio samples per `retro_run`. This is the
-same cadence used by standalone Supermodel by default. The Model 3 hardware
-refresh is approximately 57.524160 Hz, but upstream deliberately defaults to
-60 Hz because true-Hz output can judder on ordinary 60 Hz displays.
+`Model 3 Timing Mode` defaults to the same `60 FPS` video and `44100 Hz` stereo
+audio cadence used by standalone Supermodel. This mode submits one fixed packet
+of 735 stereo samples per `retro_run`. The optional native mode reports
+57.524160 FPS and packetizes the unchanged 44.1 kHz stream into a deterministic
+766/767-sample cadence, preserving exact long-term A/V synchronization without
+resampling. A display capable of matching 57.524160 Hz provides the smoothest
+result; native timing can judder on an ordinary fixed 60 Hz display. Changing
+the mode requires restarting content. Native timing also requires either
+multi-threaded emulation mode so the sound board can continuously fill the
+44.1 kHz ring buffer; `Single Thread` remains intended for the default 60 Hz
+mode.
 
 The core does not expose its own VSync setting: the Libretro frontend owns the
-display swapchain, video presentation, audio synchronization, and final sample
-rate conversion. A future true-Hz mode would require a matching fractional
-audio path (766/767 samples per frame), not just a different advertised FPS.
+display swapchain, video presentation, audio synchronization, and any final
+sample-rate conversion. The core timing option changes the advertised cadence
+and matching audio packet sizes together; it never changes only one side.
 
 For objective performance checks, enable `Frame Timing Overlay`. Besides the
 engine's PPC, renderer, GPU, synchronization and sound timings, it shows

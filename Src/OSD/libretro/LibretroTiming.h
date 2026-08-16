@@ -5,21 +5,41 @@
 
 namespace LibretroTiming {
 
-// Match Supermodel standalone's default cadence. Although Model 3 video
-// hardware runs at 57.524160 Hz, upstream defaults to 60 Hz to avoid judder,
-// and its SoundBoard produces exactly 44100 / 60 samples per audio chunk.
-// A future true-Hz mode must first teach the audio path to generate/resample
-// the required fractional 766/767-sample cadence.
-inline constexpr unsigned kFrameRate = 60;
-inline constexpr double kFramesPerSecond = static_cast<double>(kFrameRate);
+// Supermodel defaults to 60 Hz to avoid judder on ordinary displays, while
+// native Model 3 timing is 57.524160 Hz. Libretro always exposes the original
+// 44.1 kHz audio stream; native timing packetizes it into a deterministic
+// 766/767-frame cadence instead of changing or resampling the stream.
+inline constexpr std::uint64_t kMicroHzScale = 1000000;
+inline constexpr std::uint64_t kDefaultFrameRateMicroHz = 60000000;
+inline constexpr std::uint64_t kNativeFrameRateMicroHz = 57524160;
+inline constexpr double kDefaultFramesPerSecond = 60.0;
+inline constexpr double kNativeFramesPerSecond = 57.524160;
 inline constexpr unsigned kAudioSampleRate = 44100;
-inline constexpr unsigned kAudioFramesPerVideoFrame =
-   kAudioSampleRate / kFrameRate;
-inline constexpr unsigned kAudioBytesPerVideoFrame =
-   kAudioFramesPerVideoFrame * 2 * sizeof(std::int16_t);
+inline constexpr unsigned kDefaultAudioFramesPerVideoFrame =
+   kAudioSampleRate / 60;
+inline constexpr unsigned kStereoAudioBytesPerFrame =
+   2 * sizeof(std::int16_t);
 
-static_assert(kAudioSampleRate % kFrameRate == 0,
-              "The 60 Hz audio packet must contain a whole number of samples");
+inline constexpr std::uint64_t FrameRateMicroHz(bool nativeTiming)
+{
+   return nativeTiming ? kNativeFrameRateMicroHz
+                       : kDefaultFrameRateMicroHz;
+}
+
+inline constexpr double FramesPerSecond(bool nativeTiming)
+{
+   return nativeTiming ? kNativeFramesPerSecond
+                       : kDefaultFramesPerSecond;
+}
+
+inline unsigned NextAudioFrames(std::uint64_t frameRateMicroHz,
+                                std::uint64_t &remainder)
+{
+   remainder += static_cast<std::uint64_t>(kAudioSampleRate) * kMicroHzScale;
+   const unsigned frames = static_cast<unsigned>(remainder / frameRateMicroHz);
+   remainder %= frameRateMicroHz;
+   return frames;
+}
 
 } // namespace LibretroTiming
 

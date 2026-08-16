@@ -242,6 +242,34 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "disabled"
    },
    {
+      "supermodel_no_white_flash",
+      "Disable White Flash",
+      NULL,
+      "Suppress the white flash normally shown when a game disables 3D rendering. Equivalent to standalone Supermodel's NoWhiteFlash setting. Requires restarting content.",
+      NULL,
+      "video",
+      {
+         { "disabled", "OFF (Default)" },
+         { "enabled",  "ON" },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
+      "supermodel_av_timing",
+      "Model 3 Timing Mode",
+      NULL,
+      "Select the video cadence and matching 44.1 kHz audio packetization. Native Model 3 timing reports 57.524160 FPS and uses a fractional 766/767-sample audio cadence; a display capable of matching this refresh rate provides the smoothest result. Native timing requires a multi-threaded emulation mode for continuous audio. Requires restarting content.",
+      NULL,
+      "video",
+      {
+         { "60hz",   "60 Hz (Default)" },
+         { "native", "57.524160 Hz (Native Model 3)" },
+         { NULL, NULL },
+      },
+      "60hz"
+   },
+   {
       "supermodel_crosshairs",
       "Show Crosshair",
       NULL,
@@ -312,11 +340,11 @@ static struct retro_core_option_v2_definition option_defs[] = {
       NULL,
       "input",
       {
-         { "disabled", NULL },
-         { "enabled",  NULL },
+         { "enabled",  "ON (Default)" },
+         { "disabled", "Disable" },
          { NULL, NULL },
       },
-      "disabled"
+      "enabled"
    },
    {
       "supermodel_four_speed_shifter",
@@ -667,6 +695,13 @@ void update_core_options(void)
             ? WidescreenMode::Widescreen
             : WidescreenMode::Disabled;
    }
+   g_options.no_white_flash =
+      strcmp(option_get("supermodel_no_white_flash", "disabled"),
+             "enabled") == 0;
+   g_options.av_timing_mode =
+      strcmp(option_get("supermodel_av_timing", "60hz"), "native") == 0
+         ? AVTimingMode::Native57524Hz
+         : AVTimingMode::Default60Hz;
    {
       const char *crosshairs = option_get("supermodel_crosshairs", "0");
       // Accept the values used by earlier development builds so an existing
@@ -709,7 +744,9 @@ void update_core_options(void)
              "h_gate") == 0
          ? FourSpeedShifter::HGate
          : FourSpeedShifter::Standard;
-   g_options.force_feedback = strcmp(option_get("supermodel_force_feedback", "disabled"), "enabled") == 0;
+   g_options.force_feedback =
+      strcmp(option_get("supermodel_force_feedback", "enabled"),
+             "enabled") == 0;
    {
       const char *response = option_get("supermodel_steering_response", "linear");
       g_options.steering_response = strcmp(response, "progressive") == 0

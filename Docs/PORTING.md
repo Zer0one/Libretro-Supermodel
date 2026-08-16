@@ -125,18 +125,21 @@ context negotiation are actually supported. Legacy3D deliberately carries a
 frontend-crash warning: the compatibility profile and fixed-function entry
 points cannot be made safe through a fallback after context creation.
 
-## Deferred standalone options
+## Standalone timing modes
 
-The first Libretro submission intentionally exposes only settings that affect
-emulation compatibility or cannot be represented cleanly by the frontend.
-The following standalone options are recorded for later evaluation:
+After reviewing the remaining standalone settings, `RefreshRate` and
+`SoundFreq` are exposed as one atomic `Model 3 Timing Mode`. The default keeps
+standalone's 60 Hz cadence. Native mode advertises 57.524160 FPS while retaining
+the original 44.1 kHz stereo stream. An integer remainder accumulator submits a
+deterministic sequence of 766/767-sample packets whose long-term average is
+exactly `44100 / 57.524160`; no resampling or measured-performance feedback is
+used. Native timing requires either multi-threaded emulation mode so the sound
+board can continuously fill the 44.1 kHz ring buffer. A content restart is
+required.
 
-| Option | Current decision |
-| --- | --- |
-| `NoWhiteFlash` | Defer as a renderer workaround; prefer a documented per-game reason rather than a generic default-facing switch. |
-| `CrosshairStyle=bmp` | Defer until bitmap asset discovery and portable packaging are specified. Vector crosshairs remain self-contained. |
-| `FlipStereo` and audio balance controls | Defer as low-priority output/downmix controls; evaluate what belongs to RetroArch and what must occur before the four-channel-to-stereo mix. |
-| True 57.524160 Hz output | Requires fractional audio generation or resampling; the current core deliberately retains standalone's default 60 Hz cadence. |
+Other standalone-only UI, audio-routing, Legacy3D customization, and
+bitmap-crosshair settings are intentionally not planned as Libretro Core
+Options.
 
 ## CPU options
 
@@ -217,11 +220,12 @@ frame budget in audio/pacing waits.
 
 ## Current validation and limitations
 
-The Libretro timing contract intentionally follows standalone Supermodel's
-default 60 Hz mode: video is reported as 60 FPS, audio as 44100 Hz, and each
-frontend frame consumes 735 stereo samples. VSync remains frontend-owned. The
-optional standalone true-Hz mode (57.524160 Hz) is not exposed because it also
-requires fractional audio generation or resampling to remain synchronized.
+The Libretro timing contract offers standalone Supermodel's default 60 Hz mode
+and native 57.524160 Hz mode. Both report 44100 Hz stereo audio. The former
+submits 735 samples per frontend frame; the latter uses the exact fractional
+766/767-sample packetizer described above. Native timing requires a
+multi-threaded emulation mode; `Single Thread` remains intended for 60 Hz.
+VSync remains frontend-owned.
 
 Validated on macOS ARM64:
 
@@ -258,12 +262,6 @@ Validated on macOS ARM64:
 Still requiring validation or implementation:
 
 - visual correctness and extended gameplay testing;
-- diagnose Batocera mouse delivery to the Libretro core. The physical mouse is
-  visible through evdev and Batocera correctly generated both
-  `input_player1_mouse_index = 0` and Star Wars `Mouse Only`, but no relative
-  movement reached the emulated control. Keep the eventual fix within the
-  frontend and Libretro input APIs rather than adding a private device-input
-  fallback;
 - extended audio, controls, force-feedback, and Save State coverage across more
   games;
 - Linux, Windows, Android, and other advertised build targets;

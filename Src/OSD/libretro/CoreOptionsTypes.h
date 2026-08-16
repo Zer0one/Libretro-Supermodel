@@ -21,6 +21,11 @@ enum class WidescreenMode {
    WidescreenWideBackground
 };
 
+enum class AVTimingMode {
+   Default60Hz,
+   Native57524Hz
+};
+
 enum class Renderer3D {
    New3D,
    Legacy3D
@@ -55,6 +60,8 @@ struct CoreOptions {
    int supersampling;
    int upscale_mode;
    WidescreenMode widescreen_mode;
+   bool no_white_flash;
+   AVTimingMode av_timing_mode;
    unsigned crosshairs;      // native Supermodel mask: 0=off, 1=P1, 2=P2, 3=both
    bool force_feedback;
    SteeringResponse steering_response;
