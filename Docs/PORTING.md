@@ -227,7 +227,8 @@ submits 735 samples per frontend frame; the latter uses the exact fractional
 multi-threaded emulation mode; `Single Thread` remains intended for 60 Hz.
 VSync remains frontend-owned.
 
-Validated on macOS ARM64:
+Validated on macOS ARM64, with additional Batocera x86_64 coverage noted
+below:
 
 - clean compilation and linking with `make platform=osx`;
 - Mach-O ARM64 dynamic library output;
@@ -258,13 +259,22 @@ Validated on macOS ARM64:
   force-feedback state without an observed anomaly;
 - exported `retro_init`, `retro_load_game`, `retro_run`, save-state, and unload
   entry points.
+- real-ROM runtime on Batocera 43.1 x86_64 using the CI-built Linux core,
+  including New3D, audio, controller profiles, NVRAM, Save States, force
+  feedback, CPU-speed options, and the standard 60 Hz timing mode;
+- wired cross-host Netpacket sessions between macOS ARM64 and Batocera x86_64,
+  including linked gameplay in Daytona USA 2 and Dirt Devils; localhost testing
+  additionally covers the implemented Type 1 and Type 2 families described
+  below.
 
 Still requiring validation or implementation:
 
 - visual correctness and extended gameplay testing;
 - extended audio, controls, force-feedback, and Save State coverage across more
   games;
-- Linux, Windows, Android, and other advertised build targets;
+- Windows, Android, Raspberry Pi, generic AArch64 Linux, and the remaining
+  advertised targets that have CI or build coverage but no equivalent real-ROM
+  runtime campaign;
 - diagnose and correct the ARM64 JIT floating-point/FPSCR semantic mismatch
   exposed by Harley-Davidson's attract-mode AI, then replace the current FP-only
   interpreter fallback after cross-game regression testing;
@@ -471,12 +481,15 @@ is still completing the Netplay handshake. Localhost tests with isolated
 Master/Slave NVRAM reached normal linked gameplay in Daytona USA 2 Power
 Edition, Scud Race, Sega Rally 2, and Harley-Davidson. Harley-Davidson also
 completed a three-instance linked race with a stable link and no observed
-protocol divergence. Running three complete Model 3 instances on the test Mac
-reduced available performance headroom, so this validates the three-cabinet
-protocol rather than establishing a performance target. Values from 4 to 16
-remain structurally supported but require runtime validation. Type 2 uses its
-separate status and playable/relay index layout; the game-specific combinations
-still require broader cross-host coverage.
+protocol divergence; Dirt Devils completed the corresponding three-instance
+Type 2 test. Wired macOS ARM64/Batocera x86_64 sessions validated Daytona USA 2
+and Dirt Devils across two physical hosts. Running three complete Model 3
+instances on the test Mac reduced available performance headroom, so this
+validates the three-cabinet protocol rather than establishing a performance
+target. Values from 4 to 16 remain structurally supported but require runtime
+validation. Type 2 uses its separate status and playable/relay index layout;
+additional game-specific role combinations still require broader cross-host
+coverage.
 
 Libretro Save States use standalone Supermodel's current version-6 header and
 ROM-set identifier before the normal subsystem blocks. This rejects states

@@ -1,10 +1,11 @@
 # Supermodel (Sega Model 3) - Libretro Port (Modernized)
 
 > [!IMPORTANT]
-> This port is under active development. The current macOS ARM64 build has
-> passed compile, link, dynamic-load, Libretro symbol, real-ROM loading, and
-> initial frame-execution checks; gameplay quality and the other advertised
-> platforms still need to be revalidated against the current Supermodel engine.
+> This port is under active development. The current branch passes the Linux
+> x86_64, Windows x86_64, macOS x86_64, and macOS ARM64 CI matrix. Extensive
+> real-ROM runtime testing has been performed on macOS ARM64 and Batocera 43.1
+> x86_64; the remaining advertised targets still require equivalent runtime
+> validation against the current Supermodel engine.
 
 This branch combines three explicitly preserved lines of development:
 
@@ -266,8 +267,9 @@ Netplay session is active. The netpacket transport recognizes the Daytona USA
 families, plus the Le Mans 24, Virtual-On 2, and Dirt Devils Type 2 families.
 Set `System > Linked Cabinets` to the total number of cabinets expected in the
 session; every instance must use the same value. The protocol accepts 2 to 16
-cabinets. Runtime testing currently covers two-cabinet links and a
-three-cabinet Harley-Davidson link; larger sessions and Type 2 role
+cabinets. Runtime testing currently covers two-cabinet links, three-cabinet
+Harley-Davidson and Dirt Devils links on macOS, and wired links between macOS
+ARM64 and Batocera x86_64. Larger sessions and additional Type 2 role
 combinations require broader cross-host validation. The standalone emulator's
 SDL_net transport is not used or modified.
 
