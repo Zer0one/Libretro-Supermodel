@@ -77,6 +77,7 @@ private:
   uint16_t m_segmentSize = 0;
   uint16_t m_localRole = 0;
   uint16_t m_machineIndex = 0;
+  uint16_t m_playableIndex = 0;
   uint32_t m_gameHash = 0;
   unsigned m_expectedCabinets = 2;
   unsigned m_helloInterval = 0;
@@ -90,6 +91,8 @@ private:
   GameType DetectGameType() const;
   const char *NetworkFamily() const;
   bool HasNetpacketTransport() const;
+  bool IsRelayRole(uint16_t role) const;
+  const char *RoleName(uint16_t role) const;
   uint16_t ReadNetRAM16(unsigned index) const;
   void WriteCommWord(unsigned index, uint16_t value);
   void SwapCommBanks();

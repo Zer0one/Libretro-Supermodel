@@ -320,7 +320,19 @@ const char *CLibretroNetBoard::NetworkFamily() const
 
 bool CLibretroNetBoard::HasNetpacketTransport() const
 {
-  return m_gameType == GameType::Type1;
+  return m_gameType == GameType::Type1 || m_gameType == GameType::Type2;
+}
+
+bool CLibretroNetBoard::IsRelayRole(uint16_t role) const
+{
+  return m_gameType == GameType::Type2 && role >= 0x8000;
+}
+
+const char *CLibretroNetBoard::RoleName(uint16_t role) const
+{
+  if (role == 0)
+    return "Master";
+  return IsRelayRole(role) ? "Relay/Satellite" : "Slave";
 }
 
 Result CLibretroNetBoard::Init(UINT8 *netRAMPtr, UINT8 *netBufferPtr)
@@ -378,6 +390,7 @@ void CLibretroNetBoard::Reset()
   m_segmentSize = 0;
   m_localRole = 0;
   m_machineIndex = 0;
+  m_playableIndex = 0;
   m_helloInterval = 0;
   m_readyDelay = 0;
   m_peerRoles.clear();
@@ -454,7 +467,8 @@ void CLibretroNetBoard::DrainPackets()
       // (rather than interpret) early hellos until this cabinet has received
       // its role and segment layout from the emulated main board; the peer
       // retransmits the hello while testing.
-      if (m_state != State::Testing)
+      if (m_state != State::Testing ||
+          (m_gameType == GameType::Type2 && !m_segmentSize))
         continue;
       if (packet.payload.size() != sizeof(uint16_t))
       {
@@ -472,7 +486,7 @@ void CLibretroNetBoard::DrainPackets()
       if (firstHello)
         InfoLog("Libretro NetBoard received peer hello: client=%u, role=%s "
                 "(%u cabinets expected)", queued.sender,
-                packet.role == 0 ? "Master" : "Slave",
+                RoleName(packet.role),
                 peerCabinets);
       // Reply before changing state. Otherwise the last cabinet to complete
       // its roster could become Ready without letting an earlier peer see it.
@@ -484,8 +498,9 @@ void CLibretroNetBoard::DrainPackets()
              std::find(m_roster.begin(), m_roster.end(), queued.sender) !=
                m_roster.end())
     {
-      const uint16_t expectedRole = queued.sender == 0 ? 0 : 1;
-      if (packet.role != expectedRole)
+      const auto expectedRole = m_peerRoles.find(queued.sender);
+      if (expectedRole == m_peerRoles.end() ||
+          packet.role != expectedRole->second)
       {
         EnterError("A linked cabinet changed Link Mode during play");
         return;
@@ -542,12 +557,16 @@ bool CLibretroNetBoard::TryCompleteHandshake()
   {
     const uint16_t role = participant == localId
       ? m_localRole : m_peerRoles[participant];
-    const uint16_t expectedRole = participant == 0 ? 0 : 1;
-    if (role != expectedRole)
+    if (participant == 0 ? role != 0 : role == 0)
     {
       EnterError(participant == 0
         ? "RetroArch host must use Link Mode Master"
-        : "Every RetroArch client must use Link Mode Slave");
+        : "RetroArch clients cannot use Link Mode Master");
+      return false;
+    }
+    if (m_gameType == GameType::Type1 && participant != 0 && role != 1)
+    {
+      EnterError("Every Type 1 RetroArch client must use Link Mode Slave");
       return false;
     }
   }
@@ -570,9 +589,10 @@ void CLibretroNetBoard::EnterReadyState()
     return;
   }
 
-  const uint16_t otherMachines =
-    static_cast<uint16_t>(m_expectedCabinets - 1);
-  m_segmentSize = ReadNetRAM16(0x404);
+  const uint16_t otherMachines = static_cast<uint16_t>(
+    m_expectedCabinets - 1);
+  m_segmentSize = ReadNetRAM16(
+    m_gameType == GameType::Type1 ? 0x404 : 0x204);
   if (!m_segmentSize ||
       0x100u + (m_expectedCabinets + 1u) * m_segmentSize > 0x10000u)
   {
@@ -580,18 +600,57 @@ void CLibretroNetBoard::EnterReadyState()
     return;
   }
 
-  m_status0 = 0;
-  m_status1 = 0x2021 + otherMachines * 0x20 + m_machineIndex;
-  WriteCommWord(0x0, ReadNetRAM16(0x400));
-  WriteCommWord(0x2, otherMachines);
-  WriteCommWord(0x4, m_machineIndex);
+  if (m_gameType == GameType::Type1)
+  {
+    m_status0 = 0;
+    m_status1 = 0x2021 + otherMachines * 0x20 + m_machineIndex;
+    WriteCommWord(0x0, ReadNetRAM16(0x400));
+    WriteCommWord(0x2, otherMachines);
+    WriteCommWord(0x4, m_machineIndex);
+    WriteCommWord(0x8, FLIPENDIAN16(0x100 + m_segmentSize));
+    WriteCommWord(0xa,
+                  FLIPENDIAN16(ReadNetRAM16(0x402) - m_segmentSize - 1));
+    WriteCommWord(0xc, FLIPENDIAN16(0x100));
+    WriteCommWord(0xe,
+                  FLIPENDIAN16(ReadNetRAM16(0x402) - m_segmentSize + 0x200));
+  }
+  else
+  {
+    unsigned playableCabinets = 0;
+    m_playableIndex = 0;
+    for (uint16_t participant : m_roster)
+    {
+      const uint16_t role = participant == localId
+        ? m_localRole : m_peerRoles[participant];
+      if (participant == localId)
+        m_playableIndex = static_cast<uint16_t>(playableCabinets);
+      if (!IsRelayRole(role))
+        ++playableCabinets;
+    }
+    if (IsRelayRole(m_localRole) && !IsGame("dirtdvls"))
+      m_playableIndex |= 0x80;
+
+    const uint16_t otherPlayable = static_cast<uint16_t>(
+      playableCabinets - 1);
+    m_status0 = 5;
+    m_status1 = IsGame("dirtdvls")
+      ? static_cast<uint16_t>(0x7400 | (otherPlayable << 4) |
+                              m_playableIndex)
+      : static_cast<uint16_t>((otherPlayable << 8) | m_playableIndex);
+    WriteCommWord(0x0, ReadNetRAM16(0x200));
+    WriteCommWord(0x2,
+                  static_cast<uint16_t>((otherPlayable << 8) |
+                                        otherMachines));
+    WriteCommWord(0x4,
+                  static_cast<uint16_t>((m_playableIndex << 8) |
+                                        m_machineIndex));
+    WriteCommWord(0x8, FLIPENDIAN16(0x100 + m_segmentSize));
+    WriteCommWord(0xa, FLIPENDIAN16(ReadNetRAM16(0x206)));
+    WriteCommWord(0xc, FLIPENDIAN16(0x100));
+    WriteCommWord(0xe,
+                  FLIPENDIAN16(ReadNetRAM16(0x206) + 0x80));
+  }
   WriteCommWord(0x6, 0);
-  WriteCommWord(0x8, FLIPENDIAN16(0x100 + m_segmentSize));
-  WriteCommWord(0xa,
-                FLIPENDIAN16(ReadNetRAM16(0x402) - m_segmentSize - 1));
-  WriteCommWord(0xc, FLIPENDIAN16(0x100));
-  WriteCommWord(0xe,
-                FLIPENDIAN16(ReadNetRAM16(0x402) - m_segmentSize + 0x200));
   m_counter = 0;
   // Let both frontends complete the handshake frames before either core starts
   // a blocking board exchange. Without this small barrier the faster peer can
@@ -600,7 +659,7 @@ void CLibretroNetBoard::EnterReadyState()
   m_readyDelay = 4;
   m_state = State::Ready;
   InfoLog("Libretro network link ready: %s, cabinet %u of %u, segment "
-          "0x%X bytes", isMaster ? "Master" : "Slave", m_machineIndex + 1,
+          "0x%X bytes", RoleName(m_localRole), m_machineIndex + 1,
           m_expectedCabinets, m_segmentSize);
 }
 
@@ -701,7 +760,10 @@ void CLibretroNetBoard::EnterError(const char *message)
 {
   if (m_state != State::Error)
     ErrorLog("Libretro NetBoard: %s", message);
-  m_status1 = 0x40;
+  if (m_gameType == GameType::Type1)
+    m_status1 = 0x40;
+  else if (IsGame("dirtdvls"))
+    m_status1 = 0x8085;
   m_state = State::Error;
 }
 
@@ -765,6 +827,18 @@ void CLibretroNetBoard::RunFrame()
   {
     if (m_gameType == GameType::Type1)
       ++m_status0;
+    else if (!m_segmentSize)
+    {
+      const uint16_t segmentSize = ReadNetRAM16(0x204);
+      if (!segmentSize)
+        break;
+      m_localRole = ReadNetRAM16(0x200);
+      m_segmentSize = segmentSize;
+      InfoLog("Libretro NetBoard link request: client=%u, role=%s "
+              "(RAM[200]=0x%04X, RAM[204]=0x%04X, RAM[206]=0x%04X)",
+              SessionLocalId(), RoleName(m_localRole), m_localRole,
+              m_segmentSize, ReadNetRAM16(0x206));
+    }
     if (!m_transportSupported)
       break;
     if (!SessionActive())
