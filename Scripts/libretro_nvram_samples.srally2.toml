@@ -40,6 +40,8 @@ ExitCountryType = "L3, WAIT(0.5)"
 ExitServfromCountry = "R3*3, L3, WAIT(3.0)"
 SelectDifficultyType = "R3*2"
 ExitDifficultyType = "R3*8, L3, WAIT(0.5)"
+SelectDefaultViewType = "R3*4"
+ExitDefaultViewType = "R3*6, L3, WAIT(0.5)"
 Close = "CLOSE"
 
 # Starting from the immutable DELUXE standard above, one press on Cabinet Type
@@ -230,6 +232,29 @@ sequence = [
   "@ExitServfromCountry",
   "@Close",
 ]
+
+[[samples]]
+suffix = "default-view-00-driver"
+sequence = [
+  "@EnterServ",
+  "@OpenGameAssignments",
+  "@SelectDefaultViewType, L3*0, WAIT(0.5)",
+  "@ExitDefaultViewType",
+  "@ExitServfromGame",
+  "@Close",
+]
+
+[[samples]]
+suffix = "default-view-01-behind"
+sequence = [
+  "@EnterServ",
+  "@OpenGameAssignments",
+  "@SelectDefaultViewType, L3*1, WAIT(0.5)",
+  "@ExitDefaultViewType",
+  "@ExitServfromGame",
+  "@Close",
+]
+
 
 # Add further samples in the same form. WAIT(seconds) can appear anywhere.
 # If @Close/CLOSE is omitted, the script automatically closes RetroArch cleanly.

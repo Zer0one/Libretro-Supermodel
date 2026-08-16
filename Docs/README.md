@@ -214,7 +214,7 @@ field: the selected values are applied at startup and therefore replace later
 Service Menu changes. If it is disabled, the core does not modify these fields.
 A game cannot inherit selections made for another game. Values are listed in
 their stored order, which may differ from the order in which the Service Menu
-cycles them. The available fields are derived from a controlled 351-sample
+cycles them. The available fields are derived from a controlled 353-sample
 Service-menu campaign:
 
 | Game family | Available settings |
@@ -233,7 +233,7 @@ Service-menu campaign:
 | Scud Race / Scud Race Plus | Country, Difficulty, Link Mode, Car Number, Cabinet Type |
 | Ski Champ | Country, Link Mode, Cabinet Number |
 | Spikeout / Spikeout Final Edition | Country, Difficulty, Link Mode |
-| Sega Rally 2 | Country, Difficulty, combined Link Configuration, Cabinet Type |
+| Sega Rally 2 | Country, Difficulty, combined Link Configuration, Cabinet Type, Default View |
 | Star Wars Trilogy Arcade | Country, Difficulty, Cabinet Type |
 | Virtua Fighter 3 | Country, Difficulty |
 | Virtual On 2 | Country, Difficulty, Link Mode, Seat, Display Type |
