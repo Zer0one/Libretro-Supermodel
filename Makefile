@@ -606,6 +606,13 @@ $(TARGET): $(OBJECTS)
 # For Android DEBUG builds, also ensure -fPIC is applied to prevent relocation errors
 $(CORE_DIR)/Src/CPU/PowerPC/ppc.o: CXXFLAGS := $(filter-out -ffast-math -funsafe-math-optimizations,$(CXXFLAGS))
 $(CORE_DIR)/Src/CPU/PowerPC/ppc.o: CXXFLAGS += -Wno-unused-parameter
+
+# Both 3D renderers explicitly sanitize NaN/Inf fog values used by Star Wars
+# Trilogy. Fast-math assumes these values cannot exist and removes the checks.
+IEEE_FP_RENDERER_OBJECTS := $(CORE_DIR)/Src/Graphics/New3D/New3D.o \
+                            $(CORE_DIR)/Src/Graphics/Legacy3D/Legacy3D.o
+$(IEEE_FP_RENDERER_OBJECTS): CXXFLAGS := $(filter-out -ffast-math -funsafe-math-optimizations,$(CXXFLAGS))
+
 ifeq ($(platform),android)
   ifeq ($(DEBUG),1)
     $(CORE_DIR)/Src/CPU/PowerPC/ppc.o: CXXFLAGS += -fPIC
