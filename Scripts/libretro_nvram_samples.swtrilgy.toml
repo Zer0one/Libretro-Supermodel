@@ -47,8 +47,8 @@ ExitCabinetType01 = "R3*1, L3, WAIT(0.5)"
 # ExitLinkType02 = "@ExitLinkType"
 # SelectLinkId = "R3*1"
 # ExitLinkId = "R3*1, L3, WAIT(0.5)"
-# SelectChristmasType = "R3*5"
-# ExitChristmasType = "R3*2, L3, WAIT(0.5)"
+SelectFeedbackLeverType = "R3*4"
+ExitFeedbackLeverType = "R3*1, L3, WAIT(0.5)"
 Close = "CLOSE"
 
 # Starting from the immutable DELUXE standard above, one press on Cabinet Type
@@ -482,27 +482,27 @@ sequence = [
 #   "@Close",
 # ]
 
-# [[samples]]
-# suffix = "christmas-mode-00-off"
-# sequence = [
-#   "@EnterServ",
-#   "@OpenGameAssignments",
-#   "@SelectChristmasType, L3*0, WAIT(0.5)",
-#   "@ExitChristmasType",
-#   "@ExitServfromGame",
-#   "@Close",
-# ]
-#
-# [[samples]]
-# suffix = "christmas-mode-01-on"
-# sequence = [
-#   "@EnterServ",
-#   "@OpenGameAssignments",
-#   "@SelectChristmasType, L3*1, WAIT(0.5)",
-#   "@ExitChristmasType",
-#   "@ExitServfromGame",
-#   "@Close",
-# ]
+[[samples]]
+suffix = "deluxe-lever-feedback-00-enable"
+sequence = [
+  "@EnterServ",
+  "@OpenGameAssignments",
+  "@SelectFeedbackLeverType, L3*0, WAIT(0.5)",
+  "@ExitFeedbackLeverType",
+  "@ExitServfromGame",
+  "@Close",
+]
+
+[[samples]]
+suffix = "deluxe-lever-feedback-01-disable"
+sequence = [
+  "@EnterServ",
+  "@OpenGameAssignments",
+  "@SelectFeedbackLeverType, L3*1, WAIT(0.5)",
+  "@ExitFeedbackLeverType",
+  "@ExitServfromGame",
+  "@Close",
+]
 #
 # [[samples]]
 # suffix = "special-car-02-skyline"

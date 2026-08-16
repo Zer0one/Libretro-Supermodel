@@ -50,6 +50,7 @@ void set_controller_info(const Game &game);
 static constexpr unsigned kNoCabinetControlsDevice =
    RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 0);
 bool g_cabinet_controls_enabled[2] = { true, true };
+bool g_star_wars_invert_x = false;
 static Game g_active_input_game;
 static bool g_has_active_input_game = false;
 static GunInput g_active_gun_input = GunInput::Hybrid;
@@ -305,7 +306,7 @@ char retro_base_directory[4096];
 
 CoreOptions g_options = {
    /* initial_nvram_setup */ true,
-   /* network_board       */ false,
+   /* network_board       */ true,
    /* network_cabinets    */ 2,
    /* nvram_settings_enabled */ false,
    /* resolution_multiplier */ 1,
@@ -622,6 +623,34 @@ static NvramPatchResult apply_initial_nvram_settings(void)
              g_active_input_game.name.c_str());
    }
    return result;
+}
+
+static void update_star_wars_cabinet_orientation(void)
+{
+   g_star_wars_invert_x = false;
+   const auto cabinet = LibretroNvramSettings::Setting::Cabinet;
+   if (!g_has_active_input_game || wrapper.getEmulator() == nullptr ||
+       !LibretroNvramSettings::IsValueSupported(
+          &g_active_input_game, cabinet, "upright"))
+      return;
+
+   serialize_nvram();
+   CBlockFileMemory reader(g_nvram_buffer, NVRAM_BUFFER_SIZE);
+   uint16_t words[64];
+   if (reader.FindBlock("93C46") != Result::OKAY ||
+       reader.Read(words, sizeof(words)) != sizeof(words))
+   {
+      log_cb(RETRO_LOG_WARN,
+             "[Supermodel] Unable to read Star Wars cabinet orientation\n");
+      return;
+   }
+
+   g_star_wars_invert_x =
+      LibretroNvramSettings::IsStarWarsUpright(&g_active_input_game, words);
+   log_cb(RETRO_LOG_INFO,
+          "[Supermodel] Star Wars cabinet: %s; analog X %s\n",
+          g_star_wars_invert_x ? "Upright" : "Deluxe",
+          g_star_wars_invert_x ? "inverted" : "normal");
 }
 
 static void initialize_new_nvram(void)
@@ -1096,6 +1125,7 @@ void retro_unload_game(void)
    last_height = 0;
    g_context_ready = false;
    g_has_active_input_game = false;
+   g_star_wars_invert_x = false;
    update_core_option_visibility();
    set_input_descriptors(nullptr);
    pgo_flush();   // RetroArch may never call retro_deinit before exiting
@@ -1327,6 +1357,7 @@ void retro_run(void)
       }
 
       apply_configured_nvram_settings();
+      update_star_wars_cabinet_orientation();
    }
 
     if (input_poll_cb) input_poll_cb();

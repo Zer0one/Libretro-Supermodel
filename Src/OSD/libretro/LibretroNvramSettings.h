@@ -19,6 +19,7 @@ enum class Setting : unsigned {
   DisplayType,
   ChristmasMode,
   Vocal,
+  LeverFeedback,
   Count,
 };
 
@@ -33,6 +34,7 @@ enum Capability : unsigned {
   DisplayType   = 1u << static_cast<unsigned>(Setting::DisplayType),
   ChristmasMode = 1u << static_cast<unsigned>(Setting::ChristmasMode),
   Vocal         = 1u << static_cast<unsigned>(Setting::Vocal),
+  LeverFeedback = 1u << static_cast<unsigned>(Setting::LeverFeedback),
 };
 
 constexpr unsigned CapabilityFor(Setting setting)
@@ -140,9 +142,11 @@ inline const SupportedGame *GetSupportedGames(size_t &count)
     { "srally2dx", "srally2",
       { "export", "normal", "stand_alone", nullptr, "deluxe" } },
     { "swtrilgy", nullptr,
-      { "export", "normal", nullptr, nullptr, "upright" } },
+      { "export", "normal", nullptr, nullptr, "upright", nullptr, nullptr,
+        nullptr, nullptr, "enable" } },
     { "swtrilgya", "swtrilgy",
-      { "export", "normal", nullptr, nullptr, "upright" } },
+      { "export", "normal", nullptr, nullptr, "upright", nullptr, nullptr,
+        nullptr, nullptr, "enable" } },
     { "vf3", nullptr,
       { "japan", "normal" } },
     { "vf3a", "vf3",
@@ -464,6 +468,8 @@ NVRAM_VALUES(kOffOn,
   { "off", "Off", 0 }, { "on", "On", 1 });
 NVRAM_VALUES(kVocal,
   { "dennis", "Dennis", 0 }, { "mitsuyoshi", "Mitsuyoshi", 1 });
+NVRAM_VALUES(kLeverFeedback,
+  { "enable", "ON", 1 }, { "disable", "Disable", 0 });
 
 NVRAM_INFO(kCountryInfoJuea0, Setting::Country, "Country", "Set the machine country stored in NVRAM.", kCountryJuea0);
 NVRAM_INFO(kCountryInfoJuea1, Setting::Country, "Country", "Set the machine country stored in NVRAM.", kCountryJuea1);
@@ -513,6 +519,7 @@ NVRAM_INFO(kSpecialCarInfo, Setting::SpecialCar, "Special Car", "Set the special
 NVRAM_INFO(kDisplayTypeInfo, Setting::DisplayType, "Display Type", "Set the cabinet display type stored in NVRAM.", kDisplayType);
 NVRAM_INFO(kChristmasInfo, Setting::ChristmasMode, "Christmas Mode", "Set Magical Truck Adventure's Christmas mode stored in NVRAM.", kOffOn);
 NVRAM_INFO(kVocalInfo, Setting::Vocal, "Vocal", "Select the Daytona USA 2 vocal version stored in NVRAM.", kVocal);
+NVRAM_INFO(kLeverFeedbackInfo, Setting::LeverFeedback, "Lever Feedback", "Enable or disable Star Wars Trilogy Arcade's Deluxe cabinet lever feedback stored in NVRAM.", kLeverFeedback);
 
 #undef NVRAM_INFO
 #undef NVRAM_VALUES
@@ -623,6 +630,8 @@ inline const SettingInfo *GetSettingInfo(const Game *game, Setting setting)
     return family == Family::MagTruck ? &kChristmasInfo : nullptr;
   case Setting::Vocal:
     return family == Family::Daytona2 ? &kVocalInfo : nullptr;
+  case Setting::LeverFeedback:
+    return family == Family::StarWars ? &kLeverFeedbackInfo : nullptr;
   default:
     return nullptr;
   }
@@ -735,6 +744,7 @@ inline const char *OptionSuffix(Setting setting)
     "display_type",
     "christmas_mode",
     "vocal",
+    "lever_feedback",
   };
   return suffixes[static_cast<unsigned>(setting)];
 }
@@ -766,6 +776,13 @@ inline unsigned GetCapabilities(const Game *game)
       capabilities |= CapabilityFor(setting);
   }
   return capabilities;
+}
+
+inline bool IsStarWarsUpright(const Game *game, const uint16_t *words)
+{
+  return game && words && Detail::GetFamily(game) == Detail::Family::StarWars &&
+         Detail::IsGenibus(words, Detail::Family::StarWars) &&
+         (words[12] & 0x0400) == 0;
 }
 
 inline ApplyResult Apply(const Game &game, uint16_t *words,
@@ -964,6 +981,7 @@ inline ApplyResult Apply(const Game &game, uint16_t *words,
     }
     if (SelectedValue(game, Setting::Difficulty, selection, value)) replaceMasked(words[12], 0x0038, value);
     if (SelectedValue(game, Setting::Cabinet, selection, value)) replaceMasked(words[12], 0x0400, value);
+    if (SelectedValue(game, Setting::LeverFeedback, selection, value)) replaceMasked(words[13], 0x0001, value);
     break;
   case Family::VirtuaFighter3:
     if (SelectedValue(game, Setting::Difficulty, selection, value)) replaceBackup(122886, value);
