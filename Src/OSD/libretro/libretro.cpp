@@ -2020,9 +2020,17 @@ void set_input_descriptors(const Game *game)
             add(0, RETRO_DEVICE_MOUSE, 0,
                 RETRO_DEVICE_ID_MOUSE_RIGHT, "Event 1");
             add(0, RETRO_DEVICE_MOUSE, 0,
-                RETRO_DEVICE_ID_MOUSE_BUTTON_4, "Trigger 2");
+                RETRO_DEVICE_ID_MOUSE_BUTTON_4, "Start");
             add(0, RETRO_DEVICE_MOUSE, 0,
-                RETRO_DEVICE_ID_MOUSE_BUTTON_5, "Event 2");
+                RETRO_DEVICE_ID_MOUSE_BUTTON_5, "Coin");
+            add(1, RETRO_DEVICE_MOUSE, 0,
+                RETRO_DEVICE_ID_MOUSE_LEFT, "Trigger 2");
+            add(1, RETRO_DEVICE_MOUSE, 0,
+                RETRO_DEVICE_ID_MOUSE_RIGHT, "Event 2");
+            add(1, RETRO_DEVICE_MOUSE, 0,
+                RETRO_DEVICE_ID_MOUSE_BUTTON_4, "Start 2");
+            add(1, RETRO_DEVICE_MOUSE, 0,
+                RETRO_DEVICE_ID_MOUSE_BUTTON_5, "Coin 2");
          }
          break;
 
