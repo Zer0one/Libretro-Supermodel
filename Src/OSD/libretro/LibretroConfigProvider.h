@@ -757,6 +757,14 @@ namespace LibretroConfigProvider {
                                 "KEY_D,MOUSE7_BUTTON4");
         config.Set<std::string>("InputAnalogJoyEvent2",
                                 "KEY_F,MOUSE7_BUTTON5");
+        config.Set<std::string>("InputStart1",
+                                "KEY_1,JOY1_BUTTON9,MOUSE1_BUTTON4");
+        config.Set<std::string>("InputCoin1",
+                                "KEY_3,JOY1_BUTTON10,MOUSE1_BUTTON5");
+        config.Set<std::string>("InputStart2",
+                                "KEY_2,JOY2_BUTTON9,MOUSE2_BUTTON4");
+        config.Set<std::string>("InputCoin2",
+                                "KEY_4,JOY2_BUTTON10,MOUSE2_BUTTON5");
     }
 
     inline void ApplyFishingLayout(Util::Config::Node &config)
