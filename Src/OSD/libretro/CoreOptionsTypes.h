@@ -10,8 +10,10 @@ enum class GunInput {
 };
 
 enum class StarWarsInput {
-   Hybrid,        // mouse or absolute RetroPad stick, last moved wins
+   Hybrid,        // RetroLightgun, RetroMouse or absolute RetroPad stick
+   Lightgun,      // RetroLightgun absolute screen coordinates
    Mouse,         // RetroMouse relative movement
+   MouseAnalog,   // Hybrid variant that excludes RetroLightgun input
    AnalogSticks   // RetroPad left stick as an absolute arcade yoke
 };
 

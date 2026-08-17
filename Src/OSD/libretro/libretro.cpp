@@ -1976,45 +1976,100 @@ void set_input_descriptors(const Game *game)
          break;
 
       case LibretroInputProfiles::Family::AnalogJoystick:
-         if (g_active_star_wars_input != StarWarsInput::Mouse)
+      {
+         const auto add_star_wars_lightgun = [&add](bool identify_source)
+         {
+            add(0, RETRO_DEVICE_LIGHTGUN, 0,
+                RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X,
+                identify_source ? "Analog Joystick X (Lightgun)" :
+                                  "Analog Joystick X");
+            add(0, RETRO_DEVICE_LIGHTGUN, 0,
+                RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y,
+                identify_source ? "Analog Joystick Y (Lightgun)" :
+                                  "Analog Joystick Y");
+            add(0, RETRO_DEVICE_LIGHTGUN, 0,
+                RETRO_DEVICE_ID_LIGHTGUN_TRIGGER,
+                identify_source ? "Trigger 1 (Lightgun)" : "Trigger 1");
+            add(0, RETRO_DEVICE_LIGHTGUN, 0,
+                RETRO_DEVICE_ID_LIGHTGUN_AUX_A,
+                identify_source ? "Event 1 (Lightgun)" : "Event 1");
+            add(1, RETRO_DEVICE_LIGHTGUN, 0,
+                RETRO_DEVICE_ID_LIGHTGUN_TRIGGER,
+                identify_source ? "Trigger 2 (Lightgun)" : "Trigger 2");
+            add(1, RETRO_DEVICE_LIGHTGUN, 0,
+                RETRO_DEVICE_ID_LIGHTGUN_AUX_A,
+                identify_source ? "Event 2 (Lightgun)" : "Event 2");
+         };
+         const auto add_star_wars_mouse = [&add](bool identify_source)
+         {
+            add(0, RETRO_DEVICE_MOUSE, 0,
+                RETRO_DEVICE_ID_MOUSE_X,
+                identify_source ? "Analog Joystick X (Mouse)" :
+                                  "Analog Joystick X");
+            add(0, RETRO_DEVICE_MOUSE, 0,
+                RETRO_DEVICE_ID_MOUSE_Y,
+                identify_source ? "Analog Joystick Y (Mouse)" :
+                                  "Analog Joystick Y");
+            add(0, RETRO_DEVICE_MOUSE, 0,
+                RETRO_DEVICE_ID_MOUSE_LEFT,
+                identify_source ? "Trigger 1 (Mouse)" : "Trigger 1");
+            add(0, RETRO_DEVICE_MOUSE, 0,
+                RETRO_DEVICE_ID_MOUSE_RIGHT,
+                identify_source ? "Event 1 (Mouse)" : "Event 1");
+            add(1, RETRO_DEVICE_MOUSE, 0,
+                RETRO_DEVICE_ID_MOUSE_LEFT,
+                identify_source ? "Trigger 2 (Mouse)" : "Trigger 2");
+            add(1, RETRO_DEVICE_MOUSE, 0,
+                RETRO_DEVICE_ID_MOUSE_RIGHT,
+                identify_source ? "Event 2 (Mouse)" : "Event 2");
+         };
+         const auto add_star_wars_analog = [&add](bool identify_source)
          {
             add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
-                RETRO_DEVICE_ID_ANALOG_X, "Analog Joystick X");
+                RETRO_DEVICE_ID_ANALOG_X,
+                identify_source ? "Analog Joystick X (Analog Stick)" :
+                                  "Analog Joystick X");
             add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
-                RETRO_DEVICE_ID_ANALOG_Y, "Analog Joystick Y");
+                RETRO_DEVICE_ID_ANALOG_Y,
+                identify_source ? "Analog Joystick Y (Analog Stick)" :
+                                  "Analog Joystick Y");
             add(0, RETRO_DEVICE_JOYPAD, 0,
-                RETRO_DEVICE_ID_JOYPAD_B, "Trigger 1");
+                RETRO_DEVICE_ID_JOYPAD_B,
+                identify_source ? "Trigger 1 (Analog)" : "Trigger 1");
             add(0, RETRO_DEVICE_JOYPAD, 0,
-                RETRO_DEVICE_ID_JOYPAD_A, "Event 1");
+                RETRO_DEVICE_ID_JOYPAD_A,
+                identify_source ? "Event 1 (Analog)" : "Event 1");
             add(0, RETRO_DEVICE_JOYPAD, 0,
-                RETRO_DEVICE_ID_JOYPAD_Y, "Trigger 2");
+                RETRO_DEVICE_ID_JOYPAD_Y,
+                identify_source ? "Trigger 2 (Analog)" : "Trigger 2");
             add(0, RETRO_DEVICE_JOYPAD, 0,
-                RETRO_DEVICE_ID_JOYPAD_X, "Event 2");
-         }
-         if (g_active_star_wars_input != StarWarsInput::AnalogSticks)
+                RETRO_DEVICE_ID_JOYPAD_X,
+                identify_source ? "Event 2 (Analog)" : "Event 2");
+         };
+
+         switch (g_active_star_wars_input)
          {
-            add(0, RETRO_DEVICE_MOUSE, 0,
-                RETRO_DEVICE_ID_MOUSE_X, "Analog Joystick X");
-            add(0, RETRO_DEVICE_MOUSE, 0,
-                RETRO_DEVICE_ID_MOUSE_Y, "Analog Joystick Y");
-            add(0, RETRO_DEVICE_MOUSE, 0,
-                RETRO_DEVICE_ID_MOUSE_LEFT, "Trigger 1");
-            add(0, RETRO_DEVICE_MOUSE, 0,
-                RETRO_DEVICE_ID_MOUSE_RIGHT, "Event 1");
-            add(0, RETRO_DEVICE_MOUSE, 0,
-                RETRO_DEVICE_ID_MOUSE_BUTTON_4, "Start");
-            add(0, RETRO_DEVICE_MOUSE, 0,
-                RETRO_DEVICE_ID_MOUSE_BUTTON_5, "Coin");
-            add(1, RETRO_DEVICE_MOUSE, 0,
-                RETRO_DEVICE_ID_MOUSE_LEFT, "Trigger 2");
-            add(1, RETRO_DEVICE_MOUSE, 0,
-                RETRO_DEVICE_ID_MOUSE_RIGHT, "Event 2");
-            add(1, RETRO_DEVICE_MOUSE, 0,
-                RETRO_DEVICE_ID_MOUSE_BUTTON_4, "Start 2");
-            add(1, RETRO_DEVICE_MOUSE, 0,
-                RETRO_DEVICE_ID_MOUSE_BUTTON_5, "Coin 2");
+         case StarWarsInput::Hybrid:
+            add_star_wars_lightgun(true);
+            add_star_wars_mouse(true);
+            add_star_wars_analog(true);
+            break;
+         case StarWarsInput::Lightgun:
+            add_star_wars_lightgun(false);
+            break;
+         case StarWarsInput::MouseAnalog:
+            add_star_wars_mouse(true);
+            add_star_wars_analog(true);
+            break;
+         case StarWarsInput::Mouse:
+            add_star_wars_mouse(false);
+            break;
+         case StarWarsInput::AnalogSticks:
+            add_star_wars_analog(false);
+            break;
          }
          break;
+      }
 
       case LibretroInputProfiles::Family::Fishing:
          add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,

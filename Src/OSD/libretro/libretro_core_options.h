@@ -307,13 +307,15 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "supermodel_star_wars_input",
       "Star Wars Trilogy Input Mode",
       NULL,
-      "Input source for the arcade analog joystick used by Star Wars Trilogy Arcade. Standard accepts the Mouse and left Analog Stick through one virtual control, with the last moved source taking priority. Changes take effect immediately.",
+      "Input source for the arcade analog joystick used by Star Wars Trilogy Arcade. Standard accepts RetroArch Lightgun, Mouse, and the left Analog Stick through one virtual control. Mouse + Analog Stick excludes Lightgun coordinates. Changes take effect immediately.",
       NULL,
       "input",
       {
-         { "hybrid", "Standard" },
-         { "mouse",  "Mouse Only" },
-         { "analog", "Analog Stick Only" },
+         { "hybrid",       "Standard" },
+         { "lightgun",     "Lightgun Only" },
+         { "mouse_analog", "Mouse + Analog Stick" },
+         { "mouse",        "Mouse Only" },
+         { "analog",       "Analog Stick Only" },
          { NULL, NULL },
       },
       "hybrid"
@@ -730,7 +732,11 @@ void update_core_options(void)
       const char *star_wars_input = option_get(
          "supermodel_star_wars_input", "hybrid");
       g_options.star_wars_input =
-         strcmp(star_wars_input, "mouse") == 0
+         strcmp(star_wars_input, "lightgun") == 0
+            ? StarWarsInput::Lightgun
+         : strcmp(star_wars_input, "mouse_analog") == 0
+            ? StarWarsInput::MouseAnalog
+         : strcmp(star_wars_input, "mouse") == 0
             ? StarWarsInput::Mouse
          : strcmp(star_wars_input, "analog") == 0
             ? StarWarsInput::AnalogSticks

@@ -86,6 +86,14 @@ Model 3 game list is effectively complete.
 - The core option can restrict the profile to Lightgun, Mouse, Mouse + Analog
   Stick, or Analog Sticks. It is applied immediately; content does not need to
   be reloaded.
+- Star Wars Trilogy Arcade keeps its separately recognized analog-joystick
+  profile but exposes the same five input-source modes as Gun games. Lightgun
+  1 absolute coordinates drive the arcade yoke; its Trigger/Aux A inputs are
+  Trigger 1/Event 1, while Lightgun 2 supplies the cabinet's duplicated
+  Trigger 2/Event 2 pair. Reload and offscreen state are not game actions.
+  RetroMouse remains relative, while the RetroPad left stick preserves the
+  cabinet yoke's absolute, self-centering behavior. Upright cabinet X-axis
+  inversion is applied after all three sources converge on the virtual axis.
 - P1 and P2 remain logically independent. Actual two-mouse or two-lightgun
   operation still depends on the frontend input driver; RetroArch's macOS
   `cocoa` driver currently reports neither multi-mouse nor native lightgun
