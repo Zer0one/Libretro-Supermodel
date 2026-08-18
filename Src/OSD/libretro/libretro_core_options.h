@@ -8,7 +8,7 @@ static struct retro_core_option_v2_category option_cats[] = {
    {
       "system",
       "System",
-      "Configure machine initialization and persistence."
+      "Configure machine initialization, persistence, and networking."
    },
    {
       "video",
@@ -51,14 +51,14 @@ static struct retro_core_option_v2_definition option_defs[] = {
    },
    {
       "supermodel_network_board",
-      "Network Board (Experimental)",
+      "Network Board",
       NULL,
-      "Connect two supported Type 1 cabinets (currently Daytona 2 and Scud Race) through RetroArch Netplay using the Libretro netpacket API. The RetroArch host must use NVRAM Link Mode Master and the client Link Mode Slave, with different car numbers. Requires a content restart and a frontend with netpacket support. The initial implementation supports two cabinets only.",
+      "Connect the Model 3 network board, equivalent to the standalone Network setting. Some games expose their Network Assignments in the Service Menu only while the board is connected. Requires a content restart. Linked play through RetroArch Netplay remains experimental and is currently verified only for two-cabinet Daytona 2 and Scud Race links.",
       NULL,
       "system",
       {
-         { "disabled", NULL },
-         { "enabled",  NULL },
+         { "disabled", "Disconnected" },
+         { "enabled",  "Connected" },
          { NULL, NULL },
       },
       "disabled"

@@ -71,6 +71,7 @@ static std::vector<std::vector<char>> g_nvram_default_label_storage;
 static std::vector<NvramCoreOptionSet> g_nvram_option_sets;
 static std::string g_visible_nvram_game;
 static int g_visible_nvram_enabled = -1;
+static int g_network_board_option_visible = -1;
 
 static void append_nvram_core_options(void)
 {
@@ -216,6 +217,18 @@ static void register_core_options(void)
 static bool update_core_option_visibility(void)
 {
    bool changed = false;
+   const bool network_board_visible =
+      g_has_active_input_game && g_active_input_game.netboard_present;
+   if (g_network_board_option_visible != static_cast<int>(network_board_visible))
+   {
+      struct retro_core_option_display display = {
+         "supermodel_network_board", network_board_visible
+      };
+      environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
+      g_network_board_option_visible = network_board_visible;
+      changed = true;
+   }
+
    const bool enabled =
       strcmp(option_get("supermodel_nvram_settings", "disabled"),
              "enabled") == 0;
@@ -2183,6 +2196,7 @@ void retro_set_environment(retro_environment_t cb)
               &update_display_cb);
    g_visible_nvram_enabled = -1;
    g_visible_nvram_game.clear();
+   g_network_board_option_visible = -1;
    update_core_option_visibility();
 
    // 3. Variable Update Check

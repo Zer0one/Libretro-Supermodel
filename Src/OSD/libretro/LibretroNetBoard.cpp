@@ -275,13 +275,45 @@ bool CLibretroNetBoard::IsGame(const char *gameName) const
   return m_gameInfo.name == gameName || m_gameInfo.parent == gameName;
 }
 
+CLibretroNetBoard::GameType CLibretroNetBoard::DetectGameType() const
+{
+  if (IsGame("daytona2") || IsGame("harley") || IsGame("scud") ||
+      IsGame("srally2") || IsGame("skichamp") || IsGame("spikeout") ||
+      IsGame("spikeofe"))
+    return GameType::Type1;
+  if (IsGame("lemans24") || IsGame("von2") || IsGame("dirtdvls"))
+    return GameType::Type2;
+  return GameType::Unsupported;
+}
+
 const char *CLibretroNetBoard::NetworkFamily() const
 {
   if (IsGame("daytona2"))
     return "daytona2";
+  if (IsGame("dirtdvls"))
+    return "dirtdvls";
+  if (IsGame("harley"))
+    return "harley";
+  if (IsGame("lemans24"))
+    return "lemans24";
   if (IsGame("scud"))
     return "scud";
+  if (IsGame("skichamp"))
+    return "skichamp";
+  if (IsGame("spikeofe"))
+    return "spikeofe";
+  if (IsGame("spikeout"))
+    return "spikeout";
+  if (IsGame("srally2"))
+    return "srally2";
+  if (IsGame("von2"))
+    return "von2";
   return nullptr;
+}
+
+bool CLibretroNetBoard::HasNetpacketTransport() const
+{
+  return IsGame("daytona2") || IsGame("scud");
 }
 
 Result CLibretroNetBoard::Init(UINT8 *netRAMPtr, UINT8 *netBufferPtr)
@@ -295,21 +327,29 @@ Result CLibretroNetBoard::Init(UINT8 *netRAMPtr, UINT8 *netBufferPtr)
 
   if (!requested)
     return Result::OKAY;
+  m_gameType = DetectGameType();
   const char *networkFamily = NetworkFamily();
-  if (!networkFamily)
+  if (m_gameType == GameType::Unsupported || !networkFamily)
   {
-    InfoLog("Libretro Network Board does not yet support this game; "
-            "ignoring it for %s", m_gameInfo.name.c_str());
+    InfoLog("Network Board is not recognized for %s; ignoring the request",
+            m_gameInfo.name.c_str());
     return Result::OKAY;
   }
-  if (!SessionInterfaceSupported())
-    return ErrorLog("Libretro netpacket interface is unavailable");
 
   m_attached = true;
+  m_transportSupported = HasNetpacketTransport() &&
+                         SessionInterfaceSupported();
   m_gameHash = HashName(networkFamily);
   Reset();
-  InfoLog("Libretro network board attached (%s family, two cabinets)",
-          networkFamily);
+  if (m_transportSupported)
+    InfoLog("Libretro Network Board connected (%s family; two-cabinet "
+            "netpacket transport available)", networkFamily);
+  else if (HasNetpacketTransport())
+    InfoLog("Libretro Network Board connected (%s family; frontend "
+            "netpacket transport unavailable)", networkFamily);
+  else
+    InfoLog("Libretro Network Board connected (%s family; linked play "
+            "transport not yet implemented)", networkFamily);
   return Result::OKAY;
 }
 
@@ -575,43 +615,61 @@ void CLibretroNetBoard::RunFrame()
   if (m_state == State::Error)
     return;
 
-  PollPackets();
-  DrainPackets();
-  if (m_state == State::Error)
-    return;
+  if (m_transportSupported)
+  {
+    PollPackets();
+    DrainPackets();
+    if (m_state == State::Error)
+      return;
+  }
 
   switch (m_state)
   {
   case State::Start:
     m_status0 = 0;
-    m_status1 = 0xe000;
+    m_status1 = IsGame("dirtdvls") ? 0x4004 : 0xe000;
     m_state = State::Init;
     break;
 
   case State::Init:
     std::memset(m_buffer, 0, 0x20000);
-    if (m_status0 & 0x8000)
+    if (m_gameType == GameType::Type1)
     {
-      m_irq2Ack |= 0x01;
-      if (m_status0 == 0xf000)
+      if (m_status0 & 0x8000)
       {
-        m_status1 = 0;
-        WriteCommWord(0x72, FLIPENDIAN16(0x1));
-        const uint16_t roleValue = ReadNetRAM16(0x400);
-        m_localRole = roleValue == 0 ? 0 : 1;
-        InfoLog("Libretro NetBoard link request: client=%u, role=%s "
-                "(RAM[400]=0x%04X, RAM[402]=0x%04X, RAM[404]=0x%04X)",
-                SessionLocalId(), m_localRole == 0 ? "Master" : "Slave",
-                roleValue, ReadNetRAM16(0x402), ReadNetRAM16(0x404));
-        m_state = State::Testing;
+        m_irq2Ack |= 0x01;
+        if (m_status0 == 0xf000)
+        {
+          m_status1 = 0;
+          WriteCommWord(0x72, FLIPENDIAN16(0x1));
+          const uint16_t roleValue = ReadNetRAM16(0x400);
+          m_localRole = roleValue == 0 ? 0 : 1;
+          InfoLog("Libretro NetBoard link request: client=%u, role=%s "
+                  "(RAM[400]=0x%04X, RAM[402]=0x%04X, RAM[404]=0x%04X)",
+                  SessionLocalId(), m_localRole == 0 ? "Master" : "Slave",
+                  roleValue, ReadNetRAM16(0x402), ReadNetRAM16(0x404));
+          m_state = State::Testing;
+        }
+        m_status0 = 0;
       }
-      m_status0 = 0;
+    }
+    else
+    {
+      // Type 2 boards perform their own initialization. This mirrors the
+      // standalone simulator and is enough for the game and Service Menu to
+      // observe the connected hardware even before a transport is available.
+      m_status1 = 0;
+      m_counter = 0;
+      m_state = State::Testing;
     }
     break;
 
   case State::Testing:
   {
-    ++m_status0;
+    if (m_gameType == GameType::Type1)
+      ++m_status0;
+    if (!m_transportSupported)
+      break;
     uint16_t peer = 0;
     if (!SessionActive() || !SessionPeer(peer))
       break;
