@@ -306,7 +306,7 @@ char retro_base_directory[4096];
 
 CoreOptions g_options = {
    /* initial_nvram_setup */ true,
-   /* network_board       */ false,
+   /* network_board       */ true,
    /* network_cabinets    */ 2,
    /* nvram_settings_enabled */ false,
    /* resolution_multiplier */ 1,

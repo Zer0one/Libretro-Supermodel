@@ -57,11 +57,11 @@ static struct retro_core_option_v2_definition option_defs[] = {
       NULL,
       "system",
       {
-         { "disabled", "Disconnected" },
          { "enabled",  "Connected" },
+         { "disabled", "Disconnected" },
          { NULL, NULL },
       },
-      "disabled"
+      "enabled"
    },
    {
       "supermodel_network_cabinets",
@@ -634,7 +634,7 @@ void update_core_options(void)
              "enabled") == 0;
 
    g_options.network_board =
-      strcmp(option_get("supermodel_network_board", "disabled"),
+      strcmp(option_get("supermodel_network_board", "enabled"),
              "enabled") == 0;
 
    g_options.network_cabinets = static_cast<unsigned>(
