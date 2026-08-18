@@ -1,29 +1,51 @@
 #ifndef SUPERMODEL_CORE_OPTIONS_TYPES_H
 #define SUPERMODEL_CORE_OPTIONS_TYPES_H
 
-// Pad layout for driving games. L/R always shift sequentially and L2/R2 are the pedals.
-// The optional layouts only decide whether the right stick also acts as a shifter.
-enum class DrivingLayout {
-   Default,            // right stick free
-   TriggersGate,       // gears 1-4 on the right stick
-   TriggersSequential  // sequential shift on the right stick
+enum class GunInput {
+   Hybrid,        // shared cursor controlled by RetroLightgun or RetroPad
+   Lightgun,      // RetroLightgun, absolute screen coordinates
+   Mouse,         // RetroMouse, relative movement
+   AnalogSticks   // RetroPad left stick controlling a relative cursor
+};
+
+enum class StarWarsInput {
+   Hybrid,        // mouse or absolute RetroPad stick, last moved wins
+   Mouse,         // RetroMouse relative movement
+   AnalogSticks   // RetroPad left stick as an absolute arcade yoke
+};
+
+enum class WidescreenMode {
+   Disabled,
+   Widescreen,
+   WidescreenWideBackground
+};
+
+enum class SteeringResponse {
+   Linear,
+   Progressive,
+   FBNeoLogarithmic
 };
 
 struct CoreOptions {
    float resolution_multiplier;
-   bool widescreen;
-   bool vsync;
-   bool crosshairs;
+   int upscale_mode;
+   WidescreenMode widescreen_mode;
+   unsigned crosshairs;      // native Supermodel mask: 0=off, 1=P1, 2=P2, 3=both
    bool force_feedback;
-   int analog_sensitivity;
+   SteeringResponse steering_response;
+   int steering_output_range;
+   int accelerator_output_range_per_mille;
+   int brake_output_range_per_mille;
    int sound_volume;
    int music_volume;
+   bool legacy_sound_dsp;
    int ppc_frequency;
    int frameskip;
    bool sound_enable;
    bool jit_enable;
    bool timing_overlay;      // draw the ImGui frame-timing overlay (costs a draw pass every frame)
-   DrivingLayout driving_layout;
+   GunInput gun_input;
+   StarWarsInput star_wars_input;
 };
 
 extern CoreOptions g_options;

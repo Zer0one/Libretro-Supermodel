@@ -7,6 +7,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <chrono>
 #include <GL/glew.h>
 #if !defined(ANDROID) && !defined(CORE_GLES)
 #include <glsym/rglgen.h>
@@ -27,6 +28,7 @@
 #include "OSD/FileSystemPath.h"
 #include "GameLoader.h"
 #include "libretro_cbs.h"
+#include "LibretroTiming.h"
 #include "vfs_ioapi.h"
 #include "Debugger/SupermodelDebugger.h"
 #if !defined(ANDROID) && !defined(CORE_GLES) || defined(USE_LEGACY3D)
@@ -53,8 +55,6 @@
 
 // --- External Audio Hooks ---
 extern void PlayCallback(void *userdata, UINT8 *stream, int len);
-extern UINT32 GetAvailableAudioLen();
-extern int bytes_per_frame_host;
 extern retro_environment_t environ_cb;
 extern retro_log_printf_t log_cb;  // defined in libretro.cpp
 
@@ -131,12 +131,6 @@ std::string LibretroWrapper::s_logFilePath;
 static Util::Config::Node s_runtime_config("Global");
 static LibretroWrapper* g_ctx = nullptr;
 
-// Constants for synchronous audio
-static const double MODEL3_FPS = 57.53;
-static const int AUDIO_SAMPLE_RATE = 44100;
-// Calculate bytes per frame once: (44100 / 57.53) * 4 bytes (stereo 16-bit)
-static const int BYTES_PER_FRAME_SYNC = (int)((AUDIO_SAMPLE_RATE / MODEL3_FPS) * 4);
-
 /*
  * Crosshair stuff
  */
@@ -150,7 +144,8 @@ static CCrosshair* s_crosshair = nullptr;
 
 LibretroWrapper::LibretroWrapper() :
     xRes(800), yRes(600), xOffset(0), yOffset(0),
-    totalXRes(800), totalYRes(600), aaValue(0), CRTcolors(CRTcolor::None)
+    totalXRes(800), totalYRes(600), aaValue(0), CRTcolors(CRTcolor::None),
+    upscaleMode(UpscaleMode::Bilinear)
 {
       g_ctx = this;
 }
@@ -228,16 +223,22 @@ static void GLAPIENTRY DebugCallback(GLenum source, GLenum type, GLuint id, GLen
     printf("OGLDebug:: 0x%X: %s\n", id, message);
 }
 
-void LibretroWrapper::UpdateScreenSize(unsigned newWidth, unsigned newHeight)
+void LibretroWrapper::UpdateScreenSize(unsigned viewWidth, unsigned viewHeight,
+                                       unsigned outputWidth,
+                                       unsigned outputHeight)
 {
     // If dimensions match and renderers are initialized, skip costly re-init
-    if (newWidth == xRes && newHeight == yRes && superAA != nullptr)
+    if (viewWidth == xRes && viewHeight == yRes &&
+        outputWidth == totalXRes && outputHeight == totalYRes &&
+        superAA != nullptr)
         return;
 
-    xRes = totalXRes = newWidth;
-    yRes = totalYRes = newHeight;
-    xOffset = 0;
-    yOffset = 0;
+    xRes = std::min(viewWidth, outputWidth);
+    yRes = std::min(viewHeight, outputHeight);
+    totalXRes = outputWidth;
+    totalYRes = outputHeight;
+    xOffset = (totalXRes - xRes) / 2;
+    yOffset = (totalYRes - yRes) / 2;
 
     if (Model3)
         Model3->PauseThreads();
@@ -384,7 +385,15 @@ void EndFrameVideo()
 {
   // Show crosshairs for light gun games
   if (videoInputs && s_crosshair)
+  {
+    // Render2D/New3D restore framebuffer 0 after drawing to Supermodel's
+    // off-screen target. In the standalone build that is the window
+    // backbuffer, but in Libretro it is not the image later blitted to the
+    // frontend. Rebind Supermodel's target so the crosshair becomes part of
+    // the submitted frame.
+    glBindFramebuffer(GL_FRAMEBUFFER, g_ctx->getSuperModelFBO());
     s_crosshair->Update(currentInputs, videoInputs, g_ctx->getXOffset(), g_ctx->getYOffset(), g_ctx->getXRes(), g_ctx->getYRes());
+  }
 }
 
 /******************************************************************************
@@ -515,8 +524,9 @@ int LibretroWrapper::SuperModelInit(const Game &game) {
   if (Result::OKAY != OpenAudio(s_runtime_config))
     return 1;
 
-  gameHasLightguns = !!(game.inputs & (Game::INPUT_GUN1|Game::INPUT_GUN2));
-  gameHasLightguns |= game.name == "lostwsga";
+  gameHasLightguns = !!(game.inputs &
+    (Game::INPUT_GUN1 | Game::INPUT_GUN2 |
+     Game::INPUT_ANALOG_GUN1 | Game::INPUT_ANALOG_GUN2));
   currentInputs = game.inputs;
   
   if (gameHasLightguns)
@@ -574,25 +584,31 @@ QuitError:
 
 int LibretroWrapper::Supermodel(const Game &game, bool skipRender)
 {
+    const auto engineStart = std::chrono::steady_clock::now();
     if (paused)
     {
         Model3->RenderFrame();
+        lastEngineMs = std::chrono::duration<float, std::milli>(
+            std::chrono::steady_clock::now() - engineStart).count();
+        lastAudioSubmitMs = 0.0f;
     }
     else
     {
         Model3->RunFrame(skipRender);
 
-        // One frame of emulated time is one frame's worth of audio, full stop:
-        // 44100 / 57.53 = 766 samples. This used to be computed from the MEASURED
-        // framerate instead, which is a positive feedback loop under RetroArch's
-        // synchronous audio driver: fps dips -> 44100/fps sends MORE samples than
-        // real time -> the driver blocks in audio_batch_cb to absorb the excess ->
-        // fps dips further -> even more samples. Measured on Daytona 2: the sample
-        // count climbed 766 -> 1047 while audio_batch_cb blocked for up to 36 ms
-        // per frame, producing exactly the recurring 30-50 ms frame spikes.
-        // The frontend already resamples to keep audio and video in sync; the core
-        // must simply hand it one frame of audio per frame.
-        PlayCallback(NULL, NULL, BYTES_PER_FRAME_SYNC);
+        const auto audioStart = std::chrono::steady_clock::now();
+        lastEngineMs = std::chrono::duration<float, std::milli>(
+            audioStart - engineStart).count();
+
+        // Supermodel standalone defaults to 60 Hz and its SoundBoard produces
+        // 735 stereo samples per audio chunk. Request exactly the same fixed
+        // packet on every retro_run; RetroArch owns final A/V synchronization.
+        // Never derive this count from measured performance: doing so creates a
+        // feedback loop where a slow frame requests more audio and blocks longer.
+        PlayCallback(NULL, NULL,
+                     static_cast<int>(LibretroTiming::kAudioBytesPerVideoFrame));
+        lastAudioSubmitMs = std::chrono::duration<float, std::milli>(
+            std::chrono::steady_clock::now() - audioStart).count();
     }
 
     if (Inputs->uiExit->Pressed())
@@ -848,7 +864,13 @@ int LibretroWrapper::Emulate(const char* romPath)
 
         // Libretro options are authoritative over both defaults and the optional INI.
         LibretroConfigProvider::ApplyCoreOptions(s_runtime_config);
-        LibretroConfigProvider::ApplyDrivingLayout(s_runtime_config);
+        const LibretroInputProfiles::Profile *input_profile =
+            LibretroConfigProvider::ApplyInputProfile(s_runtime_config, game);
+        if (input_profile)
+            InfoLog("Libretro control profile: %s", input_profile->name);
+        else
+            InfoLog("No exact Libretro control profile for input mask 0x%08X; using generic mappings.",
+                    LibretroInputProfiles::NormalizeInputs(game.inputs));
     }
 
     if (Model3 || Inputs || Outputs)
@@ -859,6 +881,8 @@ int LibretroWrapper::Emulate(const char* romPath)
 
     aaValue   = s_runtime_config["Supersampling"].ValueAs<int>();
     CRTcolors = (CRTcolor)s_runtime_config["CRTcolors"].ValueAs<int>();   // 0 = None; was never read, left indeterminate
+    upscaleMode = static_cast<UpscaleMode>(
+        s_runtime_config["UpscaleMode"].ValueAs<int>());
 
     auto inputSystem = std::make_shared<CLibretroInputSystem>();
     auto inputs = std::make_unique<CInputs>(inputSystem);
@@ -924,32 +948,39 @@ GLuint LibretroWrapper::getSuperModelFBO() const
     return (saaFBO != 0) ? saaFBO : m_libretrFBO;
 }
 
-void LibretroWrapper::SetWidescreen(bool enabled)
+void LibretroWrapper::SetWidescreen(bool enabled, bool wideBackground)
 {
-    // Check if the value actually changed
-    bool current_value = s_runtime_config["WideScreen"].ValueAsDefault<bool>(false);
-    if (current_value == enabled) {
-        // No change, skip reinitialization
+    const bool currentWide =
+        s_runtime_config["WideScreen"].ValueAsDefault<bool>(false);
+    const bool currentWideBackground =
+        s_runtime_config["WideBackground"].ValueAsDefault<bool>(false);
+    if (currentWide == enabled && currentWideBackground == wideBackground)
         return;
-    }
 
+    const auto setBool = [](const char *key, bool value)
+    {
+        try {
+            s_runtime_config.Get(key).SetValue(value);
+        }
+        catch (const std::range_error&) {
+            s_runtime_config.Add(key).SetValue(value);
+        }
+    };
+    setBool("WideScreen", enabled);
+    setBool("WideBackground", enabled && wideBackground);
+}
+
+void LibretroWrapper::SetCrosshairs(unsigned mask)
+{
+    mask &= 3u;
     try {
-        s_runtime_config.Get("WideScreen").SetValue(enabled);
+        s_runtime_config.Get("Crosshairs").SetValue(static_cast<int>(mask));
     }
     catch (const std::range_error&) {
-        s_runtime_config.Add("WideScreen").SetValue(enabled);
+        s_runtime_config.Add("Crosshairs").SetValue(static_cast<int>(mask));
     }
 
-    // Only reinit renderers if they already exist (i.e. GL context is live).
-    // On initial load, InitRenderers() will be called later by context_reset()
-    // and will pick up the correct WideScreen value from s_runtime_config.
-    if (Render2D == nullptr) {
-        return;
-    }
-
-    if (Model3) Model3->PauseThreads();
-    InitRenderers();
-    if (Model3) Model3->ResumeThreads();
+    InfoLog("[Supermodel] Crosshairs mask applied: %u", mask);
 }
 
 void LibretroWrapper::SetSoundVolume(int volume)
