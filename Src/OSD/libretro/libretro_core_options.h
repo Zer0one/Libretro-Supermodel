@@ -467,6 +467,20 @@ static struct retro_core_option_v2_definition option_defs[] = {
    },
    // Audio
    {
+      "supermodel_sound_enable",
+      "Sound Enable",
+      NULL,
+      "Enable or disable sound emulation. Disabling sound can significantly improve performance on slow hardware. Takes effect after restarting content.",
+      NULL,
+      "audio",
+      {
+         { "enabled",  NULL },
+         { "disabled", NULL },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
+   {
       "supermodel_sound_volume",
       "Sound Volume",
       NULL,
@@ -533,20 +547,6 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "100"
    },
    {
-      "supermodel_sound_enable",
-      "Sound Enable",
-      NULL,
-      "Enable or disable sound emulation. Disabling sound can significantly improve performance on slow hardware. Takes effect after restarting content.",
-      NULL,
-      "audio",
-      {
-         { "enabled",  NULL },
-         { "disabled", NULL },
-         { NULL, NULL },
-      },
-      "enabled"
-   },
-   {
       "supermodel_scsp_dsp",
       "SCSP DSP Engine",
       NULL,
@@ -565,11 +565,11 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "supermodel_frameskip",
       "Frame Skip",
       NULL,
-      "Skip rendering every N frames to reduce GPU load on slow hardware. '0' disables frame skipping. Higher values improve speed at the cost of visual smoothness.",
+      "Skip rendering every N frames to reduce GPU load on slow hardware. 'OFF' disables frame skipping. Higher values improve speed at the cost of visual smoothness.",
       NULL,
       "cpu",
       {
-         { "0", "Disabled" },
+         { "0", "OFF" },
          { "1", "Skip 1 (render every 2nd frame)" },
          { "2", "Skip 2 (render every 3rd frame)" },
          { "3", "Skip 3 (render every 4th frame)" },
