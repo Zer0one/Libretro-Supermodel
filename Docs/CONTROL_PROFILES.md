@@ -68,25 +68,33 @@ Model 3 game list is effectively complete.
   Reel is an analog `00-FF` speed value on all fishing cabinets.
 - Twin-stick cabinets map the left/right shot triggers to L2/R2 and the
   left/right turbo buttons to L/R.
-- Gun games default to `Hybrid (Lightgun / Mouse / Analog)`. Absolute
+- Gun games default to `Standard`. Absolute
   RetroLightgun coordinates, relative RetroMouse movement, and each RetroPad's
   left stick update one shared cursor per player. Dedicated Lightgun, Mouse,
-  and Analog Stick Cursor modes restrict polling to the selected source.
+  and Analog Stick modes restrict polling to the selected source; Mouse +
+  Analog Stick excludes only RetroLightgun coordinates.
 - Hybrid shot inputs are deliberately parallel: Lightgun Trigger/Reload and
   RetroPad South/East are Left/Right Shot. Lightgun Aux A is accepted as an
   additional Right Shot binding. `IS_OFFSCREEN` is position state and is never
   treated as a pressed button.
-- The core option can restrict the profile to Lightgun, Mouse, or Analog
-  Sticks. It is
-  applied immediately; content does not need to be reloaded.
+- The core option can restrict the profile to Lightgun, Mouse, Mouse + Analog
+  Stick, or Analog Stick. It is applied immediately; content does not need to
+  be reloaded.
+- Star Wars Trilogy Arcade keeps its separately recognized analog-joystick
+  profile but exposes the same five source modes as Gun games. Lightgun 1
+  absolute coordinates drive the arcade yoke; its Trigger/Aux A inputs are
+  Trigger 1/Event 1, while Lightgun 2 supplies the duplicated Trigger 2/Event 2
+  pair. RetroMouse remains relative, while the RetroPad left stick preserves
+  the cabinet yoke's absolute, self-centering behavior. Upright cabinet X-axis
+  inversion is applied after all three sources converge on the virtual axis.
 - P1 and P2 remain logically independent. Actual two-mouse or two-lightgun
   operation still depends on the frontend input driver; RetroArch's macOS
   `cocoa` driver currently reports neither multi-mouse nor native lightgun
   support.
-- Open validation item: test independent P1/P2 coordinates and buttons with
-  two physical lightguns on a system/frontend input driver that supports
-  multiple mice (for example Windows `winraw` or Linux `udev`/`x11`). Run the
-  test for both `Gun` and `Gun + Test/Service slots` device variants.
+- Independent P1/P2 mouse input has been validated on Batocera with two
+  physical mice. Other frontends still require an input driver that exposes
+  multiple pointing devices (for example Windows `winraw` or Linux
+  `udev`/`x11`).
 - Supermodel's native `game.inputs` mask remains the final polling gate. A
   frontend `.rmp` can change physical bindings but cannot enable an input group
   absent from `Games.xml`.
