@@ -53,7 +53,7 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "supermodel_network_board",
       "Network Board (Experimental)",
       NULL,
-      "Connect two Daytona 2 cabinets through RetroArch Netplay using the Libretro netpacket API. The RetroArch host must use NVRAM Link Mode Master and the client Link Mode Slave, with different car numbers. Requires a content restart and a frontend with netpacket support. The initial implementation supports two cabinets only.",
+      "Connect two supported Type 1 cabinets (currently Daytona 2 and Scud Race) through RetroArch Netplay using the Libretro netpacket API. The RetroArch host must use NVRAM Link Mode Master and the client Link Mode Slave, with different car numbers. Requires a content restart and a frontend with netpacket support. The initial implementation supports two cabinets only.",
       NULL,
       "system",
       {
