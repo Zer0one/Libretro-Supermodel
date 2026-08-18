@@ -494,7 +494,7 @@ int CLibretroInputSystem::GetJoyAxisValue(int joyNum, int axisNum) const
     return m_joyAxes[joyNum][axisNum];
 }
 
-bool CLibretroInputSystem::IsJoyPOVInDir(int joyNum, int povNum, int povDir) const
+bool CLibretroInputSystem::IsJoyPOVInDir(int joyNum, int /*povNum*/, int povDir) const
 {
     if (joyNum < 0 || joyNum >= 2) return false;
     if (povDir < 0 || povDir > 3) return false;
@@ -589,7 +589,7 @@ int CLibretroInputSystem::GetMouseWheelDir(int mseNum) const
     return m_mouseWheelDir[mseNum];
 }
 
-void CLibretroInputSystem::SetMouseVisibility(bool visible)
+void CLibretroInputSystem::SetMouseVisibility(bool /*visible*/)
 {
 }
 
@@ -631,7 +631,7 @@ const MouseDetails *CLibretroInputSystem::GetMouseDetails(int mseNum)
     return &d[mseNum];
 }
 
-bool CLibretroInputSystem::ProcessForceFeedbackCmd(int joyNum, int axisNum, ForceFeedbackCmd ffCmd)
+bool CLibretroInputSystem::ProcessForceFeedbackCmd(int joyNum, int /*axisNum*/, ForceFeedbackCmd ffCmd)
 {
     if (!m_rumbleInterface.set_rumble_state)
     {
@@ -684,7 +684,7 @@ void CLibretroInputSystem::StopAllRumble()
     }
 }
 
-const KeyDetails *CLibretroInputSystem::GetKeyDetails(int kbdNum)
+const KeyDetails *CLibretroInputSystem::GetKeyDetails(int /*kbdNum*/)
 {
     static KeyDetails d{};
     std::strncpy(d.name, "Libretro Keyboard", MAX_NAME_LENGTH);
@@ -727,4 +727,4 @@ bool CLibretroInputSystem::Initialize()
     bool result = CInputSystem::Initialize(); // let base do its thing
     return result;
 }
-const char *CLibretroInputSystem::GetKeyName(int keyIndex) { return "NONE"; }
+const char *CLibretroInputSystem::GetKeyName(int /*keyIndex*/) { return "NONE"; }
