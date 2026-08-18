@@ -811,7 +811,7 @@ void update_core_options(void)
             ? EmulationThreading::MultiThreaded
             : EmulationThreading::MultiThreadedGPU;
    }
-   
+
 #ifdef __aarch64__
    g_options.jit_enable = strcmp(option_get("supermodel_jit_enable", "enabled"), "enabled") == 0;
 #else
