@@ -4,7 +4,7 @@ name: Libretro Core CI
 on:
   push:
     branches:
-      - master
+      - supermodel-modern
   pull_request:
   workflow_dispatch:
 
