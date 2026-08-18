@@ -54,8 +54,9 @@ Model 3 game list is effectively complete.
   profile additionally maps Handbrake to South.
 - All 4-speed profiles expose Neutral on West, alongside the right-stick
   four-way gate and the L/R sequential controls.
-- Four-button VR cabinets use the D-Pad as a POV: Green/Down, Red/Right,
-  Blue/Left, and Yellow/Up.
+- Four-button VR cabinets use the D-Pad as a POV: VR1 Red/Up, VR2 Blue/Down,
+  VR3 Yellow/Left, and VR4 Green/Right. This arrangement follows the button
+  order reported by Daytona USA 2's Service menu.
 - Harley-Davidson maps VR1 to D-Pad Up, Rear Brake to South, and Music Select to
   East.
 - Magical Truck exposes one cabinet side per RetroPad: each player's centered
