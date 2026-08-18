@@ -155,6 +155,20 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "disabled"
    },
    {
+      "supermodel_four_speed_shifter",
+      "4-Speed Shifter",
+      NULL,
+      "Applied only to recognized 4-Speed driving games. Standard assigns each of the four remappable directional inputs directly to one gear. H-Gate interprets them as Up, Down, Left, and Right, selecting gears from the four diagonal positions. Neutral remains on West and L/R remain sequential shift controls. Changes take effect immediately.",
+      NULL,
+      "input",
+      {
+         { "h_gate",   "H-Gate Mode" },
+         { "standard", "Standard" },
+         { NULL, NULL },
+      },
+      "h_gate"
+   },
+   {
       "supermodel_steering_response",
       "Driving Steering Response",
       NULL,
@@ -483,6 +497,11 @@ void update_core_options(void)
             ? StarWarsInput::AnalogSticks
             : StarWarsInput::Hybrid;
    }
+   g_options.four_speed_shifter =
+      strcmp(option_get("supermodel_four_speed_shifter", "h_gate"),
+             "h_gate") == 0
+         ? FourSpeedShifter::HGate
+         : FourSpeedShifter::Standard;
    g_options.force_feedback = strcmp(option_get("supermodel_force_feedback", "disabled"), "enabled") == 0;
    {
       const char *response = option_get("supermodel_steering_response", "linear");

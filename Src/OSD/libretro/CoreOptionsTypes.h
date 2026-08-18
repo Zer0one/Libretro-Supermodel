@@ -32,6 +32,11 @@ enum class EmulationThreading {
    MultiThreadedGPU
 };
 
+enum class FourSpeedShifter {
+   Standard,  // each right-stick half-axis selects one gear directly
+   HGate      // right-stick diagonals reproduce a four-position H-pattern
+};
+
 struct CoreOptions {
    float resolution_multiplier;
    int upscale_mode;
@@ -53,6 +58,7 @@ struct CoreOptions {
    bool timing_overlay;      // draw the ImGui frame-timing overlay (costs a draw pass every frame)
    GunInput gun_input;
    StarWarsInput star_wars_input;
+   FourSpeedShifter four_speed_shifter;
 };
 
 extern CoreOptions g_options;

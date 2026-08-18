@@ -834,13 +834,12 @@ namespace LibretroConfigProvider {
 
         if (inputs & Game::INPUT_SHIFT4)
         {
-            // The embedded 4-speed profile provides both forms at once:
-            // L/R step through gears, the right stick is a 4-way gate, and
-            // West selects the neutral position.
-            config.Set<std::string>("InputGearShift1", "KEY_Q,JOY1_RYAXIS_NEG"); // up
-            config.Set<std::string>("InputGearShift2", "KEY_W,JOY1_RYAXIS_POS"); // down
-            config.Set<std::string>("InputGearShift3", "KEY_E,JOY1_RXAXIS_NEG"); // left
-            config.Set<std::string>("InputGearShift4", "KEY_R,JOY1_RXAXIS_POS"); // right
+            // The four virtual buttons receive either the Standard half-axis
+            // mapping or the decoded H-gate diagonals.
+            config.Set<std::string>("InputGearShift1", "KEY_Q,JOY1_BUTTON17");
+            config.Set<std::string>("InputGearShift2", "KEY_W,JOY1_BUTTON18");
+            config.Set<std::string>("InputGearShift3", "KEY_E,JOY1_BUTTON19");
+            config.Set<std::string>("InputGearShift4", "KEY_R,JOY1_BUTTON20");
             config.Set<std::string>("InputGearShiftN", "KEY_T,JOY1_BUTTON3"); // West
         }
         if (inputs & Game::INPUT_VR4)

@@ -111,6 +111,7 @@ CoreOptions g_options = {
    /* timing_overlay      */ false,
    /* gun_input           */ GunInput::Hybrid,
    /* star_wars_input     */ StarWarsInput::Hybrid,
+   /* four_speed_shifter  */ FourSpeedShifter::HGate,
 };
 
 static bool widescreen_enabled()
@@ -695,6 +696,8 @@ void retro_run(void)
       unsigned old_crosshairs = g_options.crosshairs;
       GunInput old_gun_input = g_options.gun_input;
       StarWarsInput old_star_wars_input = g_options.star_wars_input;
+      FourSpeedShifter old_four_speed_shifter =
+         g_options.four_speed_shifter;
       EmulationThreading old_emulation_threading =
          g_options.emulation_threading;
       update_core_options();
@@ -759,6 +762,15 @@ void retro_run(void)
          if (log_cb)
             log_cb(RETRO_LOG_INFO,
                    "[Supermodel] Star Wars Trilogy Input applied immediately.\n");
+      }
+
+      if (g_options.four_speed_shifter != old_four_speed_shifter)
+      {
+         if (g_has_active_input_game)
+            set_input_descriptors(&g_active_input_game);
+         if (log_cb)
+            log_cb(RETRO_LOG_INFO,
+                   "[Supermodel] 4-Speed Shifter applied immediately.\n");
       }
 
       if (g_options.crosshairs != old_crosshairs)
@@ -1558,12 +1570,22 @@ void set_input_descriptors(const Game *game)
 
          if (profile->inputs & Game::INPUT_SHIFT4)
          {
-            add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
-                RETRO_DEVICE_ID_ANALOG_X,
-                "4-Speed: Gear 3 (Left) / Gear 4 (Right)");
-            add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
-                RETRO_DEVICE_ID_ANALOG_Y,
-                "4-Speed: Gear 1 (Up) / Gear 2 (Down)");
+            if (g_options.four_speed_shifter == FourSpeedShifter::HGate)
+            {
+               add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+                   RETRO_DEVICE_ID_ANALOG_X, "H-Gate: Left / Right");
+               add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+                   RETRO_DEVICE_ID_ANALOG_Y, "H-Gate: Up / Down");
+            }
+            else
+            {
+               add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+                   RETRO_DEVICE_ID_ANALOG_X,
+                   "4-Speed: Gear 3 (Left) / Gear 4 (Right)");
+               add(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+                   RETRO_DEVICE_ID_ANALOG_Y,
+                   "4-Speed: Gear 1 (Up) / Gear 2 (Down)");
+            }
             add(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,
                 "4-Speed: Neutral");
          }
