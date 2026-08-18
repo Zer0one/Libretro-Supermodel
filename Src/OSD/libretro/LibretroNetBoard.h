@@ -75,12 +75,16 @@ private:
   uint16_t m_status1 = 0;
   uint16_t m_counter = 0;
   uint16_t m_segmentSize = 0;
-  uint16_t m_peerId = RETRO_NETPACKET_BROADCAST;
   uint16_t m_localRole = 0;
+  uint16_t m_machineIndex = 0;
   uint32_t m_gameHash = 0;
+  unsigned m_expectedCabinets = 2;
   unsigned m_helloInterval = 0;
   unsigned m_readyDelay = 0;
-  std::map<uint32_t, std::vector<uint8_t>> m_framePackets;
+  std::map<uint16_t, uint16_t> m_peerRoles;
+  std::vector<uint16_t> m_roster;
+  std::map<uint32_t, std::map<uint16_t, std::vector<uint8_t>>>
+    m_framePackets;
 
   bool IsGame(const char *gameName) const;
   GameType DetectGameType() const;
@@ -96,6 +100,7 @@ private:
                                    const uint8_t *payload,
                                    size_t payloadSize) const;
   void SendHello();
+  bool TryCompleteHandshake();
   void EnterReadyState();
   void ExchangeFrame();
   void EnterError(const char *message);

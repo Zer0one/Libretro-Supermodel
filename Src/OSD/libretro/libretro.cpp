@@ -72,6 +72,7 @@ static std::vector<NvramCoreOptionSet> g_nvram_option_sets;
 static std::string g_visible_nvram_game;
 static int g_visible_nvram_enabled = -1;
 static int g_network_board_option_visible = -1;
+static int g_network_cabinets_option_visible = -1;
 
 static void append_nvram_core_options(void)
 {
@@ -228,6 +229,16 @@ static bool update_core_option_visibility(void)
       g_network_board_option_visible = network_board_visible;
       changed = true;
    }
+   if (g_network_cabinets_option_visible !=
+       static_cast<int>(network_board_visible))
+   {
+      struct retro_core_option_display display = {
+         "supermodel_network_cabinets", network_board_visible
+      };
+      environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
+      g_network_cabinets_option_visible = network_board_visible;
+      changed = true;
+   }
 
    const bool enabled =
       strcmp(option_get("supermodel_nvram_settings", "disabled"),
@@ -296,6 +307,7 @@ char retro_base_directory[4096];
 CoreOptions g_options = {
    /* initial_nvram_setup */ true,
    /* network_board       */ false,
+   /* network_cabinets    */ 2,
    /* nvram_settings_enabled */ false,
    /* resolution_multiplier */ 1,
    /* renderer_3d          */ Renderer3D::New3D,
@@ -1155,6 +1167,7 @@ void retro_run(void)
    {
       float old_multiplier = g_options.resolution_multiplier;
       bool old_network_board = g_options.network_board;
+      unsigned old_network_cabinets = g_options.network_cabinets;
       Renderer3D old_renderer_3d = g_options.renderer_3d;
       bool old_quad_rendering = g_options.quad_rendering;
       int old_crt_colors = g_options.crt_colors;
@@ -1205,10 +1218,11 @@ void retro_run(void)
          environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
       }
 
-      if (g_options.network_board != old_network_board)
+      if (g_options.network_board != old_network_board ||
+          g_options.network_cabinets != old_network_cabinets)
       {
          static const struct retro_message message = {
-            "Network Board will apply after restarting the content.", 180
+            "Network Board settings will apply after restarting the content.", 180
          };
          environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
       }
@@ -2197,6 +2211,7 @@ void retro_set_environment(retro_environment_t cb)
    g_visible_nvram_enabled = -1;
    g_visible_nvram_game.clear();
    g_network_board_option_visible = -1;
+   g_network_cabinets_option_visible = -1;
    update_core_option_visibility();
 
    // 3. Variable Update Check

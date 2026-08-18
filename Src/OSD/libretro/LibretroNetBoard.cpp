@@ -13,7 +13,7 @@
 
 namespace
 {
-constexpr uint8_t kProtocolVersion = 1;
+constexpr uint8_t kProtocolVersion = 2;
 constexpr uint8_t kPacketHello = 1;
 constexpr uint8_t kPacketFrame = 2;
 constexpr size_t kPacketHeaderSize = 18;
@@ -34,6 +34,7 @@ struct NetpacketSession
   retro_netpacket_send_t send = nullptr;
   retro_netpacket_poll_receive_t pollReceive = nullptr;
   retro_log_printf_t log = nullptr;
+  unsigned expectedCabinets = 2;
   std::set<uint16_t> clients;
   std::vector<QueuedPacket> packets;
 };
@@ -103,17 +104,26 @@ void RETRO_CALLCONV NetpacketStop()
 bool RETRO_CALLCONV NetpacketConnected(uint16_t clientId)
 {
   bool accepted = false;
+  unsigned connectedCabinets = 1;
+  unsigned expectedCabinets = 2;
   {
     std::lock_guard<std::mutex> lock(g_session.mutex);
-    // The initial implementation models one Master and one Slave cabinet.
+    expectedCabinets = g_session.expectedCabinets;
     accepted = g_session.active && g_session.localId == 0 &&
-               g_session.clients.empty();
+               (g_session.clients.count(clientId) != 0 ||
+                g_session.clients.size() + 1 < expectedCabinets);
     if (accepted)
       g_session.clients.insert(clientId);
+    connectedCabinets = static_cast<unsigned>(g_session.clients.size() + 1);
   }
+  const std::string message = accepted
+    ? "Slave client " + std::to_string(clientId) + " connected (" +
+      std::to_string(connectedCabinets) + "/" +
+      std::to_string(expectedCabinets) + " cabinets)"
+    : "Additional client rejected (configured for " +
+      std::to_string(expectedCabinets) + " cabinets)";
   SessionLog(accepted ? RETRO_LOG_INFO : RETRO_LOG_WARN,
-             accepted ? "Slave client connected"
-                      : "Additional client rejected (two-cabinet limit)");
+             message.c_str());
   return accepted;
 }
 
@@ -144,13 +154,10 @@ uint16_t SessionLocalId()
   return g_session.localId;
 }
 
-bool SessionPeer(uint16_t &peer)
+void SessionSetExpectedCabinets(unsigned cabinets)
 {
   std::lock_guard<std::mutex> lock(g_session.mutex);
-  if (!g_session.active || g_session.clients.empty())
-    return false;
-  peer = *g_session.clients.begin();
-  return true;
+  g_session.expectedCabinets = std::max(2u, std::min(16u, cabinets));
 }
 
 std::vector<QueuedPacket> TakePackets()
@@ -246,7 +253,7 @@ bool CLibretroNetBoard::RegisterNetpacketInterface(
     nullptr,
     NetpacketConnected,
     NetpacketDisconnected,
-    "Supermodel Model 3 NetBoard v1"
+    "Supermodel Model 3 NetBoard v2"
   };
 
   const bool supported = environment &&
@@ -313,7 +320,8 @@ const char *CLibretroNetBoard::NetworkFamily() const
 
 bool CLibretroNetBoard::HasNetpacketTransport() const
 {
-  return IsGame("daytona2") || IsGame("scud") || IsGame("srally2");
+  return IsGame("daytona2") || IsGame("harley") || IsGame("scud") ||
+         IsGame("srally2");
 }
 
 Result CLibretroNetBoard::Init(UINT8 *netRAMPtr, UINT8 *netBufferPtr)
@@ -322,6 +330,9 @@ Result CLibretroNetBoard::Init(UINT8 *netRAMPtr, UINT8 *netBufferPtr)
   m_buffer = netBufferPtr;
   m_commRAM = m_buffer;
   m_externalCommRAM = m_buffer + 0x10000;
+  m_expectedCabinets = std::max(
+    2u, std::min(16u, m_config["NetworkCabinets"].ValueAs<unsigned>()));
+  SessionSetExpectedCabinets(m_expectedCabinets);
   const bool requested = m_gameInfo.netboard_present &&
                          m_config["Network"].ValueAs<bool>();
 
@@ -342,8 +353,9 @@ Result CLibretroNetBoard::Init(UINT8 *netRAMPtr, UINT8 *netBufferPtr)
   m_gameHash = HashName(networkFamily);
   Reset();
   if (m_transportSupported)
-    InfoLog("Libretro Network Board connected (%s family; two-cabinet "
-            "netpacket transport available)", networkFamily);
+    InfoLog("Libretro Network Board connected (%s family; %u-cabinet "
+            "netpacket transport configured)", networkFamily,
+            m_expectedCabinets);
   else if (HasNetpacketTransport())
     InfoLog("Libretro Network Board connected (%s family; frontend "
             "netpacket transport unavailable)", networkFamily);
@@ -365,10 +377,12 @@ void CLibretroNetBoard::Reset()
   m_status1 = 0;
   m_counter = 0;
   m_segmentSize = 0;
-  m_peerId = RETRO_NETPACKET_BROADCAST;
   m_localRole = 0;
+  m_machineIndex = 0;
   m_helloInterval = 0;
   m_readyDelay = 0;
+  m_peerRoles.clear();
+  m_roster.clear();
   m_framePackets.clear();
 }
 
@@ -443,24 +457,41 @@ void CLibretroNetBoard::DrainPackets()
       // retransmits the hello while testing.
       if (m_state != State::Testing)
         continue;
-      InfoLog("Libretro NetBoard received peer hello: client=%u, role=%s",
-              queued.sender, packet.role == 0 ? "Master" : "Slave");
-      if (packet.role == m_localRole)
+      if (packet.payload.size() != sizeof(uint16_t))
       {
-        EnterError("Both linked cabinets use the same Link Mode");
+        EnterError("A linked cabinet sent an invalid handshake");
         return;
       }
-      m_peerId = queued.sender;
-      // Reply before changing state. Otherwise a faster cabinet can become
-      // Ready after receiving the peer hello without ever sending its own,
-      // leaving the other cabinet stuck in Testing.
+      const unsigned peerCabinets = ReadU16(packet.payload.data());
+      if (peerCabinets != m_expectedCabinets)
+      {
+        EnterError("Linked cabinets use different Linked Cabinets settings");
+        return;
+      }
+      const bool firstHello = m_peerRoles.count(queued.sender) == 0;
+      m_peerRoles[queued.sender] = packet.role;
+      if (firstHello)
+        InfoLog("Libretro NetBoard received peer hello: client=%u, role=%s "
+                "(%u cabinets expected)", queued.sender,
+                packet.role == 0 ? "Master" : "Slave",
+                peerCabinets);
+      // Reply before changing state. Otherwise the last cabinet to complete
+      // its roster could become Ready without letting an earlier peer see it.
       SendHello();
-      EnterReadyState();
+      TryCompleteHandshake();
     }
-    else if (packet.type == kPacketFrame &&
-             queued.sender == m_peerId && packet.role != m_localRole)
+    else if (packet.type == kPacketFrame && m_state == State::Ready &&
+             queued.sender != SessionLocalId() &&
+             std::find(m_roster.begin(), m_roster.end(), queued.sender) !=
+               m_roster.end())
     {
-      m_framePackets[packet.frame] = std::move(packet.payload);
+      const uint16_t expectedRole = queued.sender == 0 ? 0 : 1;
+      if (packet.role != expectedRole)
+      {
+        EnterError("A linked cabinet changed Link Mode during play");
+        return;
+      }
+      m_framePackets[packet.frame][queued.sender] = std::move(packet.payload);
       while (m_framePackets.size() > 4)
         m_framePackets.erase(m_framePackets.begin());
     }
@@ -469,36 +500,92 @@ void CLibretroNetBoard::DrainPackets()
 
 void CLibretroNetBoard::SendHello()
 {
-  uint16_t peer = 0;
-  if (!SessionPeer(peer))
+  if (!SessionActive())
     return;
-  SendPacket(BuildPacket(kPacketHello, 0, nullptr, 0), peer);
+  std::vector<uint8_t> payload;
+  AppendU16(payload, static_cast<uint16_t>(m_expectedCabinets));
+  SendPacket(BuildPacket(kPacketHello, 0, payload.data(), payload.size()),
+             RETRO_NETPACKET_BROADCAST);
+}
+
+bool CLibretroNetBoard::TryCompleteHandshake()
+{
+  if (m_state != State::Testing ||
+      m_peerRoles.size() < m_expectedCabinets - 1)
+    return false;
+  if (m_peerRoles.size() != m_expectedCabinets - 1)
+  {
+    EnterError("More linked cabinets responded than configured");
+    return false;
+  }
+
+  const uint16_t localId = SessionLocalId();
+  if ((localId == 0) != (m_localRole == 0))
+  {
+    EnterError("RetroArch host must use Link Mode Master; clients must use Slave");
+    return false;
+  }
+
+  m_roster.clear();
+  m_roster.reserve(m_expectedCabinets);
+  m_roster.push_back(localId);
+  for (const auto &peer : m_peerRoles)
+    m_roster.push_back(peer.first);
+  std::sort(m_roster.begin(), m_roster.end());
+  if (m_roster.size() != m_expectedCabinets || m_roster.front() != 0 ||
+      std::adjacent_find(m_roster.begin(), m_roster.end()) != m_roster.end())
+  {
+    EnterError("Unable to build a unique linked-cabinet roster");
+    return false;
+  }
+
+  for (uint16_t participant : m_roster)
+  {
+    const uint16_t role = participant == localId
+      ? m_localRole : m_peerRoles[participant];
+    const uint16_t expectedRole = participant == 0 ? 0 : 1;
+    if (role != expectedRole)
+    {
+      EnterError(participant == 0
+        ? "RetroArch host must use Link Mode Master"
+        : "Every RetroArch client must use Link Mode Slave");
+      return false;
+    }
+  }
+
+  const auto local = std::find(m_roster.begin(), m_roster.end(), localId);
+  m_machineIndex = static_cast<uint16_t>(local - m_roster.begin());
+  EnterReadyState();
+  return m_state == State::Ready;
 }
 
 void CLibretroNetBoard::EnterReadyState()
 {
   const uint16_t localId = SessionLocalId();
   const bool isMaster = m_localRole == 0;
-  if ((localId == 0) != isMaster)
+  if ((localId == 0) != isMaster ||
+      m_roster.size() != m_expectedCabinets ||
+      m_machineIndex >= m_roster.size())
   {
-    EnterError("RetroArch host must use Link Mode Master; client must use Slave");
+    EnterError("The linked-cabinet roster is incomplete");
     return;
   }
 
-  const uint16_t machineIndex = isMaster ? 0 : 1;
-  constexpr uint16_t otherMachines = 1;
+  const uint16_t otherMachines =
+    static_cast<uint16_t>(m_expectedCabinets - 1);
   m_segmentSize = ReadNetRAM16(0x404);
-  if (!m_segmentSize || 0x100u + 3u * m_segmentSize > 0x10000u)
+  if (!m_segmentSize ||
+      0x100u + (m_expectedCabinets + 1u) * m_segmentSize > 0x10000u)
   {
     EnterError("The game reported an invalid network segment size");
     return;
   }
 
   m_status0 = 0;
-  m_status1 = 0x2021 + otherMachines * 0x20 + machineIndex;
+  m_status1 = 0x2021 + otherMachines * 0x20 + m_machineIndex;
   WriteCommWord(0x0, ReadNetRAM16(0x400));
   WriteCommWord(0x2, otherMachines);
-  WriteCommWord(0x4, machineIndex);
+  WriteCommWord(0x4, m_machineIndex);
   WriteCommWord(0x6, 0);
   WriteCommWord(0x8, FLIPENDIAN16(0x100 + m_segmentSize));
   WriteCommWord(0xa,
@@ -513,8 +600,9 @@ void CLibretroNetBoard::EnterReadyState()
   // netplay frame, preventing the latter from reaching its own exchange.
   m_readyDelay = 4;
   m_state = State::Ready;
-  InfoLog("Libretro network link ready: %s, cabinet %u of 2, segment 0x%X bytes",
-          isMaster ? "Master" : "Slave", machineIndex + 1, m_segmentSize);
+  InfoLog("Libretro network link ready: %s, cabinet %u of %u, segment "
+          "0x%X bytes", isMaster ? "Master" : "Slave", m_machineIndex + 1,
+          m_expectedCabinets, m_segmentSize);
 }
 
 void CLibretroNetBoard::ExchangeFrame()
@@ -525,26 +613,21 @@ void CLibretroNetBoard::ExchangeFrame()
     return;
   }
 
-  uint16_t peer = 0;
-  if (!SessionPeer(peer) || peer != m_peerId)
-  {
-    EnterError("Linked-cabinet peer disconnected");
-    return;
-  }
-
   const uint32_t nextFrame = static_cast<uint16_t>(m_counter + 1);
   std::vector<uint8_t> localSegment(m_segmentSize);
   std::memcpy(localSegment.data(), m_commRAM + 0x100, m_segmentSize);
   WriteCommWord(0x6, FLIPENDIAN16(static_cast<uint16_t>(nextFrame)));
 
   if (!SendPacket(BuildPacket(kPacketFrame, nextFrame,
-                              localSegment.data(), localSegment.size()), peer))
+                              localSegment.data(), localSegment.size()),
+                  RETRO_NETPACKET_BROADCAST))
   {
     EnterError("Unable to send linked-cabinet network frame");
     return;
   }
   if (nextFrame == 1)
-    InfoLog("Libretro NetBoard sent first data frame; waiting for peer");
+    InfoLog("Libretro NetBoard sent first data frame; waiting for %u peers",
+            m_expectedCabinets - 1);
 
   const auto deadline = std::chrono::steady_clock::now() + kFrameWaitTimeout;
   do
@@ -555,20 +638,35 @@ void CLibretroNetBoard::ExchangeFrame()
       return;
 
     const auto received = m_framePackets.find(nextFrame);
-    if (received != m_framePackets.end())
+    if (received != m_framePackets.end() &&
+        received->second.size() >= m_expectedCabinets - 1)
     {
-      if (received->second.size() != m_segmentSize)
+      // The standalone TCP ring receives segments from the immediately
+      // preceding cabinet backwards around the ring, and finally receives its
+      // own segment. Reconstruct that same per-cabinet order from the common
+      // roster rather than imposing the host's absolute order on every node.
+      for (unsigned step = 1; step < m_expectedCabinets; ++step)
       {
-        EnterError("Peer sent a network segment of the wrong size");
-        return;
+        const unsigned sourceIndex =
+          (m_machineIndex + m_expectedCabinets - step) % m_expectedCabinets;
+        const uint16_t sourceId = m_roster[sourceIndex];
+        const auto segment = received->second.find(sourceId);
+        if (segment == received->second.end())
+        {
+          EnterError("A linked-cabinet frame is missing a roster segment");
+          return;
+        }
+        if (segment->second.size() != m_segmentSize)
+        {
+          EnterError("A peer sent a network segment of the wrong size");
+          return;
+        }
+        std::memcpy(m_commRAM + 0x100 + step * m_segmentSize,
+                    segment->second.data(), m_segmentSize);
       }
-
-      std::memcpy(m_commRAM + 0x100 + m_segmentSize,
-                  received->second.data(), m_segmentSize);
-      // CSimNetBoard's two-node ring receives the local segment back after the
-      // peer segment. Copying it locally preserves the same communication-RAM
-      // layout without wasting a second network packet.
-      std::memcpy(m_commRAM + 0x100 + 2 * m_segmentSize,
+      // The final ring segment is the local cabinet's own data. Copy it
+      // locally instead of broadcasting a redundant loopback packet.
+      std::memcpy(m_commRAM + 0x100 + m_expectedCabinets * m_segmentSize,
                   localSegment.data(), m_segmentSize);
       m_counter = static_cast<uint16_t>(nextFrame);
       m_framePackets.erase(m_framePackets.begin(),
@@ -670,8 +768,7 @@ void CLibretroNetBoard::RunFrame()
       ++m_status0;
     if (!m_transportSupported)
       break;
-    uint16_t peer = 0;
-    if (!SessionActive() || !SessionPeer(peer))
+    if (!SessionActive())
       break;
     if (m_helloInterval++ == 0 || m_helloInterval >= 15)
     {
