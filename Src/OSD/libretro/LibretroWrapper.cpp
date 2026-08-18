@@ -51,7 +51,6 @@
 #include "CoreOptionsTypes.h"
 #include "BundledGamesXml.h"
 #include "BundledSupermodelIni.h"
-#include <file/file_path.h>
 
 // --- External Audio Hooks ---
 extern void PlayCallback(void *userdata, UINT8 *stream, int len);
@@ -208,7 +207,11 @@ static std::string ResolveSystemAsset(const std::string& systemPath,
 
 void LibretroWrapper::InitializePaths(const std::string& systemPath)
 {
-    path_mkdir(systemPath.c_str());
+    // The Supermodel subdirectory is owned by the frontend's system path.
+    // Use the negotiated Libretro VFS instead of relying on filesystem helper
+    // symbols that are not part of the frontend ABI.
+    if (g_vfs_interface && g_vfs_interface->mkdir)
+        g_vfs_interface->mkdir(systemPath.c_str());
 
     // External assets remain authoritative. The official embedded assets are
     // retained as a first-run fallback when neither the native nor legacy
