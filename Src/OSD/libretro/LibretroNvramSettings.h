@@ -18,6 +18,9 @@ enum class Setting : unsigned {
   SpecialCar,
   DisplayType,
   ChristmasMode,
+  Vocal,
+  LeverFeedback,
+  DefaultView,
   Count,
 };
 
@@ -31,6 +34,9 @@ enum Capability : unsigned {
   SpecialCar    = 1u << static_cast<unsigned>(Setting::SpecialCar),
   DisplayType   = 1u << static_cast<unsigned>(Setting::DisplayType),
   ChristmasMode = 1u << static_cast<unsigned>(Setting::ChristmasMode),
+  Vocal         = 1u << static_cast<unsigned>(Setting::Vocal),
+  LeverFeedback = 1u << static_cast<unsigned>(Setting::LeverFeedback),
+  DefaultView   = 1u << static_cast<unsigned>(Setting::DefaultView),
 };
 
 constexpr unsigned CapabilityFor(Setting setting)
@@ -74,9 +80,11 @@ inline const SupportedGame *GetSupportedGames(size_t &count)
     { "getbass", "bassdx",
       { "japan", "medium_hard" } },
     { "daytona2", nullptr,
-      { "japan", "normal", "single", "1", "twin" } },
+      { "japan", "normal", "single", "1", "twin", nullptr, nullptr,
+        nullptr, "dennis" } },
     { "dayto2pe", "daytona2",
-      { "japan", "normal", "single", "1", "twin" } },
+      { "japan", "normal", "single", "1", "twin", nullptr, nullptr,
+        nullptr, "mitsuyoshi" } },
     { "dirtdvls", nullptr,
       { "export", "level_9", "no_link", "1" } },
     { "dirtdvlsu", "dirtdvls",
@@ -132,13 +140,17 @@ inline const SupportedGame *GetSupportedGames(size_t &count)
     { "spikeout", nullptr,
       { "export", "normal", "single" } },
     { "srally2", nullptr,
-      { "export", "normal", "stand_alone", nullptr, "deluxe" } },
+      { "export", "normal", "stand_alone", nullptr, "deluxe", nullptr,
+        nullptr, nullptr, nullptr, nullptr, "driver" } },
     { "srally2dx", "srally2",
-      { "export", "normal", "stand_alone", nullptr, "deluxe" } },
+      { "export", "normal", "stand_alone", nullptr, "deluxe", nullptr,
+        nullptr, nullptr, nullptr, nullptr, "driver" } },
     { "swtrilgy", nullptr,
-      { "export", "normal", nullptr, nullptr, "upright" } },
+      { "export", "normal", nullptr, nullptr, "upright", nullptr, nullptr,
+        nullptr, nullptr, "enable" } },
     { "swtrilgya", "swtrilgy",
-      { "export", "normal", nullptr, nullptr, "upright" } },
+      { "export", "normal", nullptr, nullptr, "upright", nullptr, nullptr,
+        nullptr, nullptr, "enable" } },
     { "vf3", nullptr,
       { "japan", "normal" } },
     { "vf3a", "vf3",
@@ -458,6 +470,12 @@ NVRAM_VALUES(kDisplayType,
   { "crt", "CRT", 0 }, { "projector", "Projector", 1 });
 NVRAM_VALUES(kOffOn,
   { "off", "Off", 0 }, { "on", "On", 1 });
+NVRAM_VALUES(kVocal,
+  { "dennis", "Dennis", 0 }, { "mitsuyoshi", "Mitsuyoshi", 1 });
+NVRAM_VALUES(kLeverFeedback,
+  { "enable", "ON", 1 }, { "disable", "Disable", 0 });
+NVRAM_VALUES(kDefaultView,
+  { "driver", "Driver", 0 }, { "behind", "Behind", 0x0004 });
 
 NVRAM_INFO(kCountryInfoJuea0, Setting::Country, "Country", "Set the machine country stored in NVRAM.", kCountryJuea0);
 NVRAM_INFO(kCountryInfoJuea1, Setting::Country, "Country", "Set the machine country stored in NVRAM.", kCountryJuea1);
@@ -506,6 +524,9 @@ NVRAM_INFO(kCabinetInfoStarWars, Setting::Cabinet, "Cabinet Type", "Set the cabi
 NVRAM_INFO(kSpecialCarInfo, Setting::SpecialCar, "Special Car", "Set the special car selection stored in NVRAM.", kSpecialCar);
 NVRAM_INFO(kDisplayTypeInfo, Setting::DisplayType, "Display Type", "Set the cabinet display type stored in NVRAM.", kDisplayType);
 NVRAM_INFO(kChristmasInfo, Setting::ChristmasMode, "Christmas Mode", "Set Magical Truck Adventure's Christmas mode stored in NVRAM.", kOffOn);
+NVRAM_INFO(kVocalInfo, Setting::Vocal, "Vocal", "Select the Daytona USA 2 vocal version stored in NVRAM.", kVocal);
+NVRAM_INFO(kLeverFeedbackInfo, Setting::LeverFeedback, "Lever Feedback", "Enable or disable Star Wars Trilogy Arcade's Deluxe cabinet lever feedback stored in NVRAM.", kLeverFeedback);
+NVRAM_INFO(kDefaultViewInfo, Setting::DefaultView, "Default View", "Select Sega Rally 2's default driving view stored in NVRAM.", kDefaultView);
 
 #undef NVRAM_INFO
 #undef NVRAM_VALUES
@@ -614,6 +635,12 @@ inline const SettingInfo *GetSettingInfo(const Game *game, Setting setting)
     return family == Family::VirtualOn2 ? &kDisplayTypeInfo : nullptr;
   case Setting::ChristmasMode:
     return family == Family::MagTruck ? &kChristmasInfo : nullptr;
+  case Setting::Vocal:
+    return family == Family::Daytona2 ? &kVocalInfo : nullptr;
+  case Setting::LeverFeedback:
+    return family == Family::StarWars ? &kLeverFeedbackInfo : nullptr;
+  case Setting::DefaultView:
+    return family == Family::SegaRally2 ? &kDefaultViewInfo : nullptr;
   default:
     return nullptr;
   }
@@ -725,6 +752,9 @@ inline const char *OptionSuffix(Setting setting)
     "special_car",
     "display_type",
     "christmas_mode",
+    "vocal",
+    "lever_feedback",
+    "default_view",
   };
   return suffixes[static_cast<unsigned>(setting)];
 }
@@ -756,6 +786,13 @@ inline unsigned GetCapabilities(const Game *game)
       capabilities |= CapabilityFor(setting);
   }
   return capabilities;
+}
+
+inline bool IsStarWarsUpright(const Game *game, const uint16_t *words)
+{
+  return game && words && Detail::GetFamily(game) == Detail::Family::StarWars &&
+         Detail::IsGenibus(words, Detail::Family::StarWars) &&
+         (words[12] & 0x0400) == 0;
 }
 
 inline ApplyResult Apply(const Game &game, uint16_t *words,
@@ -825,6 +862,8 @@ inline ApplyResult Apply(const Game &game, uint16_t *words,
       replaceLow(words[15], value), replaceLow(words[44], value);
     if (SelectedValue(game, Setting::Cabinet, selection, value))
       replaceHigh(words[16], value), replaceHigh(words[45], value);
+    if (SelectedValue(game, Setting::Vocal, selection, value))
+      replaceLow(words[19], value), replaceLow(words[48], value);
     break;
   case Family::DirtDevils:
     if (SelectedValue(game, Setting::Country, selection, value)) replaceHigh(words[12], value);
@@ -943,6 +982,8 @@ inline ApplyResult Apply(const Game &game, uint16_t *words,
       replaceMasked(words[12], 0x0400, value);
       replaceMasked(words[13], 0x0410, value ? 0x0410 : 0x0000);
     }
+    if (SelectedValue(game, Setting::DefaultView, selection, value))
+      replaceMasked(words[12], 0x0004, value);
     break;
   case Family::StarWars:
     if (SelectedValue(game, Setting::Country, selection, value))
@@ -952,6 +993,7 @@ inline ApplyResult Apply(const Game &game, uint16_t *words,
     }
     if (SelectedValue(game, Setting::Difficulty, selection, value)) replaceMasked(words[12], 0x0038, value);
     if (SelectedValue(game, Setting::Cabinet, selection, value)) replaceMasked(words[12], 0x0400, value);
+    if (SelectedValue(game, Setting::LeverFeedback, selection, value)) replaceMasked(words[13], 0x0001, value);
     break;
   case Family::VirtuaFighter3:
     if (SelectedValue(game, Setting::Difficulty, selection, value)) replaceBackup(122886, value);
