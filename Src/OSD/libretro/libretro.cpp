@@ -20,6 +20,7 @@
 #include "LibretroBlockFileMemory.h"
 #include "InitialNvramTemplates.h"
 #include "LibretroInputProfiles.h"
+#include "LibretroNetBoard.h"
 #include "LibretroNvramSettings.h"
 #include "LibretroWrapper.h"
 #include <GL/glew.h>
@@ -281,6 +282,7 @@ char retro_base_directory[4096];
 
 CoreOptions g_options = {
    /* initial_nvram_setup */ true,
+   /* network_board       */ false,
    /* nvram_settings_enabled */ false,
    /* resolution_multiplier */ 1,
    /* renderer_3d          */ Renderer3D::New3D,
@@ -825,6 +827,13 @@ void retro_init(void)
    log_cb(RETRO_LOG_INFO, "[Supermodel] System Path: %s\n", retro_base_directory);
    log_cb(RETRO_LOG_INFO, "[Supermodel] Frontend Save Path: %s\n", retro_save_directory);
 
+   if (CLibretroNetBoard::RegisterNetpacketInterface(environ_cb, log_cb))
+      log_cb(RETRO_LOG_INFO,
+             "[Supermodel] Libretro netpacket interface available.\n");
+   else
+      log_cb(RETRO_LOG_WARN,
+             "[Supermodel] Libretro netpacket interface unavailable; linked cabinets are disabled.\n");
+
    bool can_dupe = true;
    environ_cb(RETRO_ENVIRONMENT_GET_CAN_DUPE, &can_dupe);
 
@@ -836,6 +845,7 @@ void retro_init(void)
 
 void retro_deinit(void)
 {
+    CLibretroNetBoard::ShutdownNetpacketInterface();
     pgo_flush();
 }
 
@@ -1131,6 +1141,7 @@ void retro_run(void)
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &options_updated) && options_updated)
    {
       float old_multiplier = g_options.resolution_multiplier;
+      bool old_network_board = g_options.network_board;
       Renderer3D old_renderer_3d = g_options.renderer_3d;
       bool old_quad_rendering = g_options.quad_rendering;
       int old_crt_colors = g_options.crt_colors;
@@ -1177,6 +1188,14 @@ void retro_run(void)
       {
          static const struct retro_message message = {
             "Emulation Threading will apply after restarting the content.", 180
+         };
+         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
+      }
+
+      if (g_options.network_board != old_network_board)
+      {
+         static const struct retro_message message = {
+            "Network Board will apply after restarting the content.", 180
          };
          environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
       }

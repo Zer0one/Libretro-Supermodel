@@ -356,6 +356,11 @@ namespace LibretroConfigProvider {
         config.Set("SoundFreq", frames_per_second);
         config.Set("Crosshairs", static_cast<int>(g_options.crosshairs & 3u));
         config.Set<std::string>("CrosshairStyle", "vector");
+        config.Set("Network", g_options.network_board);
+        // The Libretro backend simulates the Model 3 network board and uses
+        // RetroArch's netpacket transport. Native socket-board emulation is a
+        // standalone concern and is intentionally not pulled into the core.
+        config.Set("SimulateNet", true);
         config.Set("EmulateSound", g_options.sound_enable);
         config.Set("SoundVolume", g_options.sound_volume);
         config.Set("MusicVolume", g_options.music_volume);

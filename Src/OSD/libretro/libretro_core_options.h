@@ -50,6 +50,20 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "enabled"
    },
    {
+      "supermodel_network_board",
+      "Network Board (Experimental)",
+      NULL,
+      "Connect two Daytona 2 cabinets through RetroArch Netplay using the Libretro netpacket API. The RetroArch host must use NVRAM Link Mode Master and the client Link Mode Slave, with different car numbers. Requires a content restart and a frontend with netpacket support. The initial implementation supports two cabinets only.",
+      NULL,
+      "system",
+      {
+         { "disabled", NULL },
+         { "enabled",  NULL },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
       "supermodel_nvram_settings",
       "NVRAM Settings",
       NULL,
@@ -590,6 +604,10 @@ void update_core_options(void)
 {
    g_options.initial_nvram_setup =
       strcmp(option_get("supermodel_initial_nvram_setup", "enabled"),
+             "enabled") == 0;
+
+   g_options.network_board =
+      strcmp(option_get("supermodel_network_board", "disabled"),
              "enabled") == 0;
 
    g_options.nvram_settings_enabled =

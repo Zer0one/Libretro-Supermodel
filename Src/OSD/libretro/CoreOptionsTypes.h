@@ -50,6 +50,7 @@ enum class FourSpeedShifter {
 
 struct CoreOptions {
    bool initial_nvram_setup;
+   bool network_board;
    bool nvram_settings_enabled;
    float resolution_multiplier;
    Renderer3D renderer_3d;
