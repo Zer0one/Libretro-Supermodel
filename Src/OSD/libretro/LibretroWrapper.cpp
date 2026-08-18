@@ -826,6 +826,9 @@ int LibretroWrapper::Emulate(const char* romPath)
 
         // Libretro options are authoritative over both defaults and the optional INI.
         LibretroConfigProvider::ApplyCoreOptions(s_runtime_config);
+        InfoLog("Libretro emulation threading: MultiThreaded=%d, GPUMultiThreaded=%d",
+                s_runtime_config["MultiThreaded"].ValueAs<bool>(),
+                s_runtime_config["GPUMultiThreaded"].ValueAs<bool>());
         const LibretroInputProfiles::Profile *input_profile =
             LibretroConfigProvider::ApplyInputProfile(s_runtime_config, game);
         if (input_profile)

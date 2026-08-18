@@ -98,6 +98,7 @@ CoreOptions g_options = {
    /* legacy_sound_dsp     */ false,
    /* ppc_frequency        */ 0,
    /* frameskip            */ 0,
+   /* emulation_threading  */ EmulationThreading::MultiThreadedGPU,
    /* sound_enable         */ true,
    /* jit_enable           */
 #ifdef __aarch64__
@@ -688,8 +689,18 @@ void retro_run(void)
       unsigned old_crosshairs = g_options.crosshairs;
       GunInput old_gun_input = g_options.gun_input;
       StarWarsInput old_star_wars_input = g_options.star_wars_input;
+      EmulationThreading old_emulation_threading =
+         g_options.emulation_threading;
       update_core_options();
       ppc_set_jit_enabled(g_options.jit_enable);
+
+      if (g_options.emulation_threading != old_emulation_threading)
+      {
+         static const struct retro_message message = {
+            "Emulation Threading will apply after restarting the content.", 180
+         };
+         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
+      }
 
       if (g_options.widescreen_mode != old_widescreen_mode)
       {
