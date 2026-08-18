@@ -285,6 +285,7 @@ CoreOptions g_options = {
    /* renderer_3d          */ Renderer3D::New3D,
    /* quad_rendering       */ false,
    /* crt_colors           */ 0,
+   /* supersampling        */ 1,
    /* upscale_mode          */ 2,
    /* widescreen_mode      */ WidescreenMode::Disabled,
    /* crosshairs           */ 0,
@@ -1099,6 +1100,7 @@ void retro_run(void)
       Renderer3D old_renderer_3d = g_options.renderer_3d;
       bool old_quad_rendering = g_options.quad_rendering;
       int old_crt_colors = g_options.crt_colors;
+      int old_supersampling = g_options.supersampling;
       WidescreenMode old_widescreen_mode = g_options.widescreen_mode;
       int old_upscale_mode = g_options.upscale_mode;
       bool old_legacy_sound_dsp = g_options.legacy_sound_dsp;
@@ -1123,10 +1125,11 @@ void retro_run(void)
 
       if (g_options.renderer_3d != old_renderer_3d ||
           g_options.quad_rendering != old_quad_rendering ||
-          g_options.crt_colors != old_crt_colors)
+          g_options.crt_colors != old_crt_colors ||
+          g_options.supersampling != old_supersampling)
       {
          static const struct retro_message message = {
-            "3D Renderer, Quad Rendering and CRT Colour changes require restarting the content.", 240
+            "Renderer and supersampling changes require restarting the content.", 240
          };
          environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
       }
@@ -1338,7 +1341,14 @@ void retro_run(void)
       glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
       glViewport(0, 0, target_w, target_h);
-      glScissor(0, 0, target_w, target_h);
+      // Render2D re-enables the scissor test after clearing its target. The
+      // box is global GL state and must describe the supersampled render FBO,
+      // exactly as standalone scales its scissor by aaValue. Leaving this at
+      // base resolution clips a 2x source to its lower-left quarter before
+      // SuperAA resolves it.
+      const unsigned render_scale = static_cast<unsigned>(
+         std::max(1, wrapper.getAaValue()));
+      glScissor(0, 0, target_w * render_scale, target_h * render_scale);
 
       glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
       glClearDepth(1.0);

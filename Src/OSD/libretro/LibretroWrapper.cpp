@@ -382,41 +382,43 @@ bool LibretroWrapper::InitRenderers()
 
     GLuint renderTarget = superAA->GetTargetID();
 
-    // SuperAA skips FBO creation when aa==1 and no CRT filter.
-    // In that case we must provide our own FBO; otherwise glBlitFramebuffer
-    // reads from FBO-0 (the raw window backbuffer), which is invalid in libretro.
-    if (renderTarget == 0)
-    {
-        glGenFramebuffers(1, &m_libretrFBO);
-        glBindFramebuffer(GL_FRAMEBUFFER, m_libretrFBO);
+    // Libretro always needs a base-resolution resolved target. With native
+    // supersampling/CRT colour active, SuperAA renders its high-resolution
+    // input down into this FBO. Without that pass, the Model 3 renderers draw
+    // here directly. Never submit SuperAA's high-resolution source FBO to the
+    // frontend: doing so crops the image to its lower-left base-size region.
+    glGenFramebuffers(1, &m_libretrFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_libretrFBO);
 
-        glGenTextures(1, &m_libretrTex);
-        glBindTexture(GL_TEXTURE_2D, m_libretrTex);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8,
-                     totalXRes, totalYRes,
-                     0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                               GL_TEXTURE_2D, m_libretrTex, 0);
+    glGenTextures(1, &m_libretrTex);
+    glBindTexture(GL_TEXTURE_2D, m_libretrTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8,
+                 totalXRes, totalYRes,
+                 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                           GL_TEXTURE_2D, m_libretrTex, 0);
 
-        glGenRenderbuffers(1, &m_libretrDepth);
-        glBindRenderbuffer(GL_RENDERBUFFER, m_libretrDepth);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8,
-                              totalXRes, totalYRes);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-                                  GL_RENDERBUFFER, m_libretrDepth);
+    glGenRenderbuffers(1, &m_libretrDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, m_libretrDepth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8,
+                          totalXRes, totalYRes);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+                              GL_RENDERBUFFER, m_libretrDepth);
 
-        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        if (status != GL_FRAMEBUFFER_COMPLETE)
-            ErrorLog("[Supermodel] Libretro FBO incomplete: 0x%X", status);
-        else
-            InfoLog("[Supermodel] Libretro FBO created: %ux%u (id=%u)",
-                    totalXRes, totalYRes, m_libretrFBO);
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE)
+        ErrorLog("[Supermodel] Libretro FBO incomplete: 0x%X", status);
+    else
+        InfoLog("[Supermodel] Libretro resolved FBO created: %ux%u (id=%u)",
+                totalXRes, totalYRes, m_libretrFBO);
 
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    if (renderTarget != 0)
+        superAA->SetOutputTarget(m_libretrFBO);
+    else
         renderTarget = m_libretrFBO;
-    }
 
     Render2D = new CRender2D(s_runtime_config);
     // Normal desktop builds can include both renderers and select at runtime.
@@ -907,10 +909,9 @@ bool LibretroWrapper::InitGL()
     return InitRenderers();
 }
 
-GLuint LibretroWrapper::getSuperModelFBO() const 
+GLuint LibretroWrapper::getSuperModelFBO() const
 {
-    GLuint saaFBO = superAA ? superAA->GetTargetID() : 0;
-    return (saaFBO != 0) ? saaFBO : m_libretrFBO;
+    return m_libretrFBO;
 }
 
 void LibretroWrapper::SetWidescreen(bool enabled, bool wideBackground)

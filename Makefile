@@ -244,6 +244,7 @@ endif
 
 ifneq ($(filter $(platform),android rpi64 aarch64),$(platform))
     RENDERER_DEFINES += -DHAVE_CRT_COLOURS
+    RENDERER_DEFINES += -DHAVE_SUPERSAMPLING
 endif
 
 # GIT version

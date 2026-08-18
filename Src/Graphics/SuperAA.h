@@ -18,6 +18,7 @@ public:
 
 	void Init(int width, int height);		// width & height are real window dimensions
 	void Draw();							// this is a no-op if AA is 1 and CRTcolors 0, since we'll be drawing straight on the back buffer anyway
+	void SetOutputTarget(GLuint fbo);		// optional resolved output FBO (0 = window backbuffer)
 
 	GLuint GetTargetID();
 
@@ -27,6 +28,7 @@ private:
 	const int m_aa;
 	const CRTcolor m_crtcolors;
 	GLuint m_vao;
+	GLuint m_outputTarget;
 	int m_width;
 	int m_height;
 };
