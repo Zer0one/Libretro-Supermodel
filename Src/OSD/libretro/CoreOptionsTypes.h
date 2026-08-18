@@ -39,6 +39,7 @@ enum class FourSpeedShifter {
 };
 
 struct CoreOptions {
+   bool initial_nvram_setup;
    float resolution_multiplier;
    int upscale_mode;
    WidescreenMode widescreen_mode;
