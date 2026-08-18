@@ -120,28 +120,31 @@ void retro_init(void)
 
    const char *dir = NULL;
 
-   // 1. Setup Config/System Directory
+   // 1. Setup the core-specific system directory. Games.xml and other engine
+   // assets live here; user preferences are provided by Libretro core options.
    if (environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &dir) && dir)
    {
-      snprintf(retro_base_directory, sizeof(retro_base_directory), "%s/supermodel/Config", dir);
+      snprintf(retro_base_directory, sizeof(retro_base_directory), "%s/supermodel", dir);
    }
    else
    {
-      snprintf(retro_base_directory, sizeof(retro_base_directory), "Config");
+      snprintf(retro_base_directory, sizeof(retro_base_directory), "supermodel");
    }
 
-   // 2. Setup Save Directory
+   // 2. RetroArch may already return a core- or content-specific save path.
+   // Do not append another Supermodel directory. SRAM is exposed through the
+   // Libretro memory API and the frontend owns the actual .srm file.
    if (environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &dir) && dir)
    {
-      snprintf(retro_save_directory, sizeof(retro_save_directory), "%s/supermodel/Saves", dir);
+      snprintf(retro_save_directory, sizeof(retro_save_directory), "%s", dir);
    }
    else
    {
       snprintf(retro_save_directory, sizeof(retro_save_directory), "%s", retro_base_directory);
    }
 
-   log_cb(RETRO_LOG_INFO, "[Supermodel] Config Path: %s\n", retro_base_directory);
-   log_cb(RETRO_LOG_INFO, "[Supermodel] Save Path: %s\n", retro_save_directory);
+   log_cb(RETRO_LOG_INFO, "[Supermodel] System Path: %s\n", retro_base_directory);
+   log_cb(RETRO_LOG_INFO, "[Supermodel] Frontend Save Path: %s\n", retro_save_directory);
 
    bool can_dupe = true;
    environ_cb(RETRO_ENVIRONMENT_GET_CAN_DUPE, &can_dupe);

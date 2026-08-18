@@ -40,7 +40,6 @@
 #include "Graphics/SuperAA.h"
 #include "Sound/MPEG/MpegAudio.h"
 #include "Util/BMPFile.h"
-#include "OSD/DefaultConfigFile.h"
 #include "libretroCrosshair.h"
 #include "LibretroWrapper.h"
 #include "CLibretroInputSystem.h"
@@ -164,30 +163,64 @@ FrameTimings LibretroWrapper::GetTimings() const
     return FrameTimings{};
 }
 
-static void WriteIfMissing(const std::string& path, const unsigned char* data, unsigned int size)
+static bool FileExists(const std::string& path)
 {
-    FILE* f = fopen(path.c_str(), "rb");
-    if (f) { fclose(f); return; }
-    f = fopen(path.c_str(), "wb");
-    if (!f) return;
-    fwrite(data, 1, size, f);
-    fclose(f);
-    log_cb(RETRO_LOG_INFO, "[Supermodel] Extracted bundled asset: %s\n", path.c_str());
+    FILE* fp = fopen(path.c_str(), "rb");
+    if (!fp)
+        return false;
+    fclose(fp);
+    return true;
 }
 
-void LibretroWrapper::InitializePaths(const std::string& baseConfigPath)
+static bool WriteBundledAsset(const std::string& path, const unsigned char* data, unsigned int size)
 {
-    s_configFilePath   = baseConfigPath + "/Supermodel.ini";
-    s_gameXMLFilePath  = baseConfigPath + "/Games.xml";
-    s_musicXMLFilePath = baseConfigPath + "/Music.xml";
-    s_logFilePath      = baseConfigPath + "/Supermodel.log";
-    s_analysisPath     = baseConfigPath + "/Analysis/";
+    FILE* fp = fopen(path.c_str(), "wb");
+    if (!fp)
+        return false;
 
-    path_mkdir(baseConfigPath.c_str());
-    WriteIfMissing(s_gameXMLFilePath,  bundled_games_xml,      bundled_games_xml_len);
-    WriteIfMissing(s_configFilePath,   bundled_supermodel_ini, bundled_supermodel_ini_len);
+    const bool written = fwrite(data, 1, size, fp) == size;
+    fclose(fp);
+    if (written && log_cb)
+        log_cb(RETRO_LOG_INFO, "[Supermodel] Extracted bundled asset: %s\n", path.c_str());
+    return written;
+}
 
-    std::cout << "[Supermodel] Paths remapped to: " << baseConfigPath << std::endl;
+static std::string ResolveSystemAsset(const std::string& systemPath,
+                                      const char* fileName,
+                                      const unsigned char* bundledData = nullptr,
+                                      unsigned int bundledSize = 0)
+{
+    const std::string preferredPath = systemPath + "/" + fileName;
+    if (FileExists(preferredPath))
+        return preferredPath;
+
+    // Compatibility with the directory layout used by the initial port.
+    const std::string legacyPath = systemPath + "/Config/" + fileName;
+    if (FileExists(legacyPath))
+        return legacyPath;
+
+    if (bundledData && bundledSize && WriteBundledAsset(preferredPath, bundledData, bundledSize))
+        return preferredPath;
+
+    return preferredPath;
+}
+
+void LibretroWrapper::InitializePaths(const std::string& systemPath)
+{
+    path_mkdir(systemPath.c_str());
+
+    // External assets remain authoritative. The official embedded assets are
+    // retained as a first-run fallback when neither the native nor legacy
+    // system-directory layout provides a file.
+    s_configFilePath   = ResolveSystemAsset(systemPath, "Supermodel.ini",
+                                            bundled_supermodel_ini, bundled_supermodel_ini_len);
+    s_gameXMLFilePath  = ResolveSystemAsset(systemPath, "Games.xml",
+                                            bundled_games_xml, bundled_games_xml_len);
+    s_musicXMLFilePath = ResolveSystemAsset(systemPath, "Music.xml");
+    s_logFilePath      = systemPath + "/Supermodel.log";
+    s_analysisPath     = systemPath + "/Analysis/";
+
+    std::cout << "[Supermodel] System assets: " << systemPath << std::endl;
 }
 
 static void GLAPIENTRY DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
@@ -723,45 +756,16 @@ void LibretroWrapper::ShutDownSupermodel()
  Entry Point and Command Line Processing
 ******************************************************************************/
 
-static void WriteDefaultConfigurationFileIfNotPresent()
-{
-    FILE* fp = fopen(LibretroWrapper::s_configFilePath.c_str(), "r");
-    if (fp) { fclose(fp); return; }
-
-    fp = fopen(LibretroWrapper::s_configFilePath.c_str(), "w");
-    if (!fp)
-    {
-        ErrorLog("Unable to write default configuration file to %s", LibretroWrapper::s_configFilePath.c_str());
-        return;
-    }
-    fputs(s_defaultConfigFileContents, fp);
-    fclose(fp);
-}
-
 // Create and configure inputs
 Result LibretroWrapper::ConfigureInputs(CInputs *Inputs, Util::Config::Node *fileConfig, Util::Config::Node *runtimeConfig, const Game &game, bool configure)
 {
-  static constexpr char configFileComment[] = {
-    ";\n"
-    "; Supermodel Configuration File\n"
-    ";\n"
-  };
+  (void)fileConfig;
+  (void)game;
 
   Inputs->LoadFromConfig(*runtimeConfig);
 
   if (configure)
-  {
-    Util::Config::Node *fileConfigRoot = game.name.empty() ? fileConfig : fileConfig->TryGet(game.name);
-    if (fileConfigRoot == nullptr)
-      fileConfigRoot = &fileConfig->Add(game.name);
-
-    if (Inputs->ConfigureInputs(game, xOffset, yOffset, xRes, yRes))
-    {
-      Inputs->StoreToConfig(fileConfigRoot);
-      Util::Config::WriteINIFile(s_configFilePath, *fileConfig, configFileComment);
-      Inputs->StoreToConfig(runtimeConfig);
-    }
-  }
+    ErrorLog("Interactive input configuration is not available in the Libretro core; use frontend remaps instead.");
 
   return Result::OKAY;
 }
@@ -780,8 +784,6 @@ void LibretroWrapper::Reset()
 
 int LibretroWrapper::Emulate(const char* romPath)
 {
-    WriteDefaultConfigurationFileIfNotPresent();
-
     // Route ALL of Supermodel's logging (InfoLog/DebugLog/ErrorLog, including the
     // DumpTimings profiler output) through the RetroArch log callback, on every
     // platform — not just Android. Previously non-Android builds used a file/console
@@ -810,9 +812,20 @@ int LibretroWrapper::Emulate(const char* romPath)
         Util::Config::Node fileConfigWithDefaults("Global");
         Util::Config::Node config3("Global");
         Util::Config::Node config4("Global");
-        Util::Config::FromINIFile(&fileConfig, s_configFilePath);
-        Util::Config::MergeINISections(&fileConfigWithDefaults, LibretroConfigProvider::DefaultConfig(s_gameXMLFilePath), fileConfig); 
-        Util::Config::MergeINISections(&config3, fileConfigWithDefaults, cmd_line.config);    
+
+        // Supermodel.ini is an advanced, read-only override. Normal user
+        // configuration belongs to Libretro core options and frontend input
+        // remaps. When no external file exists, InitializePaths() exposes the
+        // official embedded fallback without ever updating it afterwards.
+        if (FileExists(s_configFilePath))
+        {
+            if (Util::Config::FromINIFile(&fileConfig, s_configFilePath))
+                return 1;
+            InfoLog("Loaded optional configuration override: %s", s_configFilePath.c_str());
+        }
+
+        Util::Config::MergeINISections(&fileConfigWithDefaults, LibretroConfigProvider::DefaultConfig(s_gameXMLFilePath), fileConfig);
+        Util::Config::MergeINISections(&config3, fileConfigWithDefaults, cmd_line.config);
 
 	config3.Set("GameXMLFile", s_gameXMLFilePath);
         if (rom_specified || cmd_line.print_games)
@@ -833,7 +846,8 @@ int LibretroWrapper::Emulate(const char* romPath)
             
         Util::Config::MergeINISections(&s_runtime_config, config4, cmd_line.config);
 
-        // After the merge, so an explicit core option beats the on-disk Supermodel.ini
+        // Libretro options are authoritative over both defaults and the optional INI.
+        LibretroConfigProvider::ApplyCoreOptions(s_runtime_config);
         LibretroConfigProvider::ApplyDrivingLayout(s_runtime_config);
     }
 

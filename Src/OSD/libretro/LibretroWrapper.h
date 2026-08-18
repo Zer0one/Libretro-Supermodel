@@ -60,7 +60,7 @@ public:
     void setSuperAA(SuperAA* val) { superAA = val; }
     void setCRTColors(CRTcolor val) { CRTcolors = val; }
     void setHwRender(retro_hw_render_callback val) { hw_render = val; }
-    void InitializePaths(const std::string& baseConfigPath);
+    void InitializePaths(const std::string& systemPath);
     void UpdateScreenSize(unsigned newWidth, unsigned newHeight);
     void SetServiceOnSticks(bool enabled);
     void SetSoundVolume(int volume);
