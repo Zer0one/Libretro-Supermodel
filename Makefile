@@ -193,6 +193,15 @@ RENDERER ?= new3d
 
 LEGACY3D_SOURCES := %/Legacy3D/Error.cpp %/Legacy3D/Legacy3D.cpp %/Legacy3D/Models.cpp %/Legacy3D/TextureRefs.cpp
 
+# These platforms deliberately omit the fixed-function Legacy3D sources.
+# Reject an explicit legacy build instead of accepting the selector and later
+# failing with missing renderer objects or symbols.
+ifneq ($(filter osx android,$(platform)),)
+ifeq ($(RENDERER),legacy)
+    $(error RENDERER=legacy is not supported for platform=$(platform))
+endif
+endif
+
 ifeq ($(RENDERER),legacy)
     RENDERER_DEFINES := -DUSE_LEGACY3D
     DROP_LEGACY3D :=
@@ -240,11 +249,11 @@ ifneq ($(filter $(CORE_DIR)/Src/Graphics/Legacy3D/Legacy3D.cpp,$(SOURCES_CXX)),)
     RENDERER_DEFINES += -DHAVE_LEGACY3D
 endif
 
-ifneq ($(filter $(platform),osx android rpi64 aarch64),$(platform))
+ifneq ($(filter $(platform),osx android rpi64 aarch64 linux-aarch64),$(platform))
     RENDERER_DEFINES += -DHAVE_QUAD_RENDERING
 endif
 
-ifneq ($(filter $(platform),android rpi64 aarch64),$(platform))
+ifneq ($(filter $(platform),android rpi64 aarch64 linux-aarch64),$(platform))
     RENDERER_DEFINES += -DHAVE_CRT_COLOURS
     RENDERER_DEFINES += -DHAVE_SUPERSAMPLING
 endif
