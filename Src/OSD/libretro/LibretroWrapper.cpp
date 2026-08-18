@@ -895,7 +895,7 @@ int LibretroWrapper::Emulate(const char* romPath)
     return 0;
 }
 
-void LibretroWrapper::InitGL()
+bool LibretroWrapper::InitGL()
 {
     static bool glsym_done = false;
     if (!glsym_done)
@@ -915,7 +915,7 @@ void LibretroWrapper::InitGL()
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
-    InitRenderers();
+    return InitRenderers();
 }
 
 GLuint LibretroWrapper::getSuperModelFBO() const 
