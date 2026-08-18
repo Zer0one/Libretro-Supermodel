@@ -2,9 +2,10 @@
 #define SUPERMODEL_CORE_OPTIONS_TYPES_H
 
 enum class GunInput {
-   Hybrid,        // shared cursor controlled by RetroLightgun or RetroPad
+   Hybrid,        // RetroLightgun, RetroMouse and RetroPad share one cursor
    Lightgun,      // RetroLightgun, absolute screen coordinates
    Mouse,         // RetroMouse, relative movement
+   MouseAnalog,   // Hybrid variant that excludes RetroLightgun input
    AnalogSticks   // RetroPad left stick controlling a relative cursor
 };
 

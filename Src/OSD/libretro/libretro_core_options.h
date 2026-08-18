@@ -113,14 +113,15 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "supermodel_gun_input",
       "Gun Input Mode",
       NULL,
-      "Input source for analog-gun games. Hybrid accepts RetroArch Lightgun, Mouse, and the left Analog Stick through one virtual cursor. Dedicated modes restrict input to the selected source. Changes take effect immediately.",
+      "Input source for analog-gun games. Standard accepts RetroArch Lightgun, Mouse, and the left Analog Stick through one virtual cursor. Mouse + Analog Stick excludes Lightgun coordinates while retaining both relative cursor sources. Dedicated modes restrict input to the selected source. Changes take effect immediately.",
       NULL,
       "input",
       {
-         { "hybrid",   "Hybrid (Lightgun / Mouse / Analog)" },
-         { "lightgun", "Lightgun" },
-         { "mouse",    "Mouse" },
-         { "analog",   "Analog Stick Cursor" },
+         { "hybrid",   "Standard" },
+         { "lightgun", "Lightgun Only" },
+         { "mouse_analog", "Mouse + Analog Stick" },
+         { "mouse",    "Mouse Only" },
+         { "analog",   "Analog Stick Only" },
          { NULL, NULL },
       },
       "hybrid"
@@ -129,13 +130,13 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "supermodel_star_wars_input",
       "Star Wars Trilogy Input Mode",
       NULL,
-      "Input source for the arcade analog joystick used by Star Wars Trilogy Arcade. Hybrid accepts the Mouse and left Analog Stick through one virtual control, with the last moved source taking priority. Changes take effect immediately.",
+      "Input source for the arcade analog joystick used by Star Wars Trilogy Arcade. Standard accepts the Mouse and left Analog Stick through one virtual control, with the last moved source taking priority. Changes take effect immediately.",
       NULL,
       "input",
       {
-         { "hybrid", "Hybrid (Mouse / Analog Stick)" },
-         { "mouse",  "Mouse" },
-         { "analog", "Analog Stick" },
+         { "hybrid", "Standard" },
+         { "mouse",  "Mouse Only" },
+         { "analog", "Analog Stick Only" },
          { NULL, NULL },
       },
       "hybrid"
@@ -484,6 +485,8 @@ void update_core_options(void)
       const char *gun_input = option_get("supermodel_gun_input", "hybrid");
       g_options.gun_input = strcmp(gun_input, "lightgun") == 0 ? GunInput::Lightgun
                           : strcmp(gun_input, "mouse") == 0    ? GunInput::Mouse
+                          : strcmp(gun_input, "mouse_analog") == 0
+                                                               ? GunInput::MouseAnalog
                           : strcmp(gun_input, "analog") == 0   ? GunInput::AnalogSticks
                                                                : GunInput::Hybrid;
    }

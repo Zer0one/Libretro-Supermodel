@@ -1264,6 +1264,9 @@ void set_controller_info(const Game &game)
       case GunInput::Mouse:
          device_name = "Gun (Mouse)";
          break;
+      case GunInput::MouseAnalog:
+         device_name = "Gun (Mouse + Analog Stick)";
+         break;
       case GunInput::AnalogSticks:
          device_name = "Gun (Analog Sticks)";
          break;
@@ -1410,6 +1413,25 @@ void set_input_descriptors(const Game *game)
                    RETRO_DEVICE_ID_MOUSE_LEFT, "Left Shot");
                add(port, RETRO_DEVICE_MOUSE, 0,
                    RETRO_DEVICE_ID_MOUSE_RIGHT, "Right Shot");
+               break;
+
+            case GunInput::MouseAnalog:
+               add(port, RETRO_DEVICE_MOUSE, 0,
+                   RETRO_DEVICE_ID_MOUSE_X, "Gun Yaw (Mouse)");
+               add(port, RETRO_DEVICE_MOUSE, 0,
+                   RETRO_DEVICE_ID_MOUSE_Y, "Gun Pitch (Mouse)");
+               add(port, RETRO_DEVICE_MOUSE, 0,
+                   RETRO_DEVICE_ID_MOUSE_LEFT, "Left Shot (Mouse)");
+               add(port, RETRO_DEVICE_MOUSE, 0,
+                   RETRO_DEVICE_ID_MOUSE_RIGHT, "Right Shot (Mouse)");
+               add(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
+                   RETRO_DEVICE_ID_ANALOG_X, "Gun Yaw (Analog Cursor)");
+               add(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
+                   RETRO_DEVICE_ID_ANALOG_Y, "Gun Pitch (Analog Cursor)");
+               add(port, RETRO_DEVICE_JOYPAD, 0,
+                   RETRO_DEVICE_ID_JOYPAD_B, "Left Shot (Analog)");
+               add(port, RETRO_DEVICE_JOYPAD, 0,
+                   RETRO_DEVICE_ID_JOYPAD_A, "Right Shot (Analog)");
                break;
 
             case GunInput::AnalogSticks:

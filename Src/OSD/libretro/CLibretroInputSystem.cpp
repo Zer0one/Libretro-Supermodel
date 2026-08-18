@@ -308,7 +308,8 @@ bool CLibretroInputSystem::Poll()
     }
 
     // ----- Virtual gun cursors (Supermodel MOUSE5 and MOUSE6) -----
-    // MOUSE5/MOUSE6 combine the sources selected by Gun Input Mode. Dedicated
+    // MOUSE5/MOUSE6 combine the sources selected by Gun Input Mode. Mouse +
+    // Analog Stick is the Hybrid path with Lightgun input excluded. Dedicated
     // Mouse mode consumes only RetroMouse relative movement and buttons;
     // existing Lightgun and Hybrid behavior retains its raw-mouse fallback.
     const int minX = static_cast<int>(m_dispX);
@@ -339,9 +340,11 @@ bool CLibretroInputSystem::Poll()
         const bool allowMouse =
             g_options.gun_input == GunInput::Hybrid ||
             g_options.gun_input == GunInput::Lightgun ||
+            g_options.gun_input == GunInput::MouseAnalog ||
             g_options.gun_input == GunInput::Mouse;
         const bool allowAnalog =
             g_options.gun_input == GunInput::Hybrid ||
+            g_options.gun_input == GunInput::MouseAnalog ||
             g_options.gun_input == GunInput::AnalogSticks;
         if (!m_gunCursorInitialized[port])
         {
