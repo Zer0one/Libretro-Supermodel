@@ -138,6 +138,22 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "new3d"
    },
 #endif
+#ifdef HAVE_LEGACY3D
+   {
+      "supermodel_legacy_multi_texture",
+      "Legacy3D Multi-Texture",
+      NULL,
+      "Use eight texture maps for Legacy3D decoding instead of decoding to a single texture. Only applies to Legacy3D and takes effect after restarting content.",
+      NULL,
+      "video",
+      {
+         { "disabled", "Single Texture (Default)" },
+         { "enabled",  "Eight Texture Maps" },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+#endif
 #ifdef HAVE_QUAD_RENDERING
    {
       "supermodel_quad_rendering",
@@ -670,6 +686,14 @@ void update_core_options(void)
          ? Renderer3D::Legacy3D : Renderer3D::New3D;
 #else
    g_options.renderer_3d = Renderer3D::New3D;
+#endif
+
+#ifdef HAVE_LEGACY3D
+   g_options.legacy_multi_texture =
+      strcmp(option_get("supermodel_legacy_multi_texture", "disabled"),
+             "enabled") == 0;
+#else
+   g_options.legacy_multi_texture = false;
 #endif
 
 #ifdef HAVE_QUAD_RENDERING

@@ -73,6 +73,9 @@ static std::string g_visible_nvram_game;
 static int g_visible_nvram_enabled = -1;
 static int g_network_board_option_visible = -1;
 static int g_network_cabinets_option_visible = -1;
+#if defined(HAVE_LEGACY3D) && !defined(USE_LEGACY3D)
+static int g_legacy_multi_texture_option_visible = -1;
+#endif
 
 static void append_nvram_core_options(void)
 {
@@ -240,6 +243,22 @@ static bool update_core_option_visibility(void)
       changed = true;
    }
 
+#if defined(HAVE_LEGACY3D) && !defined(USE_LEGACY3D)
+   const bool legacy_multi_texture_visible =
+      strcmp(option_get("supermodel_renderer_3d", "new3d"),
+             "legacy3d") == 0;
+   if (g_legacy_multi_texture_option_visible !=
+       static_cast<int>(legacy_multi_texture_visible))
+   {
+      struct retro_core_option_display display = {
+         "supermodel_legacy_multi_texture", legacy_multi_texture_visible
+      };
+      environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
+      g_legacy_multi_texture_option_visible = legacy_multi_texture_visible;
+      changed = true;
+   }
+#endif
+
    const bool enabled =
       strcmp(option_get("supermodel_nvram_settings", "disabled"),
              "enabled") == 0;
@@ -311,6 +330,7 @@ CoreOptions g_options = {
    /* nvram_settings_enabled */ false,
    /* resolution_multiplier */ 1,
    /* renderer_3d          */ Renderer3D::New3D,
+   /* legacy_multi_texture */ false,
    /* quad_rendering       */ false,
    /* crt_colors           */ 0,
    /* supersampling        */ 1,
@@ -1169,6 +1189,7 @@ void retro_run(void)
       bool old_network_board = g_options.network_board;
       unsigned old_network_cabinets = g_options.network_cabinets;
       Renderer3D old_renderer_3d = g_options.renderer_3d;
+      bool old_legacy_multi_texture = g_options.legacy_multi_texture;
       bool old_quad_rendering = g_options.quad_rendering;
       int old_crt_colors = g_options.crt_colors;
       int old_supersampling = g_options.supersampling;
@@ -1200,6 +1221,7 @@ void retro_run(void)
       }
 
       if (g_options.renderer_3d != old_renderer_3d ||
+          g_options.legacy_multi_texture != old_legacy_multi_texture ||
           g_options.quad_rendering != old_quad_rendering ||
           g_options.crt_colors != old_crt_colors ||
           g_options.supersampling != old_supersampling ||
@@ -2284,6 +2306,9 @@ void retro_set_environment(retro_environment_t cb)
    g_visible_nvram_game.clear();
    g_network_board_option_visible = -1;
    g_network_cabinets_option_visible = -1;
+#if defined(HAVE_LEGACY3D) && !defined(USE_LEGACY3D)
+   g_legacy_multi_texture_option_visible = -1;
+#endif
    update_core_option_visibility();
 
    // 3. Variable Update Check

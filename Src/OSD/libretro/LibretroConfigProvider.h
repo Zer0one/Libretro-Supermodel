@@ -335,6 +335,8 @@ namespace LibretroConfigProvider {
         const bool use_legacy_3d =
             g_options.renderer_3d == Renderer3D::Legacy3D;
         config.Set("New3DEngine", !use_legacy_3d);
+        config.Set("MultiTexture",
+                   use_legacy_3d && g_options.legacy_multi_texture);
         config.Set("QuadRendering",
                    !use_legacy_3d && g_options.quad_rendering);
         config.Set("CRTcolors",

@@ -57,6 +57,7 @@ struct CoreOptions {
    bool nvram_settings_enabled;
    float resolution_multiplier;
    Renderer3D renderer_3d;
+   bool legacy_multi_texture;
    bool quad_rendering;
    int crt_colors;
    int supersampling;
