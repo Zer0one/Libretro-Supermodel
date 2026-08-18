@@ -2,16 +2,33 @@
 
 A modernized fork of the Sega Model 3 (Supermodel) Libretro core, optimized for modern Linux distributions and updated to C++17 standards.
 
+## Project lineage and review status
+
+This branch is based on the official
+[`libretro/Libretro-Supermodel`](https://github.com/libretro/Libretro-Supermodel)
+repository. Much of the modern Libretro frontend was originally developed by
+[`sgiannop/Libretro-Supermodel`](https://github.com/sgiannop/Libretro-Supermodel);
+that work remains the foundation of this integration and should be credited as
+such.
+
+The subsequent integration, feature work, diagnosis, and validation were
+developed with assistance from **ChatGPT 5.6 Sol** as part of a study project.
+This disclosure is not a substitute for review: every change should be
+independently inspected and tested before it is accepted into an official
+release.
+
 ## 🚀 Key Improvements
 - **Unified Makefile:** Single build configuration supporting 6 platforms (Linux, Windows, macOS, Android, RPi64, aarch64) following libretro/skeletor standards.
 - **Platform Auto-Detection:** Automatic platform detection with sensible defaults; platform-specific source filtering for incompatible features.
-- **Native Libretro Audio:** Removed legacy SDL audio dependency in favor of native `audio_batch_cb` synchronization at a fixed 60 Hz cadence.
+- **Native Libretro Audio:** Removed legacy SDL audio dependency in favor of native `audio_batch_cb` synchronization at either the default 60 Hz cadence or native Model 3 timing.
 - **C++17 Migration:** Replaced legacy SDL-based threading and synchronization with native C++17 `std::mutex`, `std::lock_guard`, and atomic operations.
 - **Ubuntu 24.04 Compatibility:** Fixed header conflicts and link-time errors present in the original codebase specifically for modern GCC versions.
 - **Synchronous A/V Timing:** Matches standalone Supermodel's default 60 Hz cadence and 735-sample stereo audio packets; RetroArch owns final A/V synchronization.
 - **Improved Input Mapping:** Full support for Analog/Digital gamepads and keyboard out of the box with improved deadzone handling.
 - **Configurable Service & Test Buttons:** Service and Test buttons are now mappable through the RetroArch input configuration.
 - **Force Feedback / Rumble:** Full force feedback support for steering wheel games via the Libretro rumble interface.
+- **Linked Cabinets:** Experimental API-native Model 3 networking through the Libretro Netpacket interface, without core-owned sockets or discovery.
+- **Game-aware NVRAM:** Optional per-game Service Menu settings and first-boot Single/Stand Alone/No Link initialization while preserving ordinary frontend `.srm` ownership.
 - **True Widescreen:** Expands the 3D horizontal field of view into a native
   16:9 framebuffer, with an optional wide lower-background layer. Plain 4:3
   stretching remains the frontend's responsibility.
@@ -23,16 +40,19 @@ A modernized fork of the Sega Model 3 (Supermodel) Libretro core, optimized for 
 - **Windows Support:** Full cross-platform support with dedicated Windows build targets using MinGW — no vendored prebuilt libraries required.
 
 ## 📂 Required Assets
-To run the core, you must place the emulator's configuration files in your RetroArch system directory. The core follows standard Libretro conventions and will look for assets in the following location:
+The core follows standard Libretro conventions and uses the following location:
 
-* **Path:** `[RetroArch System Directory]/supermodel/Config/`
+* **Preferred path:** `[RetroArch System Directory]/supermodel/`
 * **Files:**
-    * `Games.xml` is required to identify ROM sets.
+    * `Games.xml` is required to identify ROM sets. The official embedded copy
+      is extracted on first use when no external file exists.
     * `Music.xml` is optional and enables the corresponding music metadata.
-    * `Supermodel.ini` is generated from the built-in defaults when the
-      directory exists and the file is absent; an existing file is preserved.
+    * `Supermodel.ini` is an optional advanced, read-only override. The
+      official embedded copy is extracted on first use; an existing file is
+      always authoritative and is never updated by the core.
 
-*Note: Without `Games.xml`, the core cannot identify or load a game.*
+The initial port's `[System]/supermodel/Config/` layout remains a compatibility
+fallback, but new installations should use the preferred flat directory.
 
 ## Video geometry
 
@@ -65,16 +85,16 @@ restart. Sound and DSB music volume follow standalone's full 0–200% range.
 
 ## Timing and synchronization
 
-The core reports `60 FPS` video and `44100 Hz` stereo audio to the frontend,
-and consumes one fixed packet of 735 audio samples per `retro_run`. This is the
-same cadence used by standalone Supermodel by default. The Model 3 hardware
-refresh is approximately 57.524160 Hz, but upstream deliberately defaults to
-60 Hz because true-Hz output can judder on ordinary 60 Hz displays.
+`Model 3 Timing Mode` offers the same default `60 FPS` cadence used by
+standalone Supermodel and a native `57.524160 Hz` mode. Both report `44100 Hz`
+stereo audio. The default submits 735 samples per `retro_run`; native timing
+uses a deterministic fractional 766/767-sample cadence so the long-term audio
+rate remains exact. Native timing requires a multi-threaded emulation mode and
+is most useful with a display able to follow the reported refresh rate.
 
 The core does not expose its own VSync setting: the Libretro frontend owns the
 display swapchain, video presentation, audio synchronization, and final sample
-rate conversion. A future true-Hz mode would require a matching fractional
-audio path (766/767 samples per frame), not just a different advertised FPS.
+rate conversion.
 
 For objective performance checks, enable `Frame Timing Overlay`. Besides the
 engine's PPC, renderer, GPU, synchronization and sound timings, it shows
@@ -100,6 +120,17 @@ directory. The core reads `.nv` only when no `.srm` data was supplied. If both
 are present, `.srm` takes precedence and the ignored `.nv` path is reported in
 the log. An invalid `.nv` is ignored and replaced by default machine settings
 in a new `.srm`. The core never writes or overwrites the native `.nv` file.
+
+`Automatic Initial NVRAM Setup` affects only a newly created save and supplies
+validated Single, Stand Alone, or No Link defaults for games that otherwise
+stop at a network check. `NVRAM Settings` is separate and disabled by default;
+when enabled, it exposes only the fields and values validated for the current
+ROM set and reapplies those per-game choices at startup.
+
+`Network Board` controls whether supported games see the emulated connection
+board. During RetroArch Netplay, the core uses only the official Libretro
+Netpacket interface. Every peer must select the same linked-cabinet count and
+configure compatible Master/Slave or relay roles in the game's Service Menu.
 
 ## 🛠 Build Instructions
 
