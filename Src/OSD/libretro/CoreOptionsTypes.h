@@ -70,6 +70,7 @@ struct CoreOptions {
    bool timing_overlay;      // draw the ImGui frame-timing overlay (costs a draw pass every frame)
    GunInput gun_input;
    StarWarsInput star_wars_input;
+   bool star_wars_upright_x_inversion;
    FourSpeedShifter four_speed_shifter;
 };
 

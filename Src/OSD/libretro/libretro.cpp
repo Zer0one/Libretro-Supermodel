@@ -311,6 +311,7 @@ CoreOptions g_options = {
    /* timing_overlay      */ false,
    /* gun_input           */ GunInput::Hybrid,
    /* star_wars_input     */ StarWarsInput::Hybrid,
+   /* star_wars_upright_x_inversion */ true,
    /* four_speed_shifter  */ FourSpeedShifter::HGate,
 };
 
@@ -629,7 +630,8 @@ static void update_star_wars_cabinet_orientation(void)
    log_cb(RETRO_LOG_INFO,
           "[Supermodel] Star Wars cabinet: %s; analog X %s\n",
           g_star_wars_invert_x ? "Upright" : "Deluxe",
-          g_star_wars_invert_x ? "inverted" : "normal");
+          g_star_wars_invert_x && g_options.star_wars_upright_x_inversion
+             ? "inverted" : "normal");
 }
 
 static void initialize_new_nvram(void)
@@ -1137,6 +1139,8 @@ void retro_run(void)
       unsigned old_crosshairs = g_options.crosshairs;
       GunInput old_gun_input = g_options.gun_input;
       StarWarsInput old_star_wars_input = g_options.star_wars_input;
+      bool old_star_wars_upright_x_inversion =
+         g_options.star_wars_upright_x_inversion;
       FourSpeedShifter old_four_speed_shifter =
          g_options.four_speed_shifter;
       EmulationThreading old_emulation_threading =
@@ -1223,6 +1227,15 @@ void retro_run(void)
          if (log_cb)
             log_cb(RETRO_LOG_INFO,
                    "[Supermodel] Star Wars Trilogy Input applied immediately.\n");
+      }
+
+      if (g_options.star_wars_upright_x_inversion !=
+          old_star_wars_upright_x_inversion && log_cb)
+      {
+         log_cb(RETRO_LOG_INFO,
+                "[Supermodel] Star Wars Upright X-axis inversion %s.\n",
+                g_options.star_wars_upright_x_inversion
+                   ? "enabled" : "disabled");
       }
 
       if (g_options.four_speed_shifter != old_four_speed_shifter)
