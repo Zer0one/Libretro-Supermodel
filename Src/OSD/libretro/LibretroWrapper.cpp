@@ -419,18 +419,18 @@ bool LibretroWrapper::InitRenderers()
     }
 
     Render2D = new CRender2D(s_runtime_config);
-    // Legacy3D is only linked in when built with RENDERER=legacy (see Makefile).
-    // On GLES platforms it is otherwise absent from the binary entirely, hence
-    // the compile-time switch rather than a runtime config check.
+    // Normal desktop builds can include both renderers and select at runtime.
+    // Platforms whose graphics API cannot build Legacy3D omit it entirely;
+    // explicit RENDERER=legacy builds remain fixed to that renderer.
     Render3D =
 #if defined(USE_LEGACY3D)
         (IRender3D*)new Legacy3D::CLegacy3D(s_runtime_config);
-#elif defined(ANDROID) || defined(CORE_GLES) || defined(__APPLE__)
-        (IRender3D*)new New3D::CNew3D(s_runtime_config, Model3->GetGame().name);
-#else
+#elif defined(HAVE_LEGACY3D)
         s_runtime_config["New3DEngine"].ValueAs<bool>()
         ? (IRender3D*)new New3D::CNew3D(s_runtime_config, Model3->GetGame().name)
         : (IRender3D*)new Legacy3D::CLegacy3D(s_runtime_config);
+#else
+        (IRender3D*)new New3D::CNew3D(s_runtime_config, Model3->GetGame().name);
 #endif
 
      unsigned render_xRes = xRes;
