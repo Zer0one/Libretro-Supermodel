@@ -20,6 +20,7 @@
 #include "LibretroBlockFileMemory.h"
 #include "InitialNvramTemplates.h"
 #include "LibretroInputProfiles.h"
+#include "LibretroNvramSettings.h"
 #include "LibretroWrapper.h"
 #include <GL/glew.h>
 #include "../../Graphics/SuperAA.h"
@@ -53,6 +54,42 @@ static bool g_has_active_input_game = false;
 static GunInput g_active_gun_input = GunInput::Hybrid;
 static StarWarsInput g_active_star_wars_input = StarWarsInput::Hybrid;
 static WidescreenMode g_active_widescreen_mode = WidescreenMode::Disabled;
+static unsigned g_visible_nvram_capabilities =
+   std::numeric_limits<unsigned>::max();
+
+static bool update_nvram_option_visibility(void)
+{
+   const bool enabled =
+      strcmp(option_get("supermodel_nvram_settings", "disabled"),
+             "enabled") == 0;
+   const unsigned capabilities = enabled && g_has_active_input_game
+      ? LibretroNvramSettings::GetCapabilities(&g_active_input_game)
+      : LibretroNvramSettings::None;
+
+   if (capabilities == g_visible_nvram_capabilities)
+      return false;
+
+   struct retro_core_option_display display = { nullptr, false };
+   const struct {
+      const char *key;
+      unsigned capability;
+   } options[] = {
+      { "supermodel_nvram_country",    LibretroNvramSettings::Country },
+      { "supermodel_nvram_link_mode",  LibretroNvramSettings::LinkMode },
+      { "supermodel_nvram_car_number", LibretroNvramSettings::CarNumber },
+      { "supermodel_nvram_cabinet",    LibretroNvramSettings::Cabinet },
+   };
+
+   for (const auto &option : options)
+   {
+      display.key = option.key;
+      display.visible = (capabilities & option.capability) != 0;
+      environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
+   }
+
+   g_visible_nvram_capabilities = capabilities;
+   return true;
+}
 
 // GPU timer queries (double-buffered: write slot N, read slot N-1)
 #if defined(CORE_GLES)
@@ -88,6 +125,11 @@ char retro_base_directory[4096];
 
 CoreOptions g_options = {
    /* initial_nvram_setup */ true,
+   /* nvram_settings_enabled */ false,
+   /* nvram_country       */ -1,
+   /* nvram_link_mode     */ -1,
+   /* nvram_car_number    */ -1,
+   /* nvram_cabinet       */ -1,
    /* resolution_multiplier */ 1,
    /* renderer_3d          */ Renderer3D::New3D,
    /* quad_rendering       */ false,
@@ -327,6 +369,69 @@ static bool apply_initial_nvram_template(void)
    log_cb(RETRO_LOG_INFO,
           "[Supermodel] Applied automatic initial NVRAM setup for %s\n",
           wrapper.getGame().name.c_str());
+   return true;
+}
+
+static bool apply_configured_nvram_settings(void)
+{
+   if (!g_options.nvram_settings_enabled || !g_has_active_input_game ||
+       wrapper.getEmulator() == nullptr)
+      return false;
+
+   const LibretroNvramSettings::Selection selection = {
+      g_options.nvram_country,
+      g_options.nvram_link_mode,
+      g_options.nvram_car_number,
+      g_options.nvram_cabinet,
+   };
+   if (selection.country < 0 && selection.linkMode < 0 &&
+       selection.carNumber < 0 && selection.cabinet < 0)
+      return false;
+
+   // Use Supermodel's public NVRAM block interface so backup RAM and all
+   // EEPROM device state remain intact. Only the 64 EEPROM data words are
+   // replaced after applying the game-family-specific settings.
+   serialize_nvram();
+   CBlockFileMemory reader(g_nvram_buffer, NVRAM_BUFFER_SIZE);
+   uint16_t words[64];
+   if (reader.FindBlock("93C46") != Result::OKAY ||
+       reader.Read(words, sizeof(words)) != sizeof(words))
+   {
+      log_cb(RETRO_LOG_ERROR,
+             "[Supermodel] Unable to read EEPROM for NVRAM settings\n");
+      return false;
+   }
+
+   const LibretroNvramSettings::ApplyResult result =
+      LibretroNvramSettings::Apply(g_active_input_game, words, selection);
+   if (result == LibretroNvramSettings::ApplyResult::Unsupported)
+      return false;
+   if (result == LibretroNvramSettings::ApplyResult::InvalidLayout)
+   {
+      log_cb(RETRO_LOG_WARN,
+             "[Supermodel] NVRAM settings skipped: unexpected EEPROM layout for %s\n",
+             g_active_input_game.name.c_str());
+      return false;
+   }
+   if (result == LibretroNvramSettings::ApplyResult::Unchanged)
+      return false;
+
+   CBlockFileMemory writer(g_nvram_buffer, NVRAM_BUFFER_SIZE);
+   if (writer.FindBlock("93C46") != Result::OKAY)
+      return false;
+   writer.Write(words, sizeof(words));
+   if (writer.HasError() ||
+       !unserialize_nvram("game-aware NVRAM settings", false))
+   {
+      log_cb(RETRO_LOG_ERROR,
+             "[Supermodel] Unable to apply configured NVRAM settings for %s\n",
+             g_active_input_game.name.c_str());
+      return false;
+   }
+
+   log_cb(RETRO_LOG_INFO,
+          "[Supermodel] Applied configured NVRAM settings for %s\n",
+          g_active_input_game.name.c_str());
    return true;
 }
 
@@ -680,6 +785,7 @@ bool retro_load_game(const struct retro_game_info *info)
    const Game loaded_game = wrapper.getGame();
    g_active_input_game = loaded_game;
    g_has_active_input_game = true;
+   update_nvram_option_visibility();
    set_input_descriptors(&loaded_game);
    set_controller_info(loaded_game);
    wrapper.SetWidescreen(widescreen_enabled(), wide_background_enabled());
@@ -717,6 +823,7 @@ void retro_unload_game(void)
    last_height = 0;
    g_context_ready = false;
    g_has_active_input_game = false;
+   update_nvram_option_visibility();
    set_input_descriptors(nullptr);
    pgo_flush();   // RetroArch may never call retro_deinit before exiting
 }
@@ -761,6 +868,15 @@ void retro_run(void)
          g_options.emulation_threading;
       update_core_options();
       ppc_set_jit_enabled(g_options.jit_enable);
+      update_nvram_option_visibility();
+
+      if (g_nvram_initialized && apply_configured_nvram_settings())
+      {
+         static const struct retro_message message = {
+            "NVRAM settings saved. Restart content to apply them.", 180
+         };
+         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
+      }
 
       if (g_options.renderer_3d != old_renderer_3d ||
           g_options.quad_rendering != old_quad_rendering ||
@@ -927,6 +1043,8 @@ void retro_run(void)
                    "[Supermodel] Unable to apply automatic initial NVRAM setup for %s\n",
                    wrapper.getGame().name.c_str());
       }
+
+      apply_configured_nvram_settings();
    }
 
     if (input_poll_cb) input_poll_cb();
@@ -1748,6 +1866,13 @@ void retro_set_environment(retro_environment_t cb)
    options_v2.categories = option_cats;
    options_v2.definitions = option_defs;
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_V2, &options_v2);
+
+   struct retro_core_options_update_display_callback update_display_cb;
+   update_display_cb.callback = update_nvram_option_visibility;
+   environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_UPDATE_DISPLAY_CALLBACK,
+              &update_display_cb);
+   g_visible_nvram_capabilities = std::numeric_limits<unsigned>::max();
+   update_nvram_option_visibility();
 
    // 3. Variable Update Check
    bool dummy = false;
