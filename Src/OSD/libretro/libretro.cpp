@@ -1176,6 +1176,7 @@ void retro_run(void)
       bool old_no_white_flash = g_options.no_white_flash;
       AVTimingMode old_av_timing_mode = g_options.av_timing_mode;
       int old_upscale_mode = g_options.upscale_mode;
+      bool old_sound_enable = g_options.sound_enable;
       bool old_legacy_sound_dsp = g_options.legacy_sound_dsp;
       unsigned old_crosshairs = g_options.crosshairs;
       GunInput old_gun_input = g_options.gun_input;
@@ -1248,6 +1249,14 @@ void retro_run(void)
       {
          static const struct retro_message message = {
             "Renderer/audio engine changes will apply after restarting the content.", 180
+         };
+         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
+      }
+
+      if (g_options.sound_enable != old_sound_enable)
+      {
+         static const struct retro_message message = {
+            "Sound Enable will apply after restarting the content.", 180
          };
          environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
       }
