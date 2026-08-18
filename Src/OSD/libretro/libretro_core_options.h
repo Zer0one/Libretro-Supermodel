@@ -53,7 +53,7 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "supermodel_network_board",
       "Network Board",
       NULL,
-      "Connect the Model 3 network board, equivalent to the standalone Network setting. Some games expose their Network Assignments in the Service Menu only while the board is connected. Requires a content restart. Experimental linked play through RetroArch Netplay is available for Daytona USA 2, Harley-Davidson, Scud Race, and Sega Rally 2 families.",
+      "Connect the Model 3 network board, equivalent to the standalone Network setting. Some games expose their Network Assignments in the Service Menu only while the board is connected. Requires a content restart. Experimental linked play through RetroArch Netplay is available for Daytona USA 2, Dirt Devils, Harley-Davidson, Le Mans 24, Scud Race, Sega Rally 2, Ski Champ, Spikeout, Spikeout Final Edition, and Virtual On 2 families.",
       NULL,
       "system",
       {
