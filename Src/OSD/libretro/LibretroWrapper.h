@@ -2,6 +2,7 @@
 #include <Model3/IEmulator.h>
 #include <Model3/Model3.h>
 #include <libretro.h>
+#include "LibretroTiming.h"
 #include "ROMSet.h"
 #include <Inputs/Input.h>
 #include <GL/glew.h>
@@ -48,6 +49,7 @@ public:
     FrameTimings GetTimings() const;
     float GetLastEngineMs() const { return lastEngineMs; }
     float GetLastAudioSubmitMs() const { return lastAudioSubmitMs; }
+    double GetFramesPerSecond() const;
     std::shared_ptr<CInputSystem> getInputSystem() const { return m_inputSystem; }
     retro_hw_render_callback getHwRender() const { return hw_render; }
     static const std::string& GetGameXMLPath() { return s_gameXMLFilePath; }
@@ -87,6 +89,8 @@ public:
 private:
     float lastEngineMs = 0.0f;
     float lastAudioSubmitMs = 0.0f;
+    uint64_t m_frameRateMicroHz = LibretroTiming::kDefaultFrameRateMicroHz;
+    uint64_t m_audioFrameRemainder = 0;
     uint64_t m_lastFrameTime = 0;
     static const char* s_outputNames[];
     struct retro_hw_render_callback hw_render{};

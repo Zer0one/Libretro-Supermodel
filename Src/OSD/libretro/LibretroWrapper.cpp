@@ -152,6 +152,12 @@ LibretroWrapper::LibretroWrapper() :
 
 LibretroWrapper::~LibretroWrapper() {}
 
+double LibretroWrapper::GetFramesPerSecond() const
+{
+    return static_cast<double>(m_frameRateMicroHz) /
+           static_cast<double>(LibretroTiming::kMicroHzScale);
+}
+
 FrameTimings LibretroWrapper::GetTimings() const
 {
     if (Model3) return static_cast<CModel3*>(Model3)->GetTimings();
@@ -473,6 +479,7 @@ int LibretroWrapper::SuperModelInit(const Game &game) {
   quit = false;
   paused = false;
   dumpTimings = false;
+  m_audioFrameRemainder = 0;
 
   // Initialize and load ROMs
   if (Result::OKAY != Model3->Init())
@@ -559,13 +566,15 @@ int LibretroWrapper::Supermodel(const Game &game, bool skipRender)
         lastEngineMs = std::chrono::duration<float, std::milli>(
             audioStart - engineStart).count();
 
-        // Supermodel standalone defaults to 60 Hz and its SoundBoard produces
-        // 735 stereo samples per audio chunk. Request exactly the same fixed
-        // packet on every retro_run; RetroArch owns final A/V synchronization.
-        // Never derive this count from measured performance: doing so creates a
-        // feedback loop where a slow frame requests more audio and blocks longer.
+        // Submit exactly 44.1 kHz over the selected video cadence. At 60 Hz
+        // this is a fixed 735-frame packet; native Model 3 timing uses a
+        // deterministic 766/767-frame sequence. Never derive the count from
+        // measured performance: that would create a pacing feedback loop.
+        const unsigned audio_frames = LibretroTiming::NextAudioFrames(
+            m_frameRateMicroHz, m_audioFrameRemainder);
         PlayCallback(NULL, NULL,
-                     static_cast<int>(LibretroTiming::kAudioBytesPerVideoFrame));
+                     static_cast<int>(audio_frames *
+                         LibretroTiming::kStereoAudioBytesPerFrame));
         lastAudioSubmitMs = std::chrono::duration<float, std::milli>(
             std::chrono::steady_clock::now() - audioStart).count();
     }
@@ -828,6 +837,12 @@ int LibretroWrapper::Emulate(const char* romPath)
 
         // Libretro options are authoritative over both defaults and the optional INI.
         LibretroConfigProvider::ApplyCoreOptions(s_runtime_config);
+        const bool native_timing =
+            g_options.av_timing_mode == AVTimingMode::Native57524Hz;
+        m_frameRateMicroHz = LibretroTiming::FrameRateMicroHz(native_timing);
+        m_audioFrameRemainder = 0;
+        InfoLog("Libretro timing: %.6f Hz video, %u Hz audio",
+                GetFramesPerSecond(), LibretroTiming::kAudioSampleRate);
         InfoLog("Libretro emulation threading: MultiThreaded=%d, GPUMultiThreaded=%d",
                 s_runtime_config["MultiThreaded"].ValueAs<bool>(),
                 s_runtime_config["GPUMultiThreaded"].ValueAs<bool>());

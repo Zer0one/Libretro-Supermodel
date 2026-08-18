@@ -28,7 +28,7 @@ namespace LibretroConfigProvider {
         config.Set("BalanceLeftRight", 0.0f, "Sound", -100.f, 100.f);
         config.Set("BalanceFrontRear", 0.0f, "Sound", -100.f, 100.f);
         config.Set("NbSoundChannels", 4, "Sound", 0, 0, { 1,2,4 });
-        config.Set("SoundFreq", static_cast<float>(LibretroTiming::kFramesPerSecond),
+        config.Set("SoundFreq", static_cast<float>(LibretroTiming::kDefaultFramesPerSecond),
                    "Sound", 0.0f, 0.0f, { 57.524160f, 60.f });
         // CDSB
         
@@ -57,8 +57,8 @@ namespace LibretroConfigProvider {
         config.Set("WideBackground", false, "Video");
         config.Set("VSync", true, "Video");
         config.Set("Throttle", true, "Video");
-        config.Set("RefreshRate", static_cast<float>(LibretroTiming::kFramesPerSecond),
-                   "Video", 0.0f, 0.0f, { 57.5f,60.f });
+        config.Set("RefreshRate", static_cast<float>(LibretroTiming::kDefaultFramesPerSecond),
+                   "Video", 0.0f, 0.0f, { 57.524160f,60.f });
         config.Set("ShowFrameRate", false, "Video");
         config.Set("Crosshairs", int(0), "Video", 0, 0, { 0,1,2,3 });
         config.Set<std::string>("CrosshairStyle", "vector", "Video", "", "", { "bmp","vector" });
@@ -345,11 +345,15 @@ namespace LibretroConfigProvider {
         config.Set("WideBackground",
                    g_options.widescreen_mode ==
                        WidescreenMode::WidescreenWideBackground);
-        // Libretro deliberately follows standalone's default 60 Hz cadence.
-        // Keep an optional INI from splitting audio and video timing until a
-        // true-Hz audio resampler exists.
-        config.Set("RefreshRate", static_cast<float>(LibretroTiming::kFramesPerSecond));
-        config.Set("SoundFreq", static_cast<float>(LibretroTiming::kFramesPerSecond));
+        config.Set("NoWhiteFlash", g_options.no_white_flash);
+        // RefreshRate and SoundFreq form one Libretro timing mode. Never let
+        // an optional INI split video cadence from audio packet sizing.
+        const bool native_timing =
+            g_options.av_timing_mode == AVTimingMode::Native57524Hz;
+        const float frames_per_second = static_cast<float>(
+            LibretroTiming::FramesPerSecond(native_timing));
+        config.Set("RefreshRate", frames_per_second);
+        config.Set("SoundFreq", frames_per_second);
         config.Set("Crosshairs", static_cast<int>(g_options.crosshairs & 3u));
         config.Set<std::string>("CrosshairStyle", "vector");
         config.Set("EmulateSound", g_options.sound_enable);

@@ -1,6 +1,5 @@
 #include <GL/glew.h>
 #include "libretroGui.h"
-#include "LibretroTiming.h"
 #include <cstring>
 #include <iostream>
 #include <string>
@@ -433,13 +432,14 @@ void Libretro_ShutdownOverlay()
 
 void Libretro_DrawTimingOverlay(const FrameTimings& t,
                                 const LibretroFrontendTimings& frontend,
-                                int displayW, int displayH, float gpuMs)
+                                int displayW, int displayH,
+                                double framesPerSecond, float gpuMs)
 {
     if (!s_overlayInitialized) return;
 
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2((float)displayW, (float)displayH);
-    io.DeltaTime   = 1.0f / static_cast<float>(LibretroTiming::kFramesPerSecond);
+    io.DeltaTime   = 1.0f / static_cast<float>(framesPerSecond);
 
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();

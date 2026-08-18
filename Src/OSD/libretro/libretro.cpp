@@ -289,8 +289,10 @@ CoreOptions g_options = {
    /* supersampling        */ 1,
    /* upscale_mode          */ 2,
    /* widescreen_mode      */ WidescreenMode::Disabled,
+   /* no_white_flash       */ false,
+   /* av_timing_mode       */ AVTimingMode::Default60Hz,
    /* crosshairs           */ 0,
-   /* force_feedback       */ false,
+   /* force_feedback       */ true,
    /* steering_response    */ SteeringResponse::Linear,
    /* steering_output_range */ 100,
    /* accelerator_output_range_per_mille */ 1000,
@@ -890,7 +892,7 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
    info->geometry.aspect_ratio = widescreen_enabled()
       ? (16.0f / 9.0f) : (4.0f / 3.0f);
 
-   info->timing.fps         = LibretroTiming::kFramesPerSecond;
+   info->timing.fps         = wrapper.GetFramesPerSecond();
    info->timing.sample_rate = LibretroTiming::kAudioSampleRate;
 }
 
@@ -1134,6 +1136,8 @@ void retro_run(void)
       int old_crt_colors = g_options.crt_colors;
       int old_supersampling = g_options.supersampling;
       WidescreenMode old_widescreen_mode = g_options.widescreen_mode;
+      bool old_no_white_flash = g_options.no_white_flash;
+      AVTimingMode old_av_timing_mode = g_options.av_timing_mode;
       int old_upscale_mode = g_options.upscale_mode;
       bool old_legacy_sound_dsp = g_options.legacy_sound_dsp;
       unsigned old_crosshairs = g_options.crosshairs;
@@ -1160,7 +1164,8 @@ void retro_run(void)
       if (g_options.renderer_3d != old_renderer_3d ||
           g_options.quad_rendering != old_quad_rendering ||
           g_options.crt_colors != old_crt_colors ||
-          g_options.supersampling != old_supersampling)
+          g_options.supersampling != old_supersampling ||
+          g_options.no_white_flash != old_no_white_flash)
       {
          static const struct retro_message message = {
             "Renderer and supersampling changes require restarting the content.", 240
@@ -1180,6 +1185,14 @@ void retro_run(void)
       {
          static const struct retro_message message = {
             "Widescreen Mode will apply after restarting the content.", 180
+         };
+         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
+      }
+
+      if (g_options.av_timing_mode != old_av_timing_mode)
+      {
+         static const struct retro_message message = {
+            "Model 3 Timing Mode will apply after restarting the content.", 180
          };
          environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
       }
@@ -1434,7 +1447,8 @@ void retro_run(void)
       {
          glBindFramebuffer(GL_FRAMEBUFFER, sm_fbo);
          Libretro_DrawTimingOverlay(t, s_frontendTimings,
-                                    target_w, target_h, s_gpuMs);
+                                    target_w, target_h,
+                                    wrapper.GetFramesPerSecond(), s_gpuMs);
       }
       const auto t_overlay_end = std::chrono::steady_clock::now();
 

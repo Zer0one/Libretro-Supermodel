@@ -16,7 +16,7 @@
 Game::AudioTypes AudioType;
 int nbHostAudioChannels = NUM_CHANNELS_M3;      // Number of channels on host
 
-#define SAMPLES_PER_FRAME_M3  (INT32)(LibretroTiming::kAudioFramesPerVideoFrame)
+#define SAMPLES_PER_FRAME_M3  (INT32)(LibretroTiming::kDefaultAudioFramesPerVideoFrame)
 #define BYTES_PER_SAMPLE_M3   (NUM_CHANNELS_M3 * sizeof(INT16))
 #define BYTES_PER_FRAME_M3   (SAMPLES_PER_FRAME_M3 * BYTES_PER_SAMPLE_M3)
 
