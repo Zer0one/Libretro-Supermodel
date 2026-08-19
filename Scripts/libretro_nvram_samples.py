@@ -3,7 +3,9 @@
 
 Each sample runs in a fresh, isolated RetroArch environment initialized from
 the same optional standard .srm.  Sequences and reusable macros are read from
-a TOML file; see ``libretro_nvram_samples.example.toml``.
+a TOML file; see ``libretro_nvram_samples.example.toml``.  Interactive mode
+launches the same isolated environment without scripted input and waits for
+RetroArch to be closed manually.
 
 This utility is intentionally macOS-specific: clean RetroArch shutdown uses
 CoreGraphics to post Esc directly to the process under test.
@@ -124,6 +126,13 @@ def parse_args() -> argparse.Namespace:
     selection.add_argument(
         "--resume-from", metavar="SUFFIX",
         help="start with this sample and continue with all following samples",
+    )
+    selection.add_argument(
+        "--interactive", metavar="SUFFIX",
+        help=(
+            "launch one unscripted sample and wait for RetroArch to be closed "
+            "manually"
+        ),
     )
     parser.add_argument(
         "--output", type=Path,
@@ -377,6 +386,12 @@ def load_campaign(args: argparse.Namespace) -> tuple[Settings, list[Sample]]:
         window_height=positive_integer(campaign, "window_height", 384),
     )
 
+    if args.interactive is not None:
+        suffix = args.interactive.strip()
+        if not SUFFIX_RE.fullmatch(suffix):
+            raise ValueError(f"invalid interactive sample suffix: {suffix!r}")
+        return settings, [Sample(suffix, ())]
+
     macro_data = data.get("macros", {})
     if not isinstance(macro_data, dict):
         raise ValueError("[macros] must be a TOML table")
@@ -471,7 +486,10 @@ def print_dry_run(settings: Settings, samples: list[Sample]) -> None:
     for sample in samples:
         destination = settings.output_dir / "saves" / f"{settings.game}-{sample.suffix}.srm"
         print(f"\n[{sample.suffix}] -> {destination}")
-        print("  " + " -> ".join(action_label(action) for action in sample.actions))
+        if sample.actions:
+            print("  " + " -> ".join(action_label(action) for action in sample.actions))
+        else:
+            print("  INTERACTIVE (no scripted input; close RetroArch manually)")
 
 
 def free_udp_port() -> int:
@@ -496,7 +514,8 @@ def write_isolated_config(settings: Settings, work: Path, remote_port: int) -> l
         'supermodel_initial_nvram_setup = "disabled"\n'
         'supermodel_nvram_settings = "disabled"\n'
         'supermodel_network_board = "enabled"\n'
-        'supermodel_force_feedback = "disabled"\n',
+        'supermodel_force_feedback = "disabled"\n'
+        'supermodel_jit_enable = "disabled"\n',
         encoding="utf-8",
     )
     overrides = {
@@ -751,6 +770,7 @@ def find_save(work: Path, game: str) -> Path | None:
 
 def run_sample(
     settings: Settings, sample: Sample, overwrite: bool, keep_workdirs: bool,
+    interactive: bool = False,
 ) -> Result:
     stem = f"{settings.game}-{sample.suffix}"
     save_out = settings.output_dir / "saves" / f"{stem}.srm"
@@ -787,7 +807,17 @@ def run_sample(
             process = subprocess.Popen(command, stdout=console, stderr=subprocess.STDOUT)
             activate_process(process)
             wait_while_alive(process, settings.startup_wait)
-            execute_actions(process, port, sample, settings)
+            if interactive:
+                print(
+                    "       interactive: configure the game, then close RetroArch "
+                    "normally (Esc, wait, Esc)",
+                    flush=True,
+                )
+                exit_code = process.wait()
+                if exit_code != 0:
+                    raise RuntimeError(f"RetroArch exited with code {exit_code}")
+            else:
+                execute_actions(process, port, sample, settings)
         generated = find_save(work, settings.game)
         if not generated:
             raise RuntimeError("RetroArch exited cleanly but no .srm was found")
@@ -796,7 +826,11 @@ def run_sample(
             raise RuntimeError("the log does not confirm a clean NVRAM save")
         save = copy_if_present(generated, save_out)
         status = "ok"
-        note = "sample saved from a fresh copy of the standard .srm"
+        note = (
+            "interactive sample saved after manual RetroArch shutdown"
+            if interactive else
+            "sample saved from a fresh copy of the standard .srm"
+        )
     except KeyboardInterrupt:
         if process and process.poll() is None:
             try:
@@ -841,11 +875,15 @@ def main() -> int:
     for directory in ("saves", "logs"):
         (settings.output_dir / directory).mkdir(parents=True, exist_ok=True)
     print(f"Output: {settings.output_dir}")
-    print(f"Game: {settings.game}; samples: {len(samples)}")
+    mode = "interactive" if args.interactive is not None else "scripted"
+    print(f"Game: {settings.game}; samples: {len(samples)}; mode: {mode}")
     results: list[Result] = []
     for index, sample in enumerate(samples, 1):
         print(f"[{index:02}/{len(samples):02}] {sample.suffix}", flush=True)
-        result = run_sample(settings, sample, args.overwrite, args.keep_workdirs)
+        result = run_sample(
+            settings, sample, args.overwrite, args.keep_workdirs,
+            interactive=args.interactive is not None,
+        )
         results.append(result)
         write_summary(settings.output_dir, results)
         print(f"       {result.status}: {result.note}", flush=True)

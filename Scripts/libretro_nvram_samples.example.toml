@@ -58,6 +58,12 @@ sequence = [
 # Add further samples in the same form. WAIT(seconds) can appear anywhere.
 # If @Close/CLOSE is omitted, the script automatically closes RetroArch cleanly.
 #
+# For manual calibration or other unscripted work, use interactive mode. It
+# ignores [macros] and [[samples]], waits for you to close RetroArch normally,
+# then saves the resulting NVRAM as <game>-calibration.srm:
+#
+# python3 libretro_nvram_samples.py campaign.toml --interactive calibration
+#
 # [[samples]]
 # suffix = "another-setting"
 # sequence = "@EnterServ, R3*4, L3, WAIT(1.0), @Close"
