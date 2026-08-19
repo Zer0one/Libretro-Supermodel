@@ -633,6 +633,11 @@ static NvramPatchResult apply_initial_nvram_settings(void)
                                                 link_mode);
 
    const std::string &name = g_active_input_game.name;
+   if (name == "lamachin" || name == "lostwsga" ||
+       name == "oceanhun" || name == "oceanhuna" ||
+       name == "swtrilgy" || name == "swtrilgya")
+      selection.normalizeAnalogInputs = true;
+
    if (name == "swtrilgy" || name == "swtrilgya")
    {
       const auto cabinet = LibretroNvramSettings::Setting::Cabinet;

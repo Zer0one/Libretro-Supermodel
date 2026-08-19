@@ -9,13 +9,17 @@ from pathlib import Path
 
 
 # Every released set for which Automatic Initial NVRAM Setup changes Link Mode,
-# plus the two released Star Wars Trilogy Arcade sets whose cabinet is forced
-# to Upright. Prototypes and location tests are intentionally excluded.
+# the two released Star Wars Trilogy Arcade sets whose cabinet is forced to
+# Upright, and gun games requiring normalized Service-menu calibration.
+# Prototypes and location tests are intentionally excluded.
 GAMES = (
     "daytona2", "dayto2pe",
     "dirtdvls", "dirtdvlsu", "dirtdvlsau", "dirtdvlsj", "dirtdvlsg",
     "harley", "harleya",
+    "lamachin",
     "lemans24",
+    "lostwsga",
+    "oceanhun", "oceanhuna",
     "scud", "scudau", "scuddx", "scuddxo", "scudplus", "scudplusa",
     "skichamp",
     "spikeofe", "spikeout",
@@ -23,7 +27,6 @@ GAMES = (
     "swtrilgy", "swtrilgya",
     "von2", "von254g", "von2a", "von2o",
 )
-
 
 def block_data(blob: bytes, wanted: bytes) -> bytes:
     offset = 0
