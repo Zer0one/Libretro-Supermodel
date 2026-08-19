@@ -127,10 +127,27 @@ stop at a network check. `NVRAM Settings` is separate and disabled by default;
 when enabled, it exposes only the fields and values validated for the current
 ROM set and reapplies those per-game choices at startup.
 
+## Linked-cabinet networking
+
 `Network Board` controls whether supported games see the emulated connection
 board. During RetroArch Netplay, the core uses only the official Libretro
-Netpacket interface. Every peer must select the same linked-cabinet count and
-configure compatible Master/Slave or relay roles in the game's Service Menu.
+Netpacket interface; it does not open its own sockets or perform peer
+discovery.
+
+The frontend and emulated-cabinet roles are deliberately paired. RetroArch
+assigns participant ID 0 to the host, which the core uses as the first Model 3
+cabinet and network initiator. Therefore:
+
+* start the RetroArch Netplay host before its clients;
+* configure the RetroArch host as `Master` in the game's NVRAM settings or
+  Service Menu;
+* never configure a RetroArch client as `Master`;
+* configure every Type 1 client as `Slave`; Type 2 clients may use a supported
+  `Slave / Satellite` role.
+
+Every peer must use the same ROM set, core version, `Linked Cabinets` value,
+and compatible timing settings. Changes made through `NVRAM Settings` take
+effect when the content is restarted.
 
 ## 🛠 Build Instructions
 

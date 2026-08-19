@@ -67,7 +67,7 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "supermodel_network_cabinets",
       "Linked Cabinets",
       NULL,
-      "Set the total number of Model 3 cabinets expected in the RetroArch Netplay session. The host waits for this exact number before starting the emulated cabinet link. Every instance must use the same value. Two- and three-cabinet sessions have been tested; larger values remain experimental. Requires a content restart.",
+      "Set the total number of Model 3 cabinets expected in the RetroArch Netplay session. The host waits for this exact number before starting the emulated cabinet link. Every instance must use the same value. The RetroArch host must use the game's Master role; clients cannot use Master. Type 1 clients must use Slave; Type 2 clients may use a supported Slave / Satellite role. Start the host before its clients. Two- and three-cabinet sessions have been tested; larger values remain experimental. Requires a content restart.",
       NULL,
       "system",
       {

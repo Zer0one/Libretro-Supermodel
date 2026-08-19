@@ -514,12 +514,20 @@ NVRAM_INFO(kDifficultyInfoStarWars, Setting::Difficulty, "Difficulty", "Set the 
 NVRAM_INFO(kDifficultyInfo8, Setting::Difficulty, "Difficulty", "Set the operator difficulty level stored in NVRAM.", kDifficulty8);
 NVRAM_INFO(kDifficultyInfo16, Setting::Difficulty, "Difficulty", "Set the operator difficulty level stored in NVRAM.", kDifficulty16);
 
-NVRAM_INFO(kLinkInfoDaytona, Setting::LinkMode, "Link Mode", "Set the cabinet link mode stored in NVRAM.", kLinkDaytona);
-NVRAM_INFO(kLinkInfoSingle, Setting::LinkMode, "Link Mode", "Set the cabinet link mode stored in NVRAM.", kLinkSingle);
-NVRAM_INFO(kLinkInfoA3, Setting::LinkMode, "Link Mode", "Set the cabinet link mode stored in NVRAM.", kLinkA3Four);
-NVRAM_INFO(kLinkInfoLeMans, Setting::LinkMode, "Link Mode", "Set the cabinet link mode stored in NVRAM.", kLinkLeMans);
-NVRAM_INFO(kLinkInfoStandAlone, Setting::LinkMode, "Link Mode", "Set the cabinet link mode stored in NVRAM.", kLinkStandAlone);
-NVRAM_INFO(kLinkInfoRally, Setting::LinkMode, "Link Configuration", "Set Sega Rally 2's combined link role and car number stored in NVRAM.", kLinkRally);
+static constexpr char kType1LinkDescription[] =
+  "Set the cabinet link mode stored in NVRAM. For RetroArch Netplay, start "
+  "the host first and select Master on it. Every client must use Slave.";
+static constexpr char kType2LinkDescription[] =
+  "Set the cabinet link mode stored in NVRAM. For RetroArch Netplay, start "
+  "the host first and select Master on it. Clients cannot use Master; select "
+  "a supported Slave / Satellite role.";
+
+NVRAM_INFO(kLinkInfoDaytona, Setting::LinkMode, "Link Mode", kType1LinkDescription, kLinkDaytona);
+NVRAM_INFO(kLinkInfoSingle, Setting::LinkMode, "Link Mode", kType1LinkDescription, kLinkSingle);
+NVRAM_INFO(kLinkInfoA3, Setting::LinkMode, "Link Mode", kType2LinkDescription, kLinkA3Four);
+NVRAM_INFO(kLinkInfoLeMans, Setting::LinkMode, "Link Mode", kType2LinkDescription, kLinkLeMans);
+NVRAM_INFO(kLinkInfoStandAlone, Setting::LinkMode, "Link Mode", kType1LinkDescription, kLinkStandAlone);
+NVRAM_INFO(kLinkInfoRally, Setting::LinkMode, "Link Configuration", kType1LinkDescription, kLinkRally);
 NVRAM_INFO(kCarInfo16, Setting::LinkId, "Car Number", "Set the linked-cabinet car number stored in NVRAM.", kCar16);
 NVRAM_INFO(kCarInfo8, Setting::LinkId, "Car Number", "Set the linked-cabinet car number stored in NVRAM.", kCar8);
 NVRAM_INFO(kMachineInfo4, Setting::LinkId, "Machine Number", "Set the linked machine number stored in NVRAM.", kMachine4);
