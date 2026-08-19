@@ -71,6 +71,7 @@ SOURCES_C := $(CORE_DIR)/Src/Pkgs/unzip.c \
              $(LIBRETRO_COMM_DIR)/streams/file_stream.c \
              $(LIBRETRO_COMM_DIR)/streams/file_stream_transforms.c \
              $(LIBRETRO_COMM_DIR)/file/file_path.c \
+             $(LIBRETRO_COMM_DIR)/file/file_path_io.c \
              $(LIBRETRO_COMM_DIR)/file/retro_dirent.c \
              $(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.c \
              $(LIBRETRO_COMM_DIR)/lists/dir_list.c \
@@ -264,9 +265,6 @@ ifneq ($(GIT_VERSION)," unknown")
     COREDEFINES += -DGIT_VERSION=\"$(GIT_VERSION)\"
 endif
 
-OBJECTS := $(SOURCES_C:.c=.o) $(SOURCES_CXX:.cpp=.o)
-DEPFILES := $(OBJECTS:.o=.d)
-
 # Platform-specific defines (to be assembled with COREDEFINES into final DEFINES)
 PLATFORM_DEFINES :=
 
@@ -280,11 +278,10 @@ ifeq ($(platform),unix)
     LDFLAGS += -shared -fPIC
     CFLAGS += -fPIC
     CXXFLAGS += -fPIC
-    # Legacy3D uses GLU's perspective helper. Unlike desktop OpenGL entry
-    # points supplied by the Libretro frontend, GLU is not guaranteed to be
-    # exported by the frontend process and must be an explicit dependency.
-    LIBS += -ldl -lm -lz -lGLU
-    INCFLAGS += -I/usr/include
+    LIBS += -ldl -lm -lz
+    ifeq ($(strip $(CROSS_COMPILE)),)
+        INCFLAGS += -I/usr/include
+    endif
 endif
 
 # ============ Linux ARM64 (native — CI runner, RPi4/5, ARM64 SBCs) ============
@@ -548,6 +545,27 @@ ifeq ($(platform),aarch64)
     # 3. CXXFLAGS
     CXXFLAGS += -std=c++17
 endif
+
+# ============ webOS ============
+ifneq (,$(or $(findstring webos,$(CROSS_COMPILE)),$(findstring starfish,$(CROSS_COMPILE))))
+    SOURCES_C := $(filter-out %/glsym/glsym_gl.c,$(SOURCES_C))
+    SOURCES_C += $(LIBRETRO_COMM_DIR)/glsym/glsym_es3.c
+
+    # 1. ARCHITECTURE & FEATURE FLAGS
+    ifneq (,$(findstring aarch64,$(CROSS_COMPILE)))
+        PLATFORM_DEFINES += -DARM -D__aarch64__ -DLSB_FIRST -DGL_GLEXT_PROTOTYPES -DHAVE_PPC_JIT
+    endif
+    PLATFORM_DEFINES += -fomit-frame-pointer -ffast-math -funsafe-math-optimizations
+
+    # Prevent system header redeclaration
+    PLATFORM_DEFINES += -DGLES -Dgles -DHAVE_OPENGLES=1 -DHAVE_OPENGLES3=1 -DCORE_GLES -D__glext_h_ -D__GLEXT_H_
+
+    # 2. LIBRARY & PATHS
+    LIBS := -lGLESv2 -lz -lm
+endif
+
+OBJECTS := $(SOURCES_C:.c=.o) $(SOURCES_CXX:.cpp=.o)
+DEPFILES := $(OBJECTS:.o=.d)
 
 # ============ COMMON COMPILER FLAGS ============
 
