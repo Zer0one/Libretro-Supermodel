@@ -1,13 +1,41 @@
-#ifdef __aarch64__
+#if defined(__aarch64__) && defined(HAVE_PPC_JIT)
 
 #include "JitArm64.h"
 #include "Arm64Emitter.h"
 
 #include <sys/mman.h>
+#include <cerrno>
 #include <cstring>
 #include <cstdio>
+#if defined(__APPLE__)
+#include <pthread.h>
+#endif
 #include "../../../../OSD/Logger.h"
 #define JIT_LOG(...) DebugLog("[JIT] " __VA_ARGS__)
+
+namespace {
+
+static inline void set_jit_executable(bool executable)
+{
+#if defined(__APPLE__)
+    if (__builtin_available(macOS 11.0, *))
+        pthread_jit_write_protect_np(executable ? 1 : 0);
+#else
+    (void)executable;
+#endif
+}
+
+class ScopedJitWrite
+{
+public:
+    ScopedJitWrite() { set_jit_executable(false); }
+    ~ScopedJitWrite() { set_jit_executable(true); }
+
+    ScopedJitWrite(const ScopedJitWrite &) = delete;
+    ScopedJitWrite &operator=(const ScopedJitWrite &) = delete;
+};
+
+} // namespace
 
 // ---------------------------------------------------------------------------
 // Function pointer table indices (8 bytes each, packed at m_code_buf[0])
@@ -50,7 +78,24 @@ JitArm64 &JitArm64::get()
 bool JitArm64::init()
 {
     if (m_code_buf) return true;    // already initialised
+    if (m_init_attempted) return false;
+    m_init_attempted = true;
 
+#if defined(__APPLE__)
+    void *p = mmap(nullptr, CODE_BUF_SIZE,
+                   PROT_READ | PROT_WRITE | PROT_EXEC,
+                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT, -1, 0);
+    if (p == MAP_FAILED) {
+        ErrorLog("[JIT] MAP_JIT allocation failed (errno=%d); using the PowerPC interpreter.\n", errno);
+        return false;
+    }
+    m_code_buf  = (uint8_t *)p;
+    m_write_buf = m_code_buf;
+    m_dual_map  = false;
+    JIT_LOG("init: MAP_JIT mmap OK, buf=%p size=%zuMB", m_code_buf, CODE_BUF_SIZE >> 20);
+    InfoLog("[JIT] Apple Silicon PowerPC recompiler enabled (MAP_JIT, %zu MB code cache).\n",
+            CODE_BUF_SIZE >> 20);
+#else
     // Try RWX mapping first (works on RPi5/Linux without selinux restrictions)
     void *p = mmap(nullptr, CODE_BUF_SIZE,
                    PROT_READ | PROT_WRITE | PROT_EXEC,
@@ -77,6 +122,9 @@ bool JitArm64::init()
         m_dual_map  = false;
         JIT_LOG("init: RW mmap OK, buf=%p — will mprotect RX before exec", m_code_buf);
     }
+#endif
+
+    ScopedJitWrite write_scope;
 
     // Fill function pointer table at the very start of the write buffer.
     void **tbl = (void **)m_write_buf;
@@ -107,6 +155,8 @@ bool JitArm64::init()
         wp[1] = 0xF9400210u | (uint32_t)(i << 10);    // LDR  X16, [X16, #i*8]
         wp[2] = 0xD61F0200u;                           // BR   X16
     }
+    __builtin___clear_cache((char *)m_code_buf,
+                            (char *)m_code_buf + BLOCK_START);
     m_code_pos = BLOCK_START;  // blocks start after table + stubs
     return true;
 }
@@ -120,6 +170,7 @@ void JitArm64::shutdown()
     }
     m_cache.clear();
     m_code_pos = 0;
+    m_init_attempted = false;
 }
 
 void JitArm64::flush()
@@ -587,7 +638,7 @@ static void emit_ram_load32(Arm64Emitter &e)
 }
 
 // Emit: load 8-bit from RAM fast-path (W0=addr → W0=result), else call jit_read8.
-static void emit_ram_load8(Arm64Emitter &e)
+[[maybe_unused]] static void emit_ram_load8(Arm64Emitter &e)
 {
     e.CMP_W_IMM(W0, 0x800u, 1);
     uint32_t *slow = e.emit_B_COND_placeholder(A64_CS);
@@ -602,7 +653,7 @@ static void emit_ram_load8(Arm64Emitter &e)
 }
 
 // Emit: load 16-bit from RAM fast-path (W0=addr → W0=result), else call jit_read16.
-static void emit_ram_load16(Arm64Emitter &e, bool sign_extend)
+[[maybe_unused]] static void emit_ram_load16(Arm64Emitter &e, bool sign_extend)
 {
     e.CMP_W_IMM(W0, 0x800u, 1);
     uint32_t *slow = e.emit_B_COND_placeholder(A64_CS);
@@ -619,7 +670,7 @@ static void emit_ram_load16(Arm64Emitter &e, bool sign_extend)
 }
 
 // Emit: store 32-bit to RAM fast-path (W0=addr, W1=data), else call jit_write32.
-static void emit_ram_store32(Arm64Emitter &e)
+[[maybe_unused]] static void emit_ram_store32(Arm64Emitter &e)
 {
     e.CMP_W_IMM(W0, 0x800u, 1);
     uint32_t *slow = e.emit_B_COND_placeholder(A64_CS);
@@ -633,7 +684,7 @@ static void emit_ram_store32(Arm64Emitter &e)
 }
 
 // Emit: store 8-bit to RAM fast-path (W0=addr, W1=data), else call jit_write8.
-static void emit_ram_store8(Arm64Emitter &e)
+[[maybe_unused]] static void emit_ram_store8(Arm64Emitter &e)
 {
     e.CMP_W_IMM(W0, 0x800u, 1);
     uint32_t *slow = e.emit_B_COND_placeholder(A64_CS);
@@ -648,7 +699,7 @@ static void emit_ram_store8(Arm64Emitter &e)
 }
 
 // Emit: store 16-bit to RAM fast-path (W0=addr, W1=data), else call jit_write16.
-static void emit_ram_store16(Arm64Emitter &e)
+[[maybe_unused]] static void emit_ram_store16(Arm64Emitter &e)
 {
     e.CMP_W_IMM(W0, 0x800u, 1);
     uint32_t *slow = e.emit_B_COND_placeholder(A64_CS);
@@ -739,7 +790,7 @@ static void emit_epilogue_npc_reg(Arm64Emitter &e, int inst_count, uint32_t last
     e.RET();
 }
 
-static void emit_epilogue(Arm64Emitter &e, int inst_count, uint32_t last_pc, uint32_t next_pc)
+[[maybe_unused]] static void emit_epilogue(Arm64Emitter &e, int inst_count, uint32_t last_pc, uint32_t next_pc)
 {
     // ppc.icount -= inst_count
     e.LDR_W(W0, PPC_PTR, OFF_ICOUNT);
@@ -2580,6 +2631,13 @@ static void emit_set_fprf(Arm64Emitter &e, int rD)
 // ---------------------------------------------------------------------------
 static bool translate_op63(Arm64Emitter &e, uint32_t op)
 {
+    // Native FP translation is not yet fully equivalent to the interpreter.
+    // Harley-Davidson's attract-mode AI visibly diverges with it enabled, while
+    // keeping the integer/control/memory JIT and interpreting FP restores the
+    // reference behaviour with ample performance headroom.
+    constexpr bool native_fp_enabled = false;
+    if (!native_fp_enabled) { (void)e; (void)op; return false; }
+
     int rD  = (op >> 21) & 0x1F;
     int rA  = (op >> 16) & 0x1F;
     int rB  = (op >> 11) & 0x1F;
@@ -2785,6 +2843,9 @@ static bool translate_op63(Arm64Emitter &e, uint32_t op)
 // ---------------------------------------------------------------------------
 static bool translate_op59(Arm64Emitter &e, uint32_t op)
 {
+    constexpr bool native_fp_enabled = false;
+    if (!native_fp_enabled) { (void)e; (void)op; return false; }
+
     int rD  = (op >> 21) & 0x1F;
     int rA  = (op >> 16) & 0x1F;
     int rB  = (op >> 11) & 0x1F;
@@ -2854,6 +2915,8 @@ JitBlock *JitArm64::compile(uint32_t start_pc)
         // Buffer nearly full: evict all blocks and reuse from start
         flush();
     }
+
+    ScopedJitWrite write_scope;
 
     uint32_t *write_base = (uint32_t *)(m_write_buf + m_code_pos);
     size_t cap = (CODE_BUF_SIZE - m_code_pos) / 4;
@@ -3411,4 +3474,4 @@ void JitArm64::dump_compiled_pcs(uint32_t lo, uint32_t hi) const
 }
 #endif
 
-#endif // __aarch64__
+#endif // __aarch64__ && HAVE_PPC_JIT

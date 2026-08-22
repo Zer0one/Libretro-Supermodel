@@ -22,7 +22,7 @@ namespace fs = std::filesystem;
 
 // [FIX] Removed global 'config' variable to prevent Static Initialization Order crash.
 // Instead, we use a static getter to initialize it safely on first use.
-static Util::Config::Node& GetConfig() {
+[[maybe_unused]] static Util::Config::Node& GetConfig() {
     // This will only run once, the first time this function is called.
     static Util::Config::Node s_config = LibretroConfigProvider::DefaultConfig(LibretroWrapper::GetGameXMLPath());
     return s_config;
@@ -30,7 +30,7 @@ static Util::Config::Node& GetConfig() {
 
 // SDL stubs to keep the existing function signatures as similar as possible
 
-static void WriteGameNode(Util::Config::Node& baseNode, const Util::Config::Node& diffNode, Util::Config::Node& writeNode, const std::string& group)
+[[maybe_unused]] static void WriteGameNode(Util::Config::Node& baseNode, const Util::Config::Node& diffNode, Util::Config::Node& writeNode, const std::string& group)
 {
     for (const auto& n : baseNode) {
         if (n.IsLeaf() && n.Exists()) {
@@ -61,7 +61,7 @@ static void WriteGameNode(Util::Config::Node& baseNode, const Util::Config::Node
     }
 }
 
-static std::string NodeToString(Util::Config::Node& config)
+[[maybe_unused]] static std::string NodeToString(Util::Config::Node& config)
 {
     std::string s;
     for (const auto& n : config) {
@@ -258,7 +258,7 @@ static void BindKeys(Util::Config::Node& config, KeyBindState& kb, bool openPopu
     }
 }
 
-static void AddKeys(Util::Config::Node& config, KeyBindState& kb, std::vector<std::shared_ptr<CInput>> keyInputs)
+[[maybe_unused]] static void AddKeys(Util::Config::Node& config, KeyBindState& kb, std::vector<std::shared_ptr<CInput>> keyInputs)
 {
     bool openPopup = false;
     for (auto& k : keyInputs) {
@@ -303,7 +303,7 @@ static void DrawButtonOptions(Util::Config::Node& config, int selectedGameIndex,
     }
 }
 
-static Game GetGame(const std::map<std::string, Game>& games, int selectedGameIndex)
+[[maybe_unused]] static Game GetGame(const std::map<std::string, Game>& games, int selectedGameIndex)
 {
     Game game;
     if (selectedGameIndex >= 0) {
@@ -316,9 +316,8 @@ static Game GetGame(const std::map<std::string, Game>& games, int selectedGameIn
     return game;
 }
 
-static void GUI(const ImGuiIO& io, Util::Config::Node& config, const std::map<std::string, Game>& games, int& selectedGameIndex, bool& exit, bool& saveSettings, std::shared_ptr<CInputs>& inputs, KeyBindState& kb)
+[[maybe_unused]] static void GUI(const ImGuiIO& /*io*/, Util::Config::Node& config, const std::map<std::string, Game>& games, int& selectedGameIndex, bool& exit, bool& saveSettings, std::shared_ptr<CInputs>& /*inputs*/, KeyBindState& /*kb*/)
 {
-    ImVec4 clear_color = ImVec4(0.0f, 0.5f, 192/255.f, 1.00f);
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
@@ -395,13 +394,6 @@ std::vector<std::string> RunGUI(const std::string& configPath, Util::Config::Nod
         return {}; 
     }
 
-    GameLoader loader(fullXmlPath.string());
-    auto& games = loader.GetGames();
-    int selectedGame = -1;
-    bool exit = false, saveSettings = true;
-    KeyBindState kb{};
-    std::shared_ptr<CInputs> inputs = nullptr;
-
     // In Libretro, you cannot run a 'while' loop here because it blocks the frontend.
     // This function should probably be split into 'Init' and 'Draw' phases.
     // For now, returning empty to satisfy the compiler and avoid blocking.
@@ -438,13 +430,16 @@ void Libretro_ShutdownOverlay()
     s_overlayInitialized = false;
 }
 
-void Libretro_DrawTimingOverlay(const FrameTimings& t, int displayW, int displayH, float gpuMs)
+void Libretro_DrawTimingOverlay(const FrameTimings& t,
+                                const LibretroFrontendTimings& frontend,
+                                int displayW, int displayH,
+                                double framesPerSecond, float gpuMs)
 {
     if (!s_overlayInitialized) return;
 
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2((float)displayW, (float)displayH);
-    io.DeltaTime   = 1.0f / 57.53f;
+    io.DeltaTime   = 1.0f / static_cast<float>(framesPerSecond);
 
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
@@ -453,7 +448,7 @@ void Libretro_DrawTimingOverlay(const FrameTimings& t, int displayW, int display
     ImVec2 pos(PAD, PAD);
     ImGui::SetNextWindowPos(pos, ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.55f);
-    ImGui::SetNextWindowSize(ImVec2(220, 0), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(260, 0), ImGuiCond_Always);
     ImGui::Begin("##timings", nullptr,
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
         ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove |
@@ -475,6 +470,23 @@ void Libretro_DrawTimingOverlay(const FrameTimings& t, int displayW, int display
     coloured(t.syncTicks,    2,  5); ImGui::Text("Sync   : %3u ms", t.syncTicks);   ImGui::PopStyleColor();
     coloured(t.sndTicks,    10, 20); ImGui::Text("Sound  : %3u ms", t.sndTicks);    ImGui::PopStyleColor();
     coloured(t.frameTicks,  20, 34); ImGui::Text("Total  : %3u ms", t.frameTicks);  ImGui::PopStyleColor();
+
+    ImGui::Separator();
+    ImGui::Text("61-frame averages");
+    ImGui::Text("Engine       : %5.1f ms", frontend.engineMs);
+    ImGui::Text("Audio/pacing : %5.1f ms", frontend.audioSubmitMs);
+    ImGui::Text("Overlay      : %5.1f ms", frontend.overlayMs);
+    ImGui::Text("Blit         : %5.1f ms", frontend.blitMs);
+    ImGui::Text("Other        : %5.1f ms", frontend.otherMs);
+    ImGui::Text("Core+blit    : %5.1f ms", frontend.coreAndBlitMs);
+    ImGui::Text("Present      : %5.1f ms", frontend.presentMs);
+    ImGui::Text("retro_run    : %5.1f ms", frontend.retroRunMs);
+    ImGui::Text("Worst        : %5.1f ms", frontend.worstRetroRunMs);
+    ImGui::Text("Actual       : %5.1f FPS", frontend.actualFps);
+    ImGui::Text("Engine cap   : %5.1f FPS",
+                frontend.engineMs > 0.0f ? 1000.0f / frontend.engineMs : 0.0f);
+    ImGui::Text("Callback cap : %5.1f FPS",
+                frontend.retroRunMs > 0.0f ? 1000.0f / frontend.retroRunMs : 0.0f);
 
     ImGui::End();
     ImGui::Render();

@@ -227,8 +227,12 @@
 #include "Game.h"
 #include "ROMSet.h"
 #ifdef NET_BOARD
+#ifdef SUPERMODEL_OSD_LIBRETRO
+#include "OSD/libretro/LibretroNetBoard.h"
+#else
 #include "Network/NetBoard.h"
 #include "Network/SimNetBoard.h"
+#endif
 #endif // NET_BOARD
 #include "OSD/Audio.h"
 #include "OSD/Video.h"
@@ -824,7 +828,7 @@ void CModel3::WriteSecurity(unsigned reg, UINT32 data)
  Unknown PCI devices are handled here.
 ******************************************************************************/
 
-UINT32 CModel3::ReadPCIConfigSpace(unsigned device, unsigned reg, unsigned bits, unsigned offset) const
+UINT32 CModel3::ReadPCIConfigSpace(unsigned device, unsigned reg, unsigned bits, unsigned /* offset */) const
 {
   if ((bits==8) || (bits==16))
   {
@@ -851,7 +855,7 @@ UINT32 CModel3::ReadPCIConfigSpace(unsigned device, unsigned reg, unsigned bits,
   return 0;
 }
 
-void CModel3::WritePCIConfigSpace(unsigned device, unsigned reg, unsigned bits, unsigned offset, UINT32 data)
+void CModel3::WritePCIConfigSpace(unsigned device, unsigned reg, unsigned bits, unsigned /* offset */, UINT32 data)
 {
   DebugLog("Model 3: PCI %d-bit write request for device=%d, reg=%02X, data=%08X\n", bits, device, reg, data);
 }
@@ -1040,7 +1044,7 @@ UINT8 CModel3::Read8(UINT32 addr)
       if (addr > 0xc00101ff)
       {
         printf("R8 ATTENTION OUT OF RANGE\n");
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Info", "Out of Range", NULL);
+        ErrorLog("Network board read is out of range");
       }
       return (UINT8)NetBoard->ReadIORegister((addr & 0x1FF) / 2);
 
@@ -1050,7 +1054,7 @@ UINT8 CModel3::Read8(UINT32 addr)
 
     default:
       printf("R8 ATTENTION OUT OF RANGE\n");
-      SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Info", "Out of Range", NULL);
+      ErrorLog("Network board read is out of range");
       break;
     }
   }
@@ -1115,7 +1119,9 @@ UINT16 CModel3::Read16(UINT32 addr)
 
     // MPC105
     case 0xC0:  // F0C00CF8
-      return PCIBridge.ReadPCIConfigData(16,addr&3);
+      if (PCIBridge.GetModel() == 0x105)
+        return PCIBridge.ReadPCIConfigData(16,addr&3);
+      break;
 
     // MPC106
     case 0xE0:
@@ -1134,7 +1140,9 @@ UINT16 CModel3::Read16(UINT32 addr)
     case 0xED:
     case 0xEE:
     case 0xEF:
-      return PCIBridge.ReadPCIConfigData(16,addr&3);
+      if (PCIBridge.GetModel() == 0x106)
+        return PCIBridge.ReadPCIConfigData(16,addr&3);
+      break;
 
     // Unknown
     default:
@@ -1176,7 +1184,7 @@ UINT16 CModel3::Read16(UINT32 addr)
   default:
 #ifdef NET_BOARD
     printf("CMODEL3 : unknown R16 : %x (%x)\n", addr, addr >> 24);
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Info", "CMODEL3 : Unknown R16", NULL);
+    ErrorLog("Network board received an unknown 16-bit read");
 #endif
     break;
   }
@@ -1254,7 +1262,9 @@ UINT32 CModel3::Read32(UINT32 addr)
 
     // MPC105
     case 0xC0:  // F0C00CF8
-      return PCIBridge.ReadPCIConfigData(32,0);
+      if (PCIBridge.GetModel() == 0x105)
+        return PCIBridge.ReadPCIConfigData(32,0);
+      break;
 
     // MPC106
     case 0xE0:
@@ -1273,7 +1283,9 @@ UINT32 CModel3::Read32(UINT32 addr)
     case 0xED:
     case 0xEE:
     case 0xEF:
-      return PCIBridge.ReadPCIConfigData(32,0);
+      if (PCIBridge.GetModel() == 0x106)
+        return PCIBridge.ReadPCIConfigData(32,0);
+      break;
 
     // RTC
     case 0x14:
@@ -1473,9 +1485,10 @@ void CModel3::Write8(UINT32 addr, UINT8 data)
     }
     goto Unknown8;
 
-  // MPC105/106
+  // MPC105
   case 0xF8:
-    PCIBridge.WriteRegister(addr&0xFF,data);
+    if (PCIBridge.GetModel() == 0x105)
+      PCIBridge.WriteRegister(addr&0xFF,data);
     break;
 
   // 53C810 SCSI
@@ -1572,7 +1585,8 @@ void CModel3::Write16(UINT32 addr, UINT16 data)
 
     // MPC105
     case 0xC0:  // F0C00CF8
-      PCIBridge.WritePCIConfigData(16,addr&2,data);
+      if (PCIBridge.GetModel() == 0x105)
+        PCIBridge.WritePCIConfigData(16,addr&2,data);
       break;
 
     // Unknown
@@ -1593,11 +1607,14 @@ void CModel3::Write16(UINT32 addr, UINT16 data)
     }
     goto Unknown16;
 
-  // MPC105/106
+  // MPC105
   case 0xF8:
-    // Write in big endian order, like a real PowerPC
-    PCIBridge.WriteRegister((addr&0xFF)+0,data>>8);
-    PCIBridge.WriteRegister((addr&0xFF)+1,data&0xFF);
+    if (PCIBridge.GetModel() == 0x105)
+    {
+      // Write in big endian order, like a real PowerPC
+      PCIBridge.WriteRegister((addr&0xFF)+0,data>>8);
+      PCIBridge.WriteRegister((addr&0xFF)+1,data&0xFF);
+    }
     break;
 
 #ifdef NET_BOARD
@@ -1712,8 +1729,9 @@ void CModel3::Write32(UINT32 addr, UINT32 data)
       break;
 
     // MPC105
-    case 0x80:  // F0800CF8 (never observed at 0xFExxxxxx)
-      PCIBridge.WritePCIConfigAddress(data);
+    case 0x80:  // F0800CF8
+      if (PCIBridge.GetModel() == 0x105)
+        PCIBridge.WritePCIConfigAddress(data);
       break;
 
     // MPC105/106
@@ -1733,11 +1751,11 @@ void CModel3::Write32(UINT32 addr, UINT32 data)
     case 0xCD: case 0xDD: case 0xED:
     case 0xCE: case 0xDE: case 0xEE:
     case 0xCF: case 0xDF: case 0xEF:
-      if ((addr>=0xF0C00CF8) && (addr<0xF0C00D00))    // MPC105
+      if ((PCIBridge.GetModel() == 0x105) && (addr>=0xF0C00CF8) && (addr<0xF0C00D00))    // MPC105
         PCIBridge.WritePCIConfigData(32,0,data);
-      else if ((addr>=0xFEC00000) && (addr<0xFEE00000)) // MPC106
+      else if ((PCIBridge.GetModel() == 0x106) && (addr>=0xFEC00000) && (addr<0xFEE00000)) // MPC106
         PCIBridge.WritePCIConfigAddress(data);
-      else if ((addr>=0xFEE00000) && (addr<0xFEF00000)) // MPC106
+      else if ((PCIBridge.GetModel() == 0x106) && (addr>=0xFEE00000) && (addr<0xFEF00000)) // MPC106
         PCIBridge.WritePCIConfigData(32,0,data);
       break;
 
@@ -1794,13 +1812,16 @@ void CModel3::Write32(UINT32 addr, UINT32 data)
 
     goto Unknown32;
 
-  // MPC105/106
-  case 0xF8:  // F8FFF000-F8FFF100
-    // Write in big endian order, like a real PowerPC
-    PCIBridge.WriteRegister((addr&0xFF)+0,(data>>24)&0xFF);
-    PCIBridge.WriteRegister((addr&0xFF)+1,(data>>16)&0xFF);
-    PCIBridge.WriteRegister((addr&0xFF)+2,(data>>8)&0xFF);
-    PCIBridge.WriteRegister((addr&0xFF)+3,data&0xFF);
+  // MPC105
+  case 0xF8:  // F8FFF000-F8FFF0FF
+    if (PCIBridge.GetModel() == 0x105)
+    {
+      // Write in big endian order, like a real PowerPC
+      PCIBridge.WriteRegister((addr&0xFF)+0,(data>>24)&0xFF);
+      PCIBridge.WriteRegister((addr&0xFF)+1,(data>>16)&0xFF);
+      PCIBridge.WriteRegister((addr&0xFF)+2,(data>>8)&0xFF);
+      PCIBridge.WriteRegister((addr&0xFF)+3,data&0xFF);
+    }
     break;
 
   // 53C810 SCSI
@@ -2174,7 +2195,7 @@ void CModel3::RunMainBoardFrame(bool skipRender)
 	// Run the PowerPC for the active display part of the frame
     for (int i = 0; i < 384; i++)
     {
-        if (i == pingPongFlipLine) {
+        if (static_cast<UINT32>(i) == pingPongFlipLine) {
             GPU.FlipPingPongBit();
         }
 
@@ -2226,7 +2247,10 @@ void CModel3::RenderFrame(void)
 
 bool CModel3::RunSoundBoardFrame(void)
 {
-  if (!g_options.sound_enable)
+  // Sound emulation is configured when content is loaded. Keep this tied to
+  // the active Model 3 configuration so changing the core option cannot leave
+  // the SCSP and DSB paths in a partially updated state.
+  if (!m_config["EmulateSound"].ValueAs<bool>())
     return false;
   UINT32 start = CThread::GetTicks();
   bool bufferFull = SoundBoard.RunFrame();
@@ -2962,82 +2986,35 @@ Result CModel3::LoadGame(const Game &game, const ROMSet &rom_set)
   // Configure CPU and PCI bridge
   PPC_CONFIG  ppc_config;
 
-  // Check if PowerPC frequency override is set via core options
-  if (g_options.ppc_frequency > 0)
+  // CPU model, bus timing and PCI bridge are properties of the emulated board
+  // and therefore remain stepping-dependent. A PowerPC frequency override only
+  // changes the per-frame cycle budget in GetCPUClockFrequencyInHz(), matching
+  // standalone Supermodel.
+  if (game.stepping == "2.0" || game.stepping == "2.1")
   {
-    // User selected a specific frequency override
-    ppc_config.pvr = PPC_MODEL_603R;
+    ppc_config.pvr = PPC_MODEL_603R;  // 166 MHz
     ppc_config.bus_frequency = BUS_FREQUENCY_66MHZ;
-
-    // Map frequency to multiplier: with 66MHz bus, multiplier = frequency / 66
-    switch (g_options.ppc_frequency)
-    {
-      case 33:
-        ppc_config.bus_frequency_multiplier = 0x08;  // 0.5x -> 33 MHz
-        break;
-      case 50:
-        ppc_config.bus_frequency_multiplier = 0x0C;  // 0.75x -> 50 MHz
-        break;
-      case 66:
-        ppc_config.bus_frequency_multiplier = 0x10;  // 1.0x -> 66 MHz
-        break;
-      case 100:
-        ppc_config.bus_frequency_multiplier = 0x15;  // 1.5x -> 100 MHz
-        break;
-      case 133:
-        ppc_config.bus_frequency_multiplier = 0x20;  // 2.0x -> 133 MHz
-        break;
-      case 166:
-        ppc_config.bus_frequency_multiplier = 0x25;  // 2.5x -> 166 MHz
-        break;
-      case 200:
-        ppc_config.bus_frequency_multiplier = 0x30;  // 3.0x -> 200 MHz
-        break;
-      default:
-        ppc_config.bus_frequency_multiplier = 0x10;  // Default 1.0x = 66 MHz
-        break;
-    }
-    PCIBridge.SetModel(0x106);  // Use MPC106 for higher frequencies
+    ppc_config.bus_frequency_multiplier = 0x25; // 2.5X multiplier
+    PCIBridge.SetModel(0x106);        // MPC106
+  }
+  else if (game.stepping == "1.5")
+  {
+    ppc_config.pvr = PPC_MODEL_603E;  // 100 MHz
+    ppc_config.bus_frequency = BUS_FREQUENCY_66MHZ;
+    ppc_config.bus_frequency_multiplier = 0x15; // 1.5X multiplier
+    PCIBridge.SetModel(0x105);        // MPC105
+  }
+  else if (game.stepping == "1.0")
+  {
+    ppc_config.pvr = PPC_MODEL_603R;  // 66 MHz
+    ppc_config.bus_frequency = BUS_FREQUENCY_66MHZ;
+    ppc_config.bus_frequency_multiplier = 0x10; // 1X multiplier
+    PCIBridge.SetModel(0x105);        // MPC105
   }
   else
   {
-    // Use game.stepping defaults
-    if (game.stepping == "2.0" || game.stepping == "2.1")
-    {
-      ppc_config.pvr = PPC_MODEL_603R;  // 166 MHz
-      ppc_config.bus_frequency = BUS_FREQUENCY_66MHZ;
-      ppc_config.bus_frequency_multiplier = 0x25; // 2.5X multiplier
-      PCIBridge.SetModel(0x106);        // MPC106
-    }
-    else if (game.stepping == "1.5")
-    {
-      ppc_config.pvr = PPC_MODEL_603E;  // 100 MHz
-      ppc_config.bus_frequency = BUS_FREQUENCY_66MHZ;
-      ppc_config.bus_frequency_multiplier = 0x15; // 1.5X multiplier
-      PCIBridge.SetModel(0x105);        // MPC105
-    }
-    else if (game.stepping == "1.0")
-    {
-      ppc_config.pvr = PPC_MODEL_603R;  // 66 MHz
-      ppc_config.bus_frequency = BUS_FREQUENCY_66MHZ;
-      ppc_config.bus_frequency_multiplier = 0x10; // 1X multiplier
-      PCIBridge.SetModel(0x105);        // MPC105
-    }
-    else
-    {
-      ErrorLog("Cannot configure Model 3 because game uses unrecognized stepping (%s).", game.stepping.c_str());
-      return Result::FAIL;
-    }
-  }
-
-  if (!game.pci_bridge.empty())
-  {
-    if (game.pci_bridge == "MPC105")
-      PCIBridge.SetModel(0x105);
-    else if (game.pci_bridge == "MPC106")
-      PCIBridge.SetModel(0x106);
-    else
-      ErrorLog("Unknown PCI bridge specified in ROM set definition file (%s). Defaulting to MPC%X.", game.pci_bridge.c_str(), PCIBridge.GetModel());
+    ErrorLog("Cannot configure Model 3 because game uses unrecognized stepping (%s).", game.stepping.c_str());
+    return Result::FAIL;
   }
 
   // Initialize CPU
@@ -3274,10 +3251,14 @@ Result CModel3::Init(void)
   PCIBus.AttachDevice(16,this);
 
 #ifdef NET_BOARD
+#ifdef SUPERMODEL_OSD_LIBRETRO
+  NetBoard = new CLibretroNetBoard(m_config);
+#else
   if (m_config["SimulateNet"].ValueAs<bool>())
       NetBoard = new CSimNetBoard(m_config);
   else
       NetBoard = new CNetBoard(m_config);
+#endif
 #endif // NET_BOARD
 
   DebugLog("Initialized Model 3 (allocated %1.1f MB)\n", memSizeMB);

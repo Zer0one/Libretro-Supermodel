@@ -2,17 +2,36 @@
 
 A modernized fork of the Sega Model 3 (Supermodel) Libretro core, optimized for modern Linux distributions and updated to C++17 standards.
 
+## Project lineage and review status
+
+This branch is based on the official
+[`libretro/Libretro-Supermodel`](https://github.com/libretro/Libretro-Supermodel)
+repository. Much of the modern Libretro frontend was originally developed by
+[`sgiannop/Libretro-Supermodel`](https://github.com/sgiannop/Libretro-Supermodel);
+that work remains the foundation of this integration and should be credited as
+such.
+
+The subsequent integration, feature work, diagnosis, and validation were
+developed with assistance from **ChatGPT 5.6 Sol** as part of a study project.
+This disclosure is not a substitute for review: every change should be
+independently inspected and tested before it is accepted into an official
+release.
+
 ## 🚀 Key Improvements
 - **Unified Makefile:** Single build configuration supporting 6 platforms (Linux, Windows, macOS, Android, RPi64, aarch64) following libretro/skeletor standards.
 - **Platform Auto-Detection:** Automatic platform detection with sensible defaults; platform-specific source filtering for incompatible features.
-- **Native Libretro Audio:** Removed legacy SDL audio dependency in favor of native `audio_batch_cb` synchronization at fixed 57.53Hz.
+- **Native Libretro Audio:** Removed legacy SDL audio dependency in favor of native `audio_batch_cb` synchronization at either the default 60 Hz cadence or native Model 3 timing.
 - **C++17 Migration:** Replaced legacy SDL-based threading and synchronization with native C++17 `std::mutex`, `std::lock_guard`, and atomic operations.
 - **Ubuntu 24.04 Compatibility:** Fixed header conflicts and link-time errors present in the original codebase specifically for modern GCC versions.
-- **Synchronous A/V Timing:** Coupled the emulator's internal hardware clock (57.53Hz) with Libretro's timing engine.
+- **Synchronous A/V Timing:** Matches standalone Supermodel's default 60 Hz cadence and 735-sample stereo audio packets; RetroArch owns final A/V synchronization.
 - **Improved Input Mapping:** Full support for Analog/Digital gamepads and keyboard out of the box with improved deadzone handling.
 - **Configurable Service & Test Buttons:** Service and Test buttons are now mappable through the RetroArch input configuration.
 - **Force Feedback / Rumble:** Full force feedback support for steering wheel games via the Libretro rumble interface.
-- **Widescreen Hack:** Optional widescreen mode exposed as a core option in the RetroArch UI.
+- **Linked Cabinets:** Experimental API-native Model 3 networking through the Libretro Netpacket interface, without core-owned sockets or discovery.
+- **Game-aware NVRAM:** Optional per-game Service Menu settings and first-boot Single/Stand Alone/No Link initialization while preserving ordinary frontend `.srm` ownership.
+- **True Widescreen:** Expands the 3D horizontal field of view into a native
+  16:9 framebuffer, with an optional wide lower-background layer. Plain 4:3
+  stretching remains the frontend's responsibility.
 - **Libretro Portability:** Remapped configuration, NVRAM, and asset paths to follow official Libretro standards (`system` and `save` directories).
 - **No External GL Dependency:** GLEW replaced with `glsym` from libretro-common — no system GL extension library required on any platform.
 - **Android Support:** Full NDK integration with architecture-specific optimization (arm64, arm with NEON, x86_64, x86) and OpenGL ES 3.0.
@@ -21,14 +40,114 @@ A modernized fork of the Sega Model 3 (Supermodel) Libretro core, optimized for 
 - **Windows Support:** Full cross-platform support with dedicated Windows build targets using MinGW — no vendored prebuilt libraries required.
 
 ## 📂 Required Assets
-To run the core, you must place the emulator's configuration files in your RetroArch system directory. The core follows standard Libretro conventions and will look for assets in the following location:
+The core follows standard Libretro conventions and uses the following location:
 
-* **Path:** `[RetroArch System Directory]/supermodel/Config/`
-* **Required Files:**
-    * `Games.xml`
-    * `Supermodel.ini`
+* **Preferred path:** `[RetroArch System Directory]/supermodel/`
+* **Files:**
+    * `Games.xml` is required to identify ROM sets. The official embedded copy
+      is extracted on first use when no external file exists.
+    * `Music.xml` is optional and enables the corresponding music metadata.
+    * `Supermodel.ini` is an optional advanced, read-only override. The
+      official embedded copy is extracted on first use; an existing file is
+      always authoritative and is never updated by the core.
 
-*Note: If these files are missing, the core will fail to initialize the game list and settings.*
+The initial port's `[System]/supermodel/Config/` layout remains a compatibility
+fallback, but new installations should use the preferred flat directory.
+
+## Video geometry
+
+`Widescreen Mode` reproduces Supermodel's native widescreen behavior instead
+of stretching the 4:3 image:
+
+* `Disabled` renders the original 496x384 view.
+* `Widescreen` expands full-screen 3D viewports horizontally inside a 16:9
+  framebuffer (683x384 at native resolution), while keeping 2D layers at their
+  original geometry.
+* `Widescreen + Wide Background` also stretches the lower 2D background layer
+  to fill the side areas. HUD and upper overlays retain their original aspect.
+
+Supermodel's standalone `Stretch` setting is intentionally not exposed: final
+4:3-to-16:9 stretching is already provided by RetroArch's aspect-ratio and
+scaling controls. True widescreen renders about 37.7% more horizontal pixels
+than the native 4:3 mode, so its performance should be measured separately.
+Changes to `Widescreen Mode` take effect after restarting the content, matching
+the renderer-initialization semantics of standalone Supermodel.
+
+At resolutions above native, `2D Layer Upscaling Filter` selects Supermodel's
+own filter for tile layers before they are composited with the 3D scene. At
+496x384 the engine deliberately uses nearest-neighbor filtering regardless of
+this option.
+
+`SCSP DSP Engine` defaults to the current MAME-derived implementation. The
+legacy ElSemi engine is retained as a compatibility choice for titles such as
+Fighting Vipers 2. Both this setting and the 2D filter require a content
+restart. Sound and DSB music volume follow standalone's full 0–200% range.
+
+## Timing and synchronization
+
+`Model 3 Timing Mode` offers the same default `60 FPS` cadence used by
+standalone Supermodel and a native `57.524160 Hz` mode. Both report `44100 Hz`
+stereo audio. The default submits 735 samples per `retro_run`; native timing
+uses a deterministic fractional 766/767-sample cadence so the long-term audio
+rate remains exact. Native timing requires a multi-threaded emulation mode and
+is most useful with a display able to follow the reported refresh rate.
+
+The core does not expose its own VSync setting: the Libretro frontend owns the
+display swapchain, video presentation, audio synchronization, and final sample
+rate conversion.
+
+For objective performance checks, enable `Frame Timing Overlay`. Besides the
+engine's PPC, renderer, GPU, synchronization and sound timings, it shows
+61-frame averages for the engine, frontend audio submission, overlay, final
+blit, miscellaneous core work, frontend presentation, total `retro_run`, the
+worst frame, actual frontend cadence, engine capacity, and callback capacity. At 60 Hz,
+sustained `retro_run` time must remain
+below the 16.67 ms frame budget; `Present` may include the frontend's VSync wait.
+`Actual` measures the real cadence between calls from the frontend, while
+`Engine cap` is derived from Supermodel's frame execution alone. `Callback cap`
+is the theoretical rate implied by all time spent inside `retro_run` and is not
+the displayed frame rate. `Audio/pacing` may include intentional frontend
+waiting when RetroArch audio synchronization is enabled.
+
+Controller mappings and RetroArch input labels are selected automatically from
+the control signature declared by the loaded game. See
+[Libretro control profiles](CONTROL_PROFILES.md) for the complete catalog and
+the fallback rules.
+
+NVRAM is normally persisted by the frontend as `<content>.srm`. To import a
+standalone Supermodel save, place `<rom-set>.nv` directly in the frontend save
+directory. The core reads `.nv` only when no `.srm` data was supplied. If both
+are present, `.srm` takes precedence and the ignored `.nv` path is reported in
+the log. An invalid `.nv` is ignored and replaced by default machine settings
+in a new `.srm`. The core never writes or overwrites the native `.nv` file.
+
+`Automatic Initial NVRAM Setup` affects only a newly created save and supplies
+validated Single, Stand Alone, or No Link defaults for games that otherwise
+stop at a network check. `NVRAM Settings` is separate and disabled by default;
+when enabled, it exposes only the fields and values validated for the current
+ROM set and reapplies those per-game choices at startup.
+
+## Linked-cabinet networking
+
+`Network Board` controls whether supported games see the emulated connection
+board. During RetroArch Netplay, the core uses only the official Libretro
+Netpacket interface; it does not open its own sockets or perform peer
+discovery.
+
+The frontend and emulated-cabinet roles are deliberately paired. RetroArch
+assigns participant ID 0 to the host, which the core uses as the first Model 3
+cabinet and network initiator. Therefore:
+
+* start the RetroArch Netplay host before its clients;
+* configure the RetroArch host as `Master` in the game's NVRAM settings or
+  Service Menu;
+* never configure a RetroArch client as `Master`;
+* configure every Type 1 client as `Slave`; Type 2 clients may use a supported
+  `Slave / Satellite` role.
+
+Every peer must use the same ROM set, core version, `Linked Cabinets` value,
+and compatible timing settings. Changes made through `NVRAM Settings` take
+effect when the content is restarted.
 
 ## 🛠 Build Instructions
 
@@ -262,7 +381,7 @@ scp supermodel_libretro_aarch64.so pi@raspberrypi:~/.config/retroarch/cores/supe
 - Legacy3D renderer excluded (GLES incompatible)
 - Optimized for aarch64 ARM architecture
 - Full force feedback support
-- Synchronous 57.53Hz audio
+- Synchronous 60 Hz audio (735 stereo samples per frame)
 
 **Performance Notes:** On Raspberry Pi, performance varies by game and model:
 - **RPi 5:** Can handle most games at native resolution
@@ -288,6 +407,6 @@ Same as RPi64 but without CPU-specific tuning. Suitable for:
 ---
 
 ## 🎮 Performance Notes
-For performance-heavy titles (e.g., Sega Rally 2 or Daytona USA 2), ensure you are running the core in Release mode. This core uses synchronous audio; if your CPU cannot maintain the full 57.53Hz emulation speed, you may experience audio stuttering.
+For performance-heavy titles (e.g., Sega Rally 2 or Daytona USA 2), ensure you are running the core in Release mode. This core uses synchronous audio; if your CPU cannot maintain the full 60 Hz emulation speed, you may experience audio stuttering.
 
 On Raspberry Pi, performance depends on the specific model and game. Older titles (e.g., Virtua Fighter 3) run well on Pi 4/5, while demanding titles may require resolution scaling adjustments via RetroArch core options.

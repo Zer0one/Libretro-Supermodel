@@ -3,6 +3,8 @@
 #include "Util/NewConfig.h"
 #include "LibretroWrapper.h"
 #include "CoreOptionsTypes.h"
+#include "LibretroInputProfiles.h"
+#include "LibretroTiming.h"
 #include <algorithm>
 namespace LibretroConfigProvider {
      inline Util::Config::Node DefaultConfig(const std::string& gameXmlPath)
@@ -26,7 +28,8 @@ namespace LibretroConfigProvider {
         config.Set("BalanceLeftRight", 0.0f, "Sound", -100.f, 100.f);
         config.Set("BalanceFrontRear", 0.0f, "Sound", -100.f, 100.f);
         config.Set("NbSoundChannels", 4, "Sound", 0, 0, { 1,2,4 });
-        config.Set("SoundFreq", 57.6f, "Sound", 0.0f, 0.0f, { 57.524160f, 60.f }); // 60.0f? 57.524160f?
+        config.Set("SoundFreq", static_cast<float>(LibretroTiming::kDefaultFramesPerSecond),
+                   "Sound", 0.0f, 0.0f, { 57.524160f, 60.f });
         // CDSB
         
         config.Set("EmulateDSB", true, "Sound");
@@ -47,14 +50,15 @@ namespace LibretroConfigProvider {
         config.Set("FullScreen", false, "Video");
         config.Set("BorderlessWindow", false, "Video");
         config.Set("Supersampling", 1, "Video", 1, 8);
-        config.Set("CRTcolors", int(0), "Video", 0, 0, { 0,1,2,3,4,5 });      // these might be more user friendly as strings
-        config.Set("UpscaleMode", 2, "Video", 0, 0, { 0,1,2,3 });             // to do make strings
+        config.Set("CRTcolors", int(0), "Video", 0, 0, { 0,1,2,3,4,5 });
+        config.Set("UpscaleMode", 2, "Video", 0, 0, { 0,1,2,3 });
         config.Set("WideScreen", false, "Video");
         config.Set("Stretch", false, "Video");
         config.Set("WideBackground", false, "Video");
         config.Set("VSync", true, "Video");
         config.Set("Throttle", true, "Video");
-        config.Set("RefreshRate", 60.0f, "Video", 0.0f, 0.0f, { 57.5f,60.f });
+        config.Set("RefreshRate", static_cast<float>(LibretroTiming::kDefaultFramesPerSecond),
+                   "Video", 0.0f, 0.0f, { 57.524160f,60.f });
         config.Set("ShowFrameRate", false, "Video");
         config.Set("Crosshairs", int(0), "Video", 0, 0, { 0,1,2,3 });
         config.Set<std::string>("CrosshairStyle", "vector", "Video", "", "", { "bmp","vector" });
@@ -83,6 +87,7 @@ namespace LibretroConfigProvider {
 
         // NetBoard
         config.Set("Network", false, "Network");
+        config.Set("NetworkCabinets", unsigned(2), "Network", 2, 16);
         config.Set("SimulateNet", true, "Network");
         config.Set("PortIn", unsigned(1970), "Network");
         config.Set("PortOut", unsigned(1971), "Network");
@@ -121,10 +126,10 @@ namespace LibretroConfigProvider {
         config.Set<std::string>("InputStart2", "KEY_2,JOY2_BUTTON9", "Input", "", "");
         config.Set<std::string>("InputCoin1", "KEY_3,JOY1_BUTTON10", "Input", "", "");
         config.Set<std::string>("InputCoin2", "KEY_4,JOY2_BUTTON10", "Input", "", "");
-        config.Set<std::string>("InputServiceA", "KEY_5,JOY1_BUTTON21", "Input", "", "");
-        config.Set<std::string>("InputServiceB", "KEY_7,JOY1_BUTTON23", "Input", "", "");
-        config.Set<std::string>("InputTestA", "KEY_6,JOY1_BUTTON22", "Input", "", "");
-        config.Set<std::string>("InputTestB", "KEY_8,JOY1_BUTTON24", "Input", "", "");
+        config.Set<std::string>("InputServiceA", "KEY_5,JOY1_BUTTON16", "Input", "", "");
+        config.Set<std::string>("InputServiceB", "KEY_7,JOY2_BUTTON16", "Input", "", "");
+        config.Set<std::string>("InputTestA", "KEY_6,JOY1_BUTTON15", "Input", "", "");
+        config.Set<std::string>("InputTestB", "KEY_8,JOY2_BUTTON15", "Input", "", "");
 
         // 4-way digital joysticks
         config.Set<std::string>("InputJoyUp", "KEY_UP,JOY1_UP", "Input", "", "");
@@ -181,13 +186,13 @@ namespace LibretroConfigProvider {
         config.Set<std::string>("InputGearShiftN", "KEY_T", "Input", "", "");
 
         // VR4 view change buttons (Daytona 2, Le Mans 24, Scud Race)
-        config.Set<std::string>("InputVR1", "KEY_A,JOY1_BUTTON1", "Input", "", "");
-        config.Set<std::string>("InputVR2", "KEY_S,JOY1_BUTTON2", "Input", "", "");
-        config.Set<std::string>("InputVR3", "KEY_D,JOY1_BUTTON3", "Input", "", "");
-        config.Set<std::string>("InputVR4", "KEY_F,JOY1_BUTTON4", "Input", "", "");
+        config.Set<std::string>("InputVR1", "KEY_A,JOY1_POV1_UP", "Input", "", ""); // Red: D-Pad Up
+        config.Set<std::string>("InputVR2", "KEY_S,JOY1_POV1_DOWN", "Input", "", ""); // Blue: D-Pad Down
+        config.Set<std::string>("InputVR3", "KEY_D,JOY1_POV1_LEFT", "Input", "", ""); // Yellow: D-Pad Left
+        config.Set<std::string>("InputVR4", "KEY_F,JOY1_POV1_RIGHT", "Input", "", ""); // Green: D-Pad Right
 
         // Single view change button (Dirt Devils, ECA, Harley-Davidson, Sega Rally 2)
-        config.Set<std::string>("InputViewChange", "KEY_A,JOY1_BUTTON1", "Input", "", "");
+        config.Set<std::string>("InputViewChange", "KEY_A,JOY1_POV1_UP", "Input", "", "");
 
         // Handbrake (Sega Rally 2)
         config.Set<std::string>("InputHandBrake", "KEY_S,JOY1_BUTTON2", "Input", "", "");
@@ -227,12 +232,12 @@ namespace LibretroConfigProvider {
         config.Set<std::string>("InputAnalogJoyRight", "KEY_RIGHT", "Input", "", "");
         config.Set<std::string>("InputAnalogJoyUp", "KEY_UP", "Input", "", "");
         config.Set<std::string>("InputAnalogJoyDown", "KEY_DOWN", "Input", "", "");
-        config.Set<std::string>("InputAnalogJoyX", "JOY_XAXIS,MOUSE_XAXIS", "Input", "", "");
-        config.Set<std::string>("InputAnalogJoyY", "JOY_YAXIS,MOUSE_YAXIS", "Input", "", "");
-        config.Set<std::string>("InputAnalogJoyTrigger", "KEY_A,JOY_BUTTON1,MOUSE_LEFT_BUTTON", "Input", "", "");
-        config.Set<std::string>("InputAnalogJoyEvent", "KEY_S,JOY_BUTTON2,MOUSE_RIGHT_BUTTON", "Input", "", "");
-        config.Set<std::string>("InputAnalogJoyTrigger2", "KEY_D,JOY_BUTTON2", "Input", "", "");
-        config.Set<std::string>("InputAnalogJoyEvent2", "NONE", "Input", "", "");
+        config.Set<std::string>("InputAnalogJoyX", "MOUSE7_XAXIS", "Input", "", "");
+        config.Set<std::string>("InputAnalogJoyY", "MOUSE7_YAXIS", "Input", "", "");
+        config.Set<std::string>("InputAnalogJoyTrigger", "KEY_A,MOUSE7_LEFT_BUTTON", "Input", "", "");
+        config.Set<std::string>("InputAnalogJoyEvent", "KEY_S,MOUSE7_RIGHT_BUTTON", "Input", "", "");
+        config.Set<std::string>("InputAnalogJoyTrigger2", "KEY_D,MOUSE7_BUTTON4", "Input", "", "");
+        config.Set<std::string>("InputAnalogJoyEvent2", "KEY_F,MOUSE7_BUTTON5", "Input", "", "");
 
         // Light guns (Lost World)
         config.Set<std::string>("InputGunLeft", "KEY_LEFT", "Input", "", "");
@@ -316,6 +321,64 @@ namespace LibretroConfigProvider {
         return config;
     }
 
+    // Translate user-facing Libretro options into the native Supermodel
+    // configuration consumed by the engine. Apply this after defaults, the
+    // optional per-game INI section, and command-line values have been merged
+    // so the frontend remains the authoritative configuration source.
+    inline void ApplyCoreOptions(Util::Config::Node &config)
+    {
+        const unsigned width  = static_cast<unsigned>(496.0f * g_options.resolution_multiplier);
+        const unsigned height = static_cast<unsigned>(384.0f * g_options.resolution_multiplier);
+
+        config.Set("XResolution", width);
+        config.Set("YResolution", height);
+        const bool use_legacy_3d =
+            g_options.renderer_3d == Renderer3D::Legacy3D;
+        config.Set("New3DEngine", !use_legacy_3d);
+        config.Set("MultiTexture",
+                   use_legacy_3d && g_options.legacy_multi_texture);
+        config.Set("QuadRendering",
+                   !use_legacy_3d && g_options.quad_rendering);
+        config.Set("CRTcolors",
+                   !use_legacy_3d ? g_options.crt_colors : 0);
+        config.Set("Supersampling", g_options.supersampling);
+        config.Set("UpscaleMode", g_options.upscale_mode);
+        config.Set("WideScreen",
+                   g_options.widescreen_mode != WidescreenMode::Disabled);
+        config.Set("WideBackground",
+                   g_options.widescreen_mode ==
+                       WidescreenMode::WidescreenWideBackground);
+        config.Set("NoWhiteFlash", g_options.no_white_flash);
+        // RefreshRate and SoundFreq form one Libretro timing mode. Never let
+        // an optional INI split video cadence from audio packet sizing.
+        const bool native_timing =
+            g_options.av_timing_mode == AVTimingMode::Native57524Hz;
+        const float frames_per_second = static_cast<float>(
+            LibretroTiming::FramesPerSecond(native_timing));
+        config.Set("RefreshRate", frames_per_second);
+        config.Set("SoundFreq", frames_per_second);
+        config.Set("Crosshairs", static_cast<int>(g_options.crosshairs & 3u));
+        config.Set<std::string>("CrosshairStyle", "vector");
+        config.Set("Network", g_options.network_board);
+        config.Set("NetworkCabinets", g_options.network_cabinets);
+        // The Libretro backend simulates the Model 3 network board and uses
+        // RetroArch's netpacket transport. Native socket-board emulation is a
+        // standalone concern and is intentionally not pulled into the core.
+        config.Set("SimulateNet", true);
+        config.Set("EmulateSound", g_options.sound_enable);
+        config.Set("SoundVolume", g_options.sound_volume);
+        config.Set("MusicVolume", g_options.music_volume);
+        config.Set("LegacySoundDSP", g_options.legacy_sound_dsp);
+        config.Set("ForceFeedback", g_options.force_feedback);
+        config.Set("PowerPCFrequency", static_cast<unsigned>(g_options.ppc_frequency));
+        config.Set("MultiThreaded",
+                   g_options.emulation_threading !=
+                       EmulationThreading::SingleThread);
+        config.Set("GPUMultiThreaded",
+                   g_options.emulation_threading ==
+                       EmulationThreading::MultiThreadedGPU);
+    }
+
     struct ParsedCommandLine
     {
         Util::Config::Node config = Util::Config::Node("CommandLine");
@@ -342,7 +405,7 @@ namespace LibretroConfigProvider {
             
     };
 
-    static ParsedCommandLine ParseCommandLine(int argc, char **argv)
+    [[maybe_unused]] static ParsedCommandLine ParseCommandLine(int argc, char **argv)
     {
     ParsedCommandLine cmd_line;
     static const std::map<std::string, std::string> valued_options
@@ -594,52 +657,276 @@ namespace LibretroConfigProvider {
     return cmd_line;
     }
 
+    inline void ApplyCommonLayout(Util::Config::Node &config)
+    {
+        config.Set<std::string>("InputStart1", "KEY_1,JOY1_BUTTON9");
+        config.Set<std::string>("InputStart2", "KEY_2,JOY2_BUTTON9");
+        config.Set<std::string>("InputCoin1", "KEY_3,JOY1_BUTTON10");
+        config.Set<std::string>("InputCoin2", "KEY_4,JOY2_BUTTON10");
+        config.Set<std::string>("InputServiceA", "KEY_5,JOY1_BUTTON16");
+        config.Set<std::string>("InputServiceB", "KEY_7,JOY2_BUTTON16");
+        config.Set<std::string>("InputTestA", "KEY_6,JOY1_BUTTON15");
+        config.Set<std::string>("InputTestB", "KEY_8,JOY2_BUTTON15");
+    }
+
+    inline void ApplyStandardJoystickLayout(Util::Config::Node &config, uint32_t inputs)
+    {
+        // POV1 mirrors the Libretro D-Pad. RetroArch owns any optional
+        // analog-to-digital mapping selected by the user.
+        config.Set<std::string>("InputJoyUp", "KEY_UP,JOY1_POV1_UP");
+        config.Set<std::string>("InputJoyDown", "KEY_DOWN,JOY1_POV1_DOWN");
+        config.Set<std::string>("InputJoyLeft", "KEY_LEFT,JOY1_POV1_LEFT");
+        config.Set<std::string>("InputJoyRight", "KEY_RIGHT,JOY1_POV1_RIGHT");
+
+        if (inputs & Game::INPUT_JOYSTICK2)
+        {
+            config.Set<std::string>("InputJoyUp2", "JOY2_POV1_UP");
+            config.Set<std::string>("InputJoyDown2", "JOY2_POV1_DOWN");
+            config.Set<std::string>("InputJoyLeft2", "JOY2_POV1_LEFT");
+            config.Set<std::string>("InputJoyRight2", "JOY2_POV1_RIGHT");
+        }
+
+        if (inputs & Game::INPUT_FIGHTING)
+        {
+            config.Set<std::string>("InputPunch", "KEY_A,JOY1_BUTTON1");
+            config.Set<std::string>("InputKick", "KEY_S,JOY1_BUTTON2");
+            config.Set<std::string>("InputGuard", "KEY_D,JOY1_BUTTON3");
+            config.Set<std::string>("InputEscape", "KEY_F,JOY1_BUTTON4");
+            config.Set<std::string>("InputPunch2", "JOY2_BUTTON1");
+            config.Set<std::string>("InputKick2", "JOY2_BUTTON2");
+            config.Set<std::string>("InputGuard2", "JOY2_BUTTON3");
+            config.Set<std::string>("InputEscape2", "JOY2_BUTTON4");
+        }
+        else if (inputs & Game::INPUT_SOCCER)
+        {
+            config.Set<std::string>("InputShortPass", "KEY_A,JOY1_BUTTON1");
+            config.Set<std::string>("InputLongPass", "KEY_S,JOY1_BUTTON2");
+            config.Set<std::string>("InputShoot", "KEY_D,JOY1_BUTTON3");
+            config.Set<std::string>("InputShortPass2", "JOY2_BUTTON1");
+            config.Set<std::string>("InputLongPass2", "JOY2_BUTTON2");
+            config.Set<std::string>("InputShoot2", "JOY2_BUTTON3");
+        }
+        else if (inputs & Game::INPUT_SPIKEOUT)
+        {
+            config.Set<std::string>("InputShift", "KEY_A,JOY1_BUTTON1");
+            config.Set<std::string>("InputBeat", "KEY_S,JOY1_BUTTON2");
+            config.Set<std::string>("InputCharge", "KEY_D,JOY1_BUTTON3");
+            config.Set<std::string>("InputJump", "KEY_F,JOY1_BUTTON4");
+        }
+    }
+
+    inline void ApplyGunLayout(Util::Config::Node &config)
+    {
+        // MOUSE5/MOUSE6 are per-player virtual gun cursors. Their backend
+        // enables RetroLightgun and/or RetroPad input in real time according
+        // to the core option, so changing mode never requires rebuilding the
+        // Supermodel input configuration or reloading content.
+        config.Set<std::string>("InputAnalogGunX", "MOUSE5_XAXIS");
+        config.Set<std::string>("InputAnalogGunY", "MOUSE5_YAXIS");
+        config.Set<std::string>("InputAnalogTriggerLeft",
+                                "KEY_A,MOUSE5_LEFT_BUTTON");
+        config.Set<std::string>("InputAnalogTriggerRight",
+                                "KEY_S,MOUSE5_RIGHT_BUTTON");
+        config.Set<std::string>("InputAnalogGunX2", "MOUSE6_XAXIS");
+        config.Set<std::string>("InputAnalogGunY2", "MOUSE6_YAXIS");
+        config.Set<std::string>("InputAnalogTriggerLeft2",
+                                "MOUSE6_LEFT_BUTTON");
+        config.Set<std::string>("InputAnalogTriggerRight2",
+                                "MOUSE6_RIGHT_BUTTON");
+        config.Set<std::string>("InputStart1",
+                                "KEY_1,JOY1_BUTTON9,MOUSE5_BUTTON4");
+        config.Set<std::string>("InputCoin1",
+                                "KEY_3,JOY1_BUTTON10,MOUSE5_BUTTON5");
+        config.Set<std::string>("InputStart2",
+                                "KEY_2,JOY2_BUTTON9,MOUSE6_BUTTON4");
+        config.Set<std::string>("InputCoin2",
+                                "KEY_4,JOY2_BUTTON10,MOUSE6_BUTTON5");
+    }
+
+    inline void ApplyAnalogJoystickLayout(Util::Config::Node &config)
+    {
+        config.Set<std::string>("InputAnalogJoyLeft", "KEY_LEFT");
+        config.Set<std::string>("InputAnalogJoyRight", "KEY_RIGHT");
+        config.Set<std::string>("InputAnalogJoyUp", "KEY_UP");
+        config.Set<std::string>("InputAnalogJoyDown", "KEY_DOWN");
+        config.Set<std::string>("InputAnalogJoyX", "MOUSE7_XAXIS");
+        config.Set<std::string>("InputAnalogJoyY", "MOUSE7_YAXIS");
+        config.Set<std::string>("InputAnalogJoyTrigger",
+                                "KEY_A,MOUSE7_LEFT_BUTTON");
+        config.Set<std::string>("InputAnalogJoyEvent",
+                                "KEY_S,MOUSE7_RIGHT_BUTTON");
+        config.Set<std::string>("InputAnalogJoyTrigger2",
+                                "KEY_D,MOUSE7_BUTTON4");
+        config.Set<std::string>("InputAnalogJoyEvent2",
+                                "KEY_F,MOUSE7_BUTTON5");
+        config.Set<std::string>("InputStart1",
+                                "KEY_1,JOY1_BUTTON9,MOUSE1_BUTTON4");
+        config.Set<std::string>("InputCoin1",
+                                "KEY_3,JOY1_BUTTON10,MOUSE1_BUTTON5");
+        config.Set<std::string>("InputStart2",
+                                "KEY_2,JOY2_BUTTON9,MOUSE2_BUTTON4");
+        config.Set<std::string>("InputCoin2",
+                                "KEY_4,JOY2_BUTTON10,MOUSE2_BUTTON5");
+    }
+
+    inline void ApplyFishingLayout(Util::Config::Node &config)
+    {
+        config.Set<std::string>("InputFishingRodX", "JOY1_XAXIS");
+        config.Set<std::string>("InputFishingRodY", "JOY1_YAXIS");
+        config.Set<std::string>("InputFishingStickX", "JOY1_RXAXIS");
+        config.Set<std::string>("InputFishingStickY", "JOY1_RYAXIS");
+        config.Set<std::string>("InputFishingReel", "KEY_SPACE,JOY1_RZAXIS_POS");
+        config.Set<std::string>("InputFishingTension", "KEY_T,JOY1_ZAXIS_POS");
+        config.Set<std::string>("InputFishingCast", "KEY_Z,JOY1_BUTTON1,JOY1_BUTTON9");
+        config.Set<std::string>("InputFishingSelect", "KEY_X,JOY1_BUTTON2");
+    }
+
+    inline void ApplyMagicalTruckLayout(Util::Config::Node &config)
+    {
+        // Each cabinet side has one centered analog lever and one digital
+        // foot pedal, so expose one natural RetroPad layout per player.
+        config.Set<std::string>("InputMagicalLever1", "JOY1_YAXIS");
+        config.Set<std::string>("InputMagicalLever2", "JOY2_YAXIS");
+        config.Set<std::string>("InputMagicalPedal1", "KEY_A,JOY1_BUTTON1");
+        config.Set<std::string>("InputMagicalPedal2", "KEY_S,JOY2_BUTTON1");
+    }
+
+    inline void ApplySkiLayout(Util::Config::Node &config)
+    {
+        config.Set<std::string>("InputSkiX", "JOY1_XAXIS");
+        config.Set<std::string>("InputSkiY", "JOY1_YAXIS");
+        config.Set<std::string>("InputSkiPollLeft", "KEY_A,JOY1_BUTTON5");  // L
+        config.Set<std::string>("InputSkiPollRight", "KEY_S,JOY1_BUTTON6"); // R
+        config.Set<std::string>("InputSkiSelect1", "KEY_Q,JOY1_BUTTON3");              // West
+        // On Ski Champ the generic Start 1 line shares the same Model 3 I/O
+        // bit as Ski Select 3. Disable that generic source so South and Start
+        // activate only the cabinet's center selection, never Select 3.
+        config.Set<std::string>("InputStart1", "NONE");
+        config.Set<std::string>("InputSkiSelect2", "KEY_W,JOY1_BUTTON1,JOY1_BUTTON9"); // South and Start
+        config.Set<std::string>("InputSkiSelect3", "KEY_E,JOY1_BUTTON2");              // East
+    }
+
+    inline void ApplyTwinJoystickLayout(Util::Config::Node &config)
+    {
+        // Keep the standalone keyboard macros, while mapping the two physical
+        // cabinet sticks directly to the two Libretro analog sticks.
+        config.Set<std::string>("InputTwinJoyTurnLeft", "KEY_Q");
+        config.Set<std::string>("InputTwinJoyTurnRight", "KEY_W");
+        config.Set<std::string>("InputTwinJoyForward", "KEY_UP");
+        config.Set<std::string>("InputTwinJoyReverse", "KEY_DOWN");
+        config.Set<std::string>("InputTwinJoyStrafeLeft", "KEY_LEFT");
+        config.Set<std::string>("InputTwinJoyStrafeRight", "KEY_RIGHT");
+        config.Set<std::string>("InputTwinJoyJump", "KEY_E");
+        config.Set<std::string>("InputTwinJoyCrouch", "KEY_R");
+
+        config.Set<std::string>("InputTwinJoyLeft1", "JOY1_XAXIS_NEG");
+        config.Set<std::string>("InputTwinJoyRight1", "JOY1_XAXIS_POS");
+        config.Set<std::string>("InputTwinJoyUp1", "JOY1_YAXIS_NEG");
+        config.Set<std::string>("InputTwinJoyDown1", "JOY1_YAXIS_POS");
+        config.Set<std::string>("InputTwinJoyLeft2", "JOY1_RXAXIS_NEG");
+        config.Set<std::string>("InputTwinJoyRight2", "JOY1_RXAXIS_POS");
+        config.Set<std::string>("InputTwinJoyUp2", "JOY1_RYAXIS_NEG");
+        config.Set<std::string>("InputTwinJoyDown2", "JOY1_RYAXIS_POS");
+
+        config.Set<std::string>("InputTwinJoyShot1", "KEY_A,JOY1_BUTTON7");  // L2
+        config.Set<std::string>("InputTwinJoyShot2", "KEY_S,JOY1_BUTTON8");  // R2
+        config.Set<std::string>("InputTwinJoyTurbo1", "KEY_Z,JOY1_BUTTON5"); // L
+        config.Set<std::string>("InputTwinJoyTurbo2", "KEY_X,JOY1_BUTTON6"); // R
+    }
+
     /*
      * Applies the driving control layout chosen in the core options.
      *
-     * Must run on the *merged* runtime config, not in DefaultConfig(): the on-disk
-     * Supermodel.ini is merged over the defaults and carries a full set of Input* mappings,
-     * so anything DefaultConfig() sets is overwritten by the file. Does nothing on the default
-     * layout, so a hand-edited ini keeps its mappings unless a layout is explicitly chosen.
-     *
-     * Both analog layouts put the pedals on the triggers and shift sequentially with L/R;
-     * they differ in what the right stick is. It cannot be both a gate and a lever, so the
-     * sequential layout drops the 4 direct gears from the pad (keyboard keeps them). Either
-     * way the same gearbox is driven: CGearShift4Input takes the direct gears *and* up/down.
-     *
-     * The d-pad pedal source is dropped rather than kept beside the axis: CMultiInputSource
-     * (OR) answers with the first *active* source, and a digital source read as an analog one
-     * decays over several frames after release (CJoyPOVInputSource), during which it would
-     * keep overriding the trigger. Gears are switch inputs, so mixing button and axis sources
-     * there is free (CJoyAxisInputSource::GetValueAsSwitch trips past ~2/3 of travel).
+     * Must run on the merged runtime config so the embedded Libretro preset is
+     * authoritative for controller sources while standalone keyboard bindings
+     * are preserved. Native Supermodel still filters every logical input using
+     * game.inputs.
      */
-    inline void ApplyDrivingLayout(Util::Config::Node &config)
+    inline void ApplyDrivingLayout(Util::Config::Node &config, uint32_t inputs)
     {
-        if (g_options.driving_layout == DrivingLayout::Default)
-            return;
-
+        // RetroArch handles digital-to-analog remapping. Keep the core's
+        // digital steering sources keyboard-only, matching standalone.
+        config.Set<std::string>("InputSteeringLeft", "KEY_LEFT");
+        config.Set<std::string>("InputSteeringRight", "KEY_RIGHT");
+        config.Set<std::string>("InputSteering", "JOY1_XAXIS");
         config.Set<std::string>("InputAccelerator", "KEY_UP,JOY1_RZAXIS_POS");   // R2
         config.Set<std::string>("InputBrake", "KEY_DOWN,JOY1_ZAXIS_POS");        // L2
+        config.Set<std::string>("InputGearShiftUp", "KEY_Y,JOY1_BUTTON6");        // R
+        config.Set<std::string>("InputGearShiftDown", "KEY_H,JOY1_BUTTON5");       // L
 
-        if (g_options.driving_layout == DrivingLayout::TriggersSequential)
+        // Direct gears always retain their standalone keyboard bindings.
+        config.Set<std::string>("InputGearShift1", "KEY_Q");
+        config.Set<std::string>("InputGearShift2", "KEY_W");
+        config.Set<std::string>("InputGearShift3", "KEY_E");
+        config.Set<std::string>("InputGearShift4", "KEY_R");
+        config.Set<std::string>("InputGearShiftN", "KEY_T");
+
+        if (inputs & Game::INPUT_SHIFT4)
         {
-            // Right stick = sequential lever; no 4-gear gate on the pad
-            config.Set<std::string>("InputGearShiftUp", "KEY_Y,JOY1_BUTTON6,JOY1_RYAXIS_NEG");
-            config.Set<std::string>("InputGearShiftDown", "KEY_H,JOY1_BUTTON5,JOY1_RYAXIS_POS");
-            config.Set<std::string>("InputGearShift1", "KEY_Q");
-            config.Set<std::string>("InputGearShift2", "KEY_W");
-            config.Set<std::string>("InputGearShift3", "KEY_E");
-            config.Set<std::string>("InputGearShift4", "KEY_R");
+            // The four virtual buttons receive either the Standard half-axis
+            // mapping or the decoded H-gate diagonals.
+            config.Set<std::string>("InputGearShift1", "KEY_Q,JOY1_BUTTON17");
+            config.Set<std::string>("InputGearShift2", "KEY_W,JOY1_BUTTON18");
+            config.Set<std::string>("InputGearShift3", "KEY_E,JOY1_BUTTON19");
+            config.Set<std::string>("InputGearShift4", "KEY_R,JOY1_BUTTON20");
+            config.Set<std::string>("InputGearShiftN", "KEY_T,JOY1_BUTTON3"); // West
         }
-        else
+        if (inputs & Game::INPUT_VR4)
         {
-            // Right stick = 4-gear gate
-            config.Set<std::string>("InputGearShiftUp", "KEY_Y,JOY1_BUTTON6");       // R
-            config.Set<std::string>("InputGearShiftDown", "KEY_H,JOY1_BUTTON5");     // L
-            config.Set<std::string>("InputGearShift1", "KEY_Q,JOY1_RYAXIS_NEG");     // stick up
-            config.Set<std::string>("InputGearShift2", "KEY_W,JOY1_RYAXIS_POS");     // stick down
-            config.Set<std::string>("InputGearShift3", "KEY_E,JOY1_RXAXIS_NEG");     // stick left
-            config.Set<std::string>("InputGearShift4", "KEY_R,JOY1_RXAXIS_POS");     // stick right
+            config.Set<std::string>("InputVR1", "KEY_A,JOY1_POV1_UP"); // Red: D-Pad Up
+            config.Set<std::string>("InputVR2", "KEY_S,JOY1_POV1_DOWN"); // Blue: D-Pad Down
+            config.Set<std::string>("InputVR3", "KEY_D,JOY1_POV1_LEFT"); // Yellow: D-Pad Left
+            config.Set<std::string>("InputVR4", "KEY_F,JOY1_POV1_RIGHT"); // Green: D-Pad Right
         }
+        if (inputs & Game::INPUT_VIEWCHANGE)
+            config.Set<std::string>("InputViewChange", "KEY_A,JOY1_POV1_UP"); // D-Pad Up
+        if (inputs & Game::INPUT_HANDBRAKE)
+        {
+            config.Set<std::string>("InputHandBrake", "KEY_S,JOY1_BUTTON1"); // South
+        }
+        if (inputs & Game::INPUT_HARLEY)
+        {
+            config.Set<std::string>("InputRearBrake", "KEY_S,JOY1_BUTTON1");   // South
+            config.Set<std::string>("InputMusicSelect", "KEY_D,JOY1_BUTTON2"); // East
+        }
+    }
+
+    inline const LibretroInputProfiles::Profile *
+    ApplyInputProfile(Util::Config::Node &config, const Game &game)
+    {
+        const LibretroInputProfiles::Profile *profile =
+            LibretroInputProfiles::Find(game.inputs);
+        if (!profile)
+            return nullptr;
+
+        ApplyCommonLayout(config);
+        switch (profile->family)
+        {
+        case LibretroInputProfiles::Family::Gun:
+            ApplyGunLayout(config);
+            break;
+        case LibretroInputProfiles::Family::AnalogJoystick:
+            ApplyAnalogJoystickLayout(config);
+            break;
+        case LibretroInputProfiles::Family::Fishing:
+            ApplyFishingLayout(config);
+            break;
+        case LibretroInputProfiles::Family::JoystickStandard:
+            ApplyStandardJoystickLayout(config, profile->inputs);
+            break;
+        case LibretroInputProfiles::Family::MagicalTruck:
+            ApplyMagicalTruckLayout(config);
+            break;
+        case LibretroInputProfiles::Family::Ski:
+            ApplySkiLayout(config);
+            break;
+        case LibretroInputProfiles::Family::JoystickTwin:
+            ApplyTwinJoystickLayout(config);
+            break;
+        case LibretroInputProfiles::Family::Driving:
+            ApplyDrivingLayout(config, profile->inputs);
+            break;
+        }
+        return profile;
     }
 }

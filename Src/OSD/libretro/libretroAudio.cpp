@@ -4,11 +4,10 @@
 #include <algorithm>
 #include <mutex>
 #include "libretro_cbs.h"
+#include "LibretroTiming.h"
 
-// Model3 audio output is 44.1KHz 4-channel sound and frame rate is 60fps
-#define SAMPLE_RATE_M3     (44100)
-#define SUPERMODEL_FPS     (60.0f)
-#define MODEL3_FPS         (57.53f)
+// Model 3 audio output is 44.1 kHz, mixed to stereo for Libretro.
+#define SAMPLE_RATE_M3     (LibretroTiming::kAudioSampleRate)
 #define MAX_SND_FREQ       (75)
 #define MIN_SND_FREQ       (45)
 #define MAX_LATENCY        (100)
@@ -17,7 +16,7 @@
 Game::AudioTypes AudioType;
 int nbHostAudioChannels = NUM_CHANNELS_M3;      // Number of channels on host
 
-#define SAMPLES_PER_FRAME_M3  (INT32)(SAMPLE_RATE_M3 / MODEL3_FPS)
+#define SAMPLES_PER_FRAME_M3  (INT32)(LibretroTiming::kDefaultAudioFramesPerVideoFrame)
 #define BYTES_PER_SAMPLE_M3   (NUM_CHANNELS_M3 * sizeof(INT16))
 #define BYTES_PER_FRAME_M3   (SAMPLES_PER_FRAME_M3 * BYTES_PER_SAMPLE_M3)
 
@@ -36,9 +35,7 @@ float balanceFactorRearLeft   = 1.0f;
 float balanceFactorRearRight  = 1.0f;
 
 static bool enabled = true;                     // True if sound output is enabled
-static constexpr unsigned latency = 20;         // Audio latency to use (ie size of audio buffer) as percentage of max buffer size
 static constexpr bool underRunLoop = true;      // True if should loop back to beginning of buffer on under-run, otherwise sound is just skipped
-static constexpr unsigned playSamples = 512;    // Size (in samples) of callback play buffer
 static UINT32 audioBufferSize = 0;              // Size (in bytes) of audio buffer
 static INT8* audioBuffer = NULL;                // Audio buffer
 static UINT32 writePos = 0;                     // Current position at which writing into buffer
@@ -46,6 +43,7 @@ static UINT32 playPos = 0;                      // Current position at which pla
 static bool writeWrapped = false;               // True if write position has wrapped around at end of buffer but play position has not done so yet
 static unsigned underRuns = 0;                  // Number of buffer under-runs that have occured
 static unsigned overRuns = 0;                   // Number of buffer over-runs that have occured
+static unsigned shortWrites = 0;                // Frontend batch callbacks that accepted fewer frames than requested
 static AudioCallbackFPtr callback = NULL;       // Pointer to audio callback that is called when audio buffer is less than half empty
 static void* callbackData = NULL;               // Pointer to data to be passed to audio callback when it is called
 static std::mutex s_audioMutex;
@@ -115,7 +113,7 @@ static INT16 ClampINT16(float x)
     }
     return (INT16)xi;
 }
-void PlayCallback(void* data, uint8_t* stream, int len)
+void PlayCallback(void* /*data*/, uint8_t* /*stream*/, int len)
 {
     std::lock_guard<std::mutex> lock(s_audioMutex);
     if (!enabled || !audio_batch_cb) return;
@@ -142,11 +140,46 @@ void PlayCallback(void* data, uint8_t* stream, int len)
             len1 = to_read;
         }
 
-        if (len1 > 0) audio_batch_cb((const int16_t*)src1, len1 / 4);
-        if (len2 > 0) audio_batch_cb((const int16_t*)src2, len2 / 4);
+        UINT32 consumed_bytes = 0;
+        bool frontend_short_write = false;
 
-        playPos = (playPos + to_read) % audioBufferSize;
-        if (playPos < to_read) writeWrapped = false;
+        if (len1 > 0)
+        {
+            const size_t requested_frames = len1 / bytes_per_sample_host;
+            const size_t accepted_frames = std::min(
+                audio_batch_cb((const int16_t*)src1, requested_frames),
+                requested_frames);
+            consumed_bytes += static_cast<UINT32>(
+                accepted_frames * bytes_per_sample_host);
+            frontend_short_write = accepted_frames != requested_frames;
+        }
+
+        // Preserve submission order across the ring-buffer boundary. If the
+        // frontend only accepted part of the first span, leave both the
+        // unaccepted frames and the wrapped span queued for the next call.
+        if (!frontend_short_write && len2 > 0)
+        {
+            const size_t requested_frames = len2 / bytes_per_sample_host;
+            const size_t accepted_frames = std::min(
+                audio_batch_cb((const int16_t*)src2, requested_frames),
+                requested_frames);
+            consumed_bytes += static_cast<UINT32>(
+                accepted_frames * bytes_per_sample_host);
+            frontend_short_write = accepted_frames != requested_frames;
+        }
+
+        if (frontend_short_write)
+            ++shortWrites;
+
+        const UINT32 old_play_pos = playPos;
+        playPos = (playPos + consumed_bytes) % audioBufferSize;
+        if (old_play_pos + consumed_bytes >= audioBufferSize)
+            writeWrapped = false;
+
+        // A short frontend write is not an emulator under-run. Do not append
+        // synthetic samples after data the frontend explicitly deferred.
+        if (frontend_short_write)
+            to_read = static_cast<UINT32>(len);
     }
 
     int missing_bytes = len - to_read;
@@ -154,7 +187,6 @@ void PlayCallback(void* data, uint8_t* stream, int len)
     {
         // Get last two samples for interpolation
         int16_t* lastSample = (int16_t*)(audioBuffer + ((playPos - 4 + audioBufferSize) % audioBufferSize));
-        int16_t* prevSample = (int16_t*)(audioBuffer + ((playPos - 8 + audioBufferSize) % audioBufferSize));
         
         static int16_t fade_buf[4096];
         int samples_to_fill = missing_bytes / 4;
@@ -166,7 +198,11 @@ void PlayCallback(void* data, uint8_t* stream, int len)
             fade_buf[i*2+1] = (int16_t)(lastSample[1] * fade);  // Right
         }
         
-        audio_batch_cb(fade_buf, samples_to_fill);
+        const size_t requested_frames = static_cast<size_t>(samples_to_fill);
+        const size_t accepted_frames = std::min(
+            audio_batch_cb(fade_buf, requested_frames), requested_frames);
+        if (accepted_frames != requested_frames)
+            ++shortWrites;
     }
 
     if (callback) callback(callbackData);
@@ -190,6 +226,8 @@ static void MixChannels(unsigned numSamples, const float* leftFrontBuffer, const
         case Game::QUAD_1_FRL_2_RRL:
         case Game::QUAD_1_RRL_2_FRL:
             flipStereo = !flipStereo;
+            break;
+        default:
             break;
         }
 
@@ -371,12 +409,17 @@ Result OpenAudio(const Util::Config::Node& config)
     }
     memset(audioBuffer, 0, audioBufferSize);
 
-    // 4. State Initialization
+    // 4. State initialization. The ring buffer cannot represent full and
+    // empty with identical read/write positions. Seed two silent packets so
+    // the first frontend callback has valid data while it wakes the
+    // asynchronous SoundBoard thread. That thread then replaces the initial
+    // silence with real audio and keeps the buffer filled.
     playPos = 0;
-    writePos = 0;
+    writePos = 2 * bytes_per_frame_host;
     writeWrapped = false;
     underRuns = 0;
     overRuns = 0;
+    shortWrites = 0;
 
     // In Libretro, "starting" audio just means we are ready to accept calls.
     enabled = true; 
@@ -384,47 +427,8 @@ Result OpenAudio(const Util::Config::Node& config)
     return Result::OKAY;
 }
 
-// Adjust audio buffer parameters when CPU frequency changes
-// When PPC is underclocked, emulation runs slower so audio needs fewer samples per frame
-void AdjustAudioForCPUFrequency(float ppc_frequency_mhz)
-{
-    // PPC runs at ppc_frequency_mhz instead of default 66 MHz
-    // Audio should scale proportionally to maintain sync
-    // Example: 33 MHz = 0.5x speed, so samples_per_frame should be half
-    float frequency_ratio = ppc_frequency_mhz / 66.0f;  // 66 MHz is default
-    
-    // Recalculate samples per frame with frequency scaling
-    // Lower frequency = fewer samples needed per frame (emulation runs slower)
-    samples_per_frame_host = (INT32)(SAMPLE_RATE_M3 / (MODEL3_FPS * frequency_ratio));
-    bytes_per_frame_host = (samples_per_frame_host * bytes_per_sample_host);
-    
-    // Also check if we need to resize audio buffer for new sample rate
-    // Keep buffer size proportional to new frame size (roughly 11 frames worth)
-    UINT32 new_buffer_size = 8192 * bytes_per_sample_host;
-    
-    // Only reallocate if size changed significantly
-    if (audioBuffer && new_buffer_size != audioBufferSize)
-    {
-        std::lock_guard<std::mutex> lock(s_audioMutex);
-        INT8* new_buffer = new(std::nothrow) INT8[new_buffer_size];
-        if (new_buffer)
-        {
-            delete[] audioBuffer;
-            audioBuffer = new_buffer;
-            audioBufferSize = new_buffer_size;
-            memset(audioBuffer, 0, audioBufferSize);
-            // Reset playback positions
-            writePos = 0;
-            playPos = 0;
-            writeWrapped = false;
-        }
-    }
-}
-
 bool OutputAudio(unsigned numSamples, const float* leftFrontBuffer, const float* rightFrontBuffer, const float* leftRearBuffer, const float* rightRearBuffer, bool flipStereo)
 {
-    UINT32 bytesRemaining;
-    UINT32 bytesToCopy;
     INT16* src;
 
     // 1. Bound Check
@@ -522,5 +526,7 @@ bool OutputAudio(unsigned numSamples, const float* leftFrontBuffer, const float*
 
 void CloseAudio()
 {
-    // Nothing to destroy.
+    if (shortWrites > 0)
+        InfoLog("[Supermodel] Audio frontend reported %u partial batch submission(s); unaccepted ring-buffer frames were preserved.",
+                shortWrites);
 }

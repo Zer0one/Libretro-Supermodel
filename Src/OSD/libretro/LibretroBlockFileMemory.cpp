@@ -7,6 +7,7 @@
 
 CBlockFileCounter::CBlockFileCounter()
     : m_size(0)
+    , m_currentBlockDataStart(0)
 {
 }
 
@@ -15,7 +16,21 @@ size_t CBlockFileCounter::GetSize() const
     return m_size;
 }
 
-void CBlockFileCounter::Write(const void* data, uint32_t numBytes)
+std::vector<LibretroBlockLayout> CBlockFileCounter::GetLayout() const
+{
+    std::vector<LibretroBlockLayout> layout = m_layout;
+    if (!layout.empty())
+        layout.back().payloadSize = m_size - m_currentBlockDataStart;
+    return layout;
+}
+
+void CBlockFileCounter::FinishCurrentBlock()
+{
+    if (!m_layout.empty())
+        m_layout.back().payloadSize = m_size - m_currentBlockDataStart;
+}
+
+void CBlockFileCounter::Write(const void* /*data*/, uint32_t numBytes)
 {
     m_size += numBytes;
 }
@@ -31,11 +46,6 @@ void CBlockFileCounter::Write(const std::string& str)
     m_size += str.size() + 1;
 }
 
-
-    // Read stubs for the counter
-unsigned Read(void *data, uint32_t numBytes)  { return 0; }
-unsigned Read(bool *value)  { return 0; }
-
 // ==============================
 // CBlockFileMemory
 // ==============================
@@ -44,55 +54,97 @@ CBlockFileMemory::CBlockFileMemory(void* data, size_t size)
     : m_ptr(static_cast<uint8_t*>(data))
     , m_offset(0)
     , m_capacity(size)
+    , m_currentBlockHeaderPos(0)
+    , m_currentBlockEnd(size)
+    , m_writable(true)
+    , m_error(data == nullptr && size != 0)
 {
+}
+
+CBlockFileMemory::CBlockFileMemory(const void* data, size_t size)
+    : m_ptr(const_cast<uint8_t*>(static_cast<const uint8_t*>(data)))
+    , m_offset(0)
+    , m_capacity(size)
+    , m_currentBlockHeaderPos(0)
+    , m_currentBlockEnd(size)
+    , m_writable(false)
+    , m_error(data == nullptr && size != 0)
+{
+}
+
+bool CBlockFileMemory::ParseBlock(size_t blockStart,
+                                 size_t& blockEnd,
+                                 size_t& dataStart,
+                                 std::string& blockName) const
+{
+    if (!m_ptr || blockStart > m_capacity || m_capacity - blockStart < 12)
+        return false;
+
+    uint32_t totalBlockLength;
+    uint32_t nameLen;
+    uint32_t commentLen;
+    std::memcpy(&totalBlockLength, m_ptr + blockStart, 4);
+    std::memcpy(&nameLen, m_ptr + blockStart + 4, 4);
+    std::memcpy(&commentLen, m_ptr + blockStart + 8, 4);
+
+    if (totalBlockLength < 12 || totalBlockLength > m_capacity - blockStart ||
+        nameLen == 0 || nameLen > 1025 ||
+        commentLen == 0 || commentLen > 1025)
+        return false;
+
+    const size_t stringBytes = static_cast<size_t>(nameLen) + commentLen;
+    if (stringBytes > totalBlockLength - 12)
+        return false;
+
+    const size_t nameStart = blockStart + 12;
+    const size_t commentStart = nameStart + nameLen;
+    if (m_ptr[nameStart + nameLen - 1] != '\0' ||
+        m_ptr[commentStart + commentLen - 1] != '\0')
+        return false;
+
+    blockEnd = blockStart + totalBlockLength;
+    dataStart = commentStart + commentLen;
+    blockName.assign(reinterpret_cast<const char*>(m_ptr + nameStart), nameLen - 1);
+    return true;
 }
 
 Result CBlockFileMemory::FindBlock(const std::string &name)
 {
+    if (m_error)
+        return Result::FAIL;
+
     size_t searchOffset = 0; // Local search pointer
 
-    while (searchOffset + 12 <= m_capacity)
+    while (searchOffset < m_capacity)
     {
-        size_t blockStart = searchOffset;
-
-        uint32_t totalBlockLength, nameLen, commentLen;
-        std::memcpy(&totalBlockLength, m_ptr + searchOffset, 4); searchOffset += 4;
-        std::memcpy(&nameLen, m_ptr + searchOffset, 4);          searchOffset += 4;
-        std::memcpy(&commentLen, m_ptr + searchOffset, 4);       searchOffset += 4;
-
-        if (nameLen == 0 || nameLen > 2048 || searchOffset + nameLen > m_capacity)
-            break;
-
-        std::string blockName(reinterpret_cast<char*>(m_ptr + searchOffset));
+        size_t blockEnd;
+        size_t dataStart;
+        std::string blockName;
+        if (!ParseBlock(searchOffset, blockEnd, dataStart, blockName))
+            return Result::FAIL;
         
         // Is this our block?
         if (blockName == name)
         {
-            // Set the GLOBAL offset to the start of the DATA for this block
-            // Data starts after headers (12) + name + comment
-            m_offset = blockStart + 12 + nameLen + commentLen; 
+            m_offset = dataStart;
+            m_currentBlockEnd = blockEnd;
             return Result::OKAY;
         }
 
-        // If not, we MUST skip to the next block correctly.
-        // Supermodel blocks are self-describing.
-        if (totalBlockLength > 0)
-            searchOffset = blockStart + totalBlockLength;
-        else {
-            // If totalBlockLength is 0 (which our Save currently writes), 
-            // we have a problem: we don't know where the data ends.
-            // But wait—Supermodel only writes ONE block usually! 
-            // If there are multiple, we MUST fix the Save to write the length.
-            break; 
-        }
+        // If not, skip to the next self-describing block.
+        searchOffset = blockEnd;
     }
     return Result::FAIL;
 }
 
 void CBlockFileMemory::Write(const void* data, uint32_t numBytes)
 {
-    if (m_offset + numBytes > m_capacity)
-        return; // or assert
+    if (m_error || !m_writable || !data || m_offset > m_capacity ||
+        numBytes > m_capacity - m_offset)
+    {
+        m_error = true;
+        return;
+    }
 
     std::memcpy(m_ptr + m_offset, data, numBytes);
     m_offset += numBytes;
@@ -110,12 +162,19 @@ void CBlockFileMemory::Write(const std::string& str)
 }
 
 void CBlockFileCounter::NewBlock(const std::string& name, const std::string& comment) {
+    FinishCurrentBlock();
+    m_layout.push_back({name, 0});
     m_size += 12 + (name.size() + 1) + (comment.size() + 1);
+    m_currentBlockDataStart = m_size;
 }
 
-// --- READING (Crucial for retro_unserialize) ---
 unsigned CBlockFileMemory::Read(void *data, uint32_t numBytes)  {
-    if (m_offset + numBytes > m_capacity) numBytes = m_capacity - m_offset;
+    if (m_error || !data || m_offset > m_currentBlockEnd ||
+        numBytes > m_currentBlockEnd - m_offset)
+    {
+        m_error = true;
+        return 0;
+    }
     std::memcpy(data, m_ptr + m_offset, numBytes);
     m_offset += numBytes;
     return numBytes;
@@ -128,10 +187,21 @@ unsigned CBlockFileMemory::Read(bool *value)  {
     return read;
 }
 
-// ADDED THIS: The emulator needs this to succeed to keep saving!
 void CBlockFileMemory::NewBlock(const std::string& name, const std::string& comment) {
+    if (m_error || !m_writable || name.empty() || name.size() > 1024 ||
+        comment.size() > 1024)
+    {
+        m_error = true;
+        return;
+    }
+
     // 1. If there was a previous block, update its total length field
     if (m_offset > 0 && m_currentBlockHeaderPos < m_capacity) {
+        if (m_offset - m_currentBlockHeaderPos > UINT32_MAX)
+        {
+            m_error = true;
+            return;
+        }
         uint32_t totalSize = static_cast<uint32_t>(m_offset - m_currentBlockHeaderPos);
         std::memcpy(m_ptr + m_currentBlockHeaderPos, &totalSize, 4);
     }
@@ -151,9 +221,50 @@ void CBlockFileMemory::NewBlock(const std::string& name, const std::string& comm
     Write(comment.c_str(), cLen);
 }
 
-void CBlockFileMemory::Finish() {
-    if (m_offset > 0) {
+bool CBlockFileMemory::Finish() {
+    if (!m_writable)
+    {
+        m_error = true;
+        return false;
+    }
+    if (!m_error && m_offset > 0) {
+        if (m_offset - m_currentBlockHeaderPos > UINT32_MAX)
+        {
+            m_error = true;
+            return false;
+        }
         uint32_t totalSize = static_cast<uint32_t>(m_offset - m_currentBlockHeaderPos);
         std::memcpy(m_ptr + m_currentBlockHeaderPos, &totalSize, 4);
     }
+    return !m_error;
+}
+
+bool CBlockFileMemory::HasError() const
+{
+    return m_error;
+}
+
+size_t CBlockFileMemory::GetOffset() const
+{
+    return m_offset;
+}
+
+bool CBlockFileMemory::ValidateLayout(
+    const std::vector<LibretroBlockLayout>& expected) const
+{
+    size_t offset = 0;
+
+    for (const LibretroBlockLayout& expectedBlock : expected)
+    {
+        size_t blockEnd;
+        size_t dataStart;
+        std::string blockName;
+        if (!ParseBlock(offset, blockEnd, dataStart, blockName) ||
+            blockName != expectedBlock.name ||
+            blockEnd - dataStart != expectedBlock.payloadSize)
+            return false;
+        offset = blockEnd;
+    }
+
+    return offset == m_capacity;
 }

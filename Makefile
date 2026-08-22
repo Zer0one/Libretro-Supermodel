@@ -63,7 +63,7 @@ INCFLAGS := -I$(CORE_DIR) \
             -I$(CORE_DIR)/Src/CPU/68K/Musashi \
             -I$(CORE_DIR)/Src/CPU/68K/Musashi/generated
 
-COREDEFINES := -D__LIBRETRO__ -DSUPERMODEL_OSD_LIBRETRO
+COREDEFINES := -D__LIBRETRO__ -DSUPERMODEL_OSD_LIBRETRO -DNET_BOARD
 COREDEFINES += -DINLINE=inline
 COREDEFINES += -DPSS_STYLE=$(PSS_STYLE)
 
@@ -137,7 +137,7 @@ SOURCES_CXX := $(CORE_DIR)/Src/CPU/PowerPC/PPCDisasm.cpp \
                $(CORE_DIR)/Src/Model3/TileGen.cpp \
                $(CORE_DIR)/Src/Model3/Model3.cpp \
                $(CORE_DIR)/Src/CPU/PowerPC/ppc.cpp \
-               $(if $(filter android aarch64 rpi64 linux-aarch64,$(platform)),$(CORE_DIR)/Src/CPU/PowerPC/Jit/JitArm64.cpp,) \
+               $(if $(filter android aarch64 rpi64 linux-aarch64 osx,$(platform)),$(CORE_DIR)/Src/CPU/PowerPC/Jit/JitArm64.cpp,) \
                $(CORE_DIR)/Src/Model3/SoundBoard.cpp \
                $(CORE_DIR)/Src/Sound/SCSP.cpp \
                $(CORE_DIR)/Src/Sound/SCSPDSP.cpp \
@@ -153,6 +153,7 @@ SOURCES_CXX := $(CORE_DIR)/Src/CPU/PowerPC/PPCDisasm.cpp \
                $(CORE_DIR)/Src/Model3/DriveBoard/JoystickBoard.cpp \
                $(CORE_DIR)/Src/Model3/DriveBoard/SkiBoard.cpp \
                $(CORE_DIR)/Src/Model3/DriveBoard/BillBoard.cpp \
+               $(CORE_DIR)/Src/Model3/DriveBoard/Z80CTC.cpp \
                $(CORE_DIR)/Src/Model3/MPC10x.cpp \
                $(CORE_DIR)/Src/Inputs/Input.cpp \
                $(CORE_DIR)/Src/Inputs/Inputs.cpp \
@@ -178,6 +179,7 @@ SOURCES_CXX := $(CORE_DIR)/Src/CPU/PowerPC/PPCDisasm.cpp \
                $(CORE_DIR)/Src/OSD/libretro/LibretroBlockFileMemory.cpp \
                $(CORE_DIR)/Src/OSD/libretro/CLibretroInputSystem.cpp \
                $(CORE_DIR)/Src/OSD/libretro/CLibretroOutputSystem.cpp \
+               $(CORE_DIR)/Src/OSD/libretro/LibretroNetBoard.cpp \
                $(CORE_DIR)/Src/OSD/libretro/LibretroWrapper.cpp \
                $(CORE_DIR)/Src/OSD/libretro/vfs_ioapi.cpp \
                $(CORE_DIR)/Src/OSD/libretro/libretro.cpp
@@ -200,6 +202,15 @@ endif
 RENDERER ?= new3d
 
 LEGACY3D_SOURCES := %/Legacy3D/Error.cpp %/Legacy3D/Legacy3D.cpp %/Legacy3D/Models.cpp %/Legacy3D/TextureRefs.cpp
+
+# These platforms deliberately omit the fixed-function Legacy3D sources.
+# Reject an explicit legacy build instead of accepting the selector and later
+# failing with missing renderer objects or symbols.
+ifneq ($(filter osx android,$(platform)),)
+ifeq ($(RENDERER),legacy)
+    $(error RENDERER=legacy is not supported for platform=$(platform))
+endif
+endif
 
 ifeq ($(RENDERER),legacy)
     RENDERER_DEFINES := -DUSE_LEGACY3D
@@ -239,6 +250,22 @@ ifeq ($(platform),linux-aarch64)
 ifdef DROP_LEGACY3D
     SOURCES_CXX := $(filter-out $(LEGACY3D_SOURCES),$(SOURCES_CXX))
 endif
+endif
+
+# Renderer capabilities exposed to the Libretro option layer. Keep these as
+# feature defines rather than platform tests so future ports only need to
+# enable the capability here.
+ifneq ($(filter $(CORE_DIR)/Src/Graphics/Legacy3D/Legacy3D.cpp,$(SOURCES_CXX)),)
+    RENDERER_DEFINES += -DHAVE_LEGACY3D
+endif
+
+ifneq ($(filter $(platform),osx android rpi64 aarch64 linux-aarch64),$(platform))
+    RENDERER_DEFINES += -DHAVE_QUAD_RENDERING
+endif
+
+ifneq ($(filter $(platform),android rpi64 aarch64 linux-aarch64),$(platform))
+    RENDERER_DEFINES += -DHAVE_CRT_COLOURS
+    RENDERER_DEFINES += -DHAVE_SUPERSAMPLING
 endif
 
 # GIT version
@@ -288,10 +315,13 @@ endif
 # ============ macOS / osxcross ============
 ifeq ($(platform),osx)
     TARGET := $(TARGET_NAME)_libretro.dylib
-    LDFLAGS += -dynamiclib -fPIC -undefined dynamic_lookup
+    # __gcov_dump is an optional profiling hook. Keep only that symbol weakly
+    # importable so missing core dependencies still fail at link time.
+    LDFLAGS += -dynamiclib -fPIC -Wl,-U,___gcov_dump
     CFLAGS += -fPIC
     CXXFLAGS += -fPIC
-    LIBS += -lm -framework OpenGL -framework CoreFoundation -lz
+    LIBS += -lm -framework OpenGL -framework CoreFoundation
+    PLATFORM_DEFINES += -DGL_SILENCE_DEPRECATION
 
     ifeq ($(system_platform),osx)
         # Native macOS build (CI macOS runner or local Mac developer build).
@@ -301,6 +331,12 @@ ifeq ($(platform),osx)
         CFLAGS += $(ARCHFLAGS)
         CXXFLAGS += $(ARCHFLAGS)
         LDFLAGS += $(ARCHFLAGS)
+
+        # Apple Silicon requires MAP_JIT plus per-thread W^X switching. Keep
+        # Intel and universal cross-builds on the interpreter.
+        ifeq ($(NATIVE_ARCH),arm64)
+            PLATFORM_DEFINES += -DHAVE_PPC_JIT
+        endif
     else
         # Cross-compile from Linux via osxcross (universal x86_64 + arm64 dylib).
         OSXCROSS_ROOT ?= /opt/osxcross
@@ -556,6 +592,7 @@ ifneq (,$(or $(findstring webos,$(CROSS_COMPILE)),$(findstring starfish,$(CROSS_
 endif
 
 OBJECTS := $(SOURCES_C:.c=.o) $(SOURCES_CXX:.cpp=.o)
+DEPFILES := $(OBJECTS:.o=.d)
 
 # ============ COMMON COMPILER FLAGS ============
 
@@ -609,6 +646,10 @@ $(BUNDLED_GAMES_XML_H): $(CORE_DIR)/Config/Games.xml
 	xxd -i $< | sed 's/unsigned char.*\[\]/const unsigned char bundled_games_xml[]/' \
 	           | sed 's/unsigned int.*_len/const unsigned int bundled_games_xml_len/' > $@
 
+# Track included headers so incremental builds rebuild every object whose ABI
+# may have changed. This is especially important for shared core option types.
+-include $(DEPFILES)
+
 $(BUNDLED_SUPERMODEL_H): $(CORE_DIR)/Config/Supermodel.ini
 	xxd -i $< | sed 's/unsigned char.*\[\]/const unsigned char bundled_supermodel_ini[]/' \
 	           | sed 's/unsigned int.*_len/const unsigned int bundled_supermodel_ini_len/' > $@
@@ -622,21 +663,46 @@ $(TARGET): $(OBJECTS)
 # ppc_ops.c contains #pragma STDC FENV_ACCESS ON which requires precise FP semantics
 # For Android DEBUG builds, also ensure -fPIC is applied to prevent relocation errors
 $(CORE_DIR)/Src/CPU/PowerPC/ppc.o: CXXFLAGS := $(filter-out -ffast-math -funsafe-math-optimizations,$(CXXFLAGS))
+$(CORE_DIR)/Src/CPU/PowerPC/ppc.o: CXXFLAGS += -Wno-unused-parameter
+
+# Both 3D renderers explicitly sanitize NaN/Inf fog values used by Star Wars
+# Trilogy. Fast-math assumes these values cannot exist and removes the checks.
+IEEE_FP_RENDERER_OBJECTS := $(CORE_DIR)/Src/Graphics/New3D/New3D.o \
+                            $(CORE_DIR)/Src/Graphics/Legacy3D/Legacy3D.o
+$(IEEE_FP_RENDERER_OBJECTS): CXXFLAGS := $(filter-out -ffast-math -funsafe-math-optimizations,$(CXXFLAGS))
+
 ifeq ($(platform),android)
   ifeq ($(DEBUG),1)
     $(CORE_DIR)/Src/CPU/PowerPC/ppc.o: CXXFLAGS += -fPIC
   endif
 endif
 
+# These vendored/generated sources intentionally expose platform-dependent
+# parameters and legacy implementation details that are unused by this core.
+# Keep their known warning noise local instead of weakening warnings globally.
+MUSASHI_OBJECTS := $(CORE_DIR)/Src/CPU/68K/Musashi/m68kcpu.o \
+                   $(CORE_DIR)/Src/CPU/68K/Musashi/generated/m68kops.o \
+                   $(CORE_DIR)/Src/CPU/68K/Musashi/generated/m68kopac.o \
+                   $(CORE_DIR)/Src/CPU/68K/Musashi/generated/m68kopdm.o \
+                   $(CORE_DIR)/Src/CPU/68K/Musashi/generated/m68kopnz.o
+LIBRETRO_COMMON_WARNING_OBJECTS := $(LIBRETRO_COMM_DIR)/file/file_path.o \
+                                   $(LIBRETRO_COMM_DIR)/file/retro_dirent.o \
+                                   $(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.o \
+                                   $(LIBRETRO_COMM_DIR)/string/stdstring.o
+
+$(MUSASHI_OBJECTS): CFLAGS += -Wno-unused-parameter
+$(DEPS_DIR)/ugui/ugui.o: CFLAGS += -Wno-sign-compare -Wno-bitwise-op-parentheses -Wno-unused-but-set-variable
+$(LIBRETRO_COMMON_WARNING_OBJECTS): CFLAGS += -Wno-unused-parameter -Wno-sign-compare
+
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<
 
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
 
 clean:
 	@echo "Cleaning..."
-	@rm -f $(OBJECTS) $(TARGET)
+	@rm -f $(OBJECTS) $(DEPFILES) $(TARGET)
 	@echo "Clean complete"
 
 info:
