@@ -79,10 +79,14 @@ Model 3 game list is effectively complete.
   Lightgun, Mouse, and Analog Stick modes restrict polling to the selected
   source. Mouse + Analog Stick keeps both relative cursor sources active
   without consuming RetroLightgun coordinates.
-- Standard-mode shot inputs are deliberately parallel: Lightgun
-  Trigger/Reload and RetroPad South/East are Left/Right Shot. Lightgun Aux A is
-  also accepted as Right Shot. `IS_OFFSCREEN` is position state and is never
-  treated as a pressed button.
+- Standard-mode shot inputs are deliberately parallel: Lightgun Trigger and
+  RetroPad South are the primary shot. Gun games without a reload action use
+  Lightgun Aux A or an on-screen Reload alias and RetroPad East as the secondary
+  shot; an off-screen Reload event is not converted into a secondary shot.
+  The Lost World uses Reload as its dedicated reload/right-shot action. Its
+  optional `Off-Screen Trigger Reload` mode converts `IS_OFFSCREEN + Trigger`
+  into Reload without also firing the primary shot when Gun Input Mode is set
+  to Lightgun Only.
 - The core option can restrict the profile to Lightgun, Mouse, Mouse + Analog
   Stick, or Analog Stick. It is applied immediately; content does not need to
   be reloaded.

@@ -81,6 +81,7 @@ struct CoreOptions {
    bool jit_enable;
    bool timing_overlay;      // draw the ImGui frame-timing overlay (costs a draw pass every frame)
    GunInput gun_input;
+   bool offscreen_trigger_reload;
    StarWarsInput star_wars_input;
    bool star_wars_upright_x_inversion;
    FourSpeedShifter four_speed_shifter;

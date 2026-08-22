@@ -73,6 +73,7 @@ static std::string g_visible_nvram_game;
 static int g_visible_nvram_enabled = -1;
 static int g_network_board_option_visible = -1;
 static int g_network_cabinets_option_visible = -1;
+static int g_offscreen_trigger_reload_option_visible = -1;
 #if defined(HAVE_LEGACY3D) && !defined(USE_LEGACY3D)
 static int g_legacy_multi_texture_option_visible = -1;
 #endif
@@ -243,6 +244,23 @@ static bool update_core_option_visibility(void)
       changed = true;
    }
 
+   const bool offscreen_trigger_reload_visible =
+      g_has_active_input_game &&
+      (g_active_input_game.name == "lostwsga" ||
+       g_active_input_game.parent == "lostwsga");
+   if (g_offscreen_trigger_reload_option_visible !=
+       static_cast<int>(offscreen_trigger_reload_visible))
+   {
+      struct retro_core_option_display display = {
+         "supermodel_offscreen_trigger_reload",
+         offscreen_trigger_reload_visible
+      };
+      environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
+      g_offscreen_trigger_reload_option_visible =
+         offscreen_trigger_reload_visible;
+      changed = true;
+   }
+
 #if defined(HAVE_LEGACY3D) && !defined(USE_LEGACY3D)
    const bool legacy_multi_texture_visible =
       strcmp(option_get("supermodel_renderer_3d", "new3d"),
@@ -359,6 +377,7 @@ CoreOptions g_options = {
 #endif
    /* timing_overlay      */ false,
    /* gun_input           */ GunInput::Hybrid,
+   /* offscreen_trigger_reload */ false,
    /* star_wars_input     */ StarWarsInput::Hybrid,
    /* star_wars_upright_x_inversion */ true,
    /* four_speed_shifter  */ FourSpeedShifter::HGate,
@@ -1221,6 +1240,8 @@ void retro_run(void)
       bool old_legacy_sound_dsp = g_options.legacy_sound_dsp;
       unsigned old_crosshairs = g_options.crosshairs;
       GunInput old_gun_input = g_options.gun_input;
+      bool old_offscreen_trigger_reload =
+         g_options.offscreen_trigger_reload;
       StarWarsInput old_star_wars_input = g_options.star_wars_input;
       bool old_star_wars_upright_x_inversion =
          g_options.star_wars_upright_x_inversion;
@@ -1324,6 +1345,15 @@ void retro_run(void)
          if (log_cb)
             log_cb(RETRO_LOG_INFO,
                    "[Supermodel] Gun Input applied immediately.\n");
+      }
+
+      if (g_options.offscreen_trigger_reload !=
+          old_offscreen_trigger_reload && log_cb)
+      {
+         log_cb(RETRO_LOG_INFO,
+                "[Supermodel] Off-screen Trigger Reload %s.\n",
+                g_options.offscreen_trigger_reload
+                   ? "enabled" : "disabled");
       }
 
       if (g_options.star_wars_input != old_star_wars_input)
@@ -2358,6 +2388,7 @@ void retro_set_environment(retro_environment_t cb)
    g_visible_nvram_game.clear();
    g_network_board_option_visible = -1;
    g_network_cabinets_option_visible = -1;
+   g_offscreen_trigger_reload_option_visible = -1;
 #if defined(HAVE_LEGACY3D) && !defined(USE_LEGACY3D)
    g_legacy_multi_texture_option_visible = -1;
 #endif

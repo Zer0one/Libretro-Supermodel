@@ -66,6 +66,7 @@ bool CLibretroInputSystem::Poll()
     bool lightgunPositionMoved[2] = {};
     bool lightgunTrigger[2] = {};
     bool lightgunAuxA[2] = {};
+    bool offscreenTriggerReload[2] = {};
 
     // ----- RetroMouse ports (Supermodel MOUSE and MOUSE2) -----
     for (int port = 0; port < 2; ++port)
@@ -140,23 +141,32 @@ bool CLibretroInputSystem::Poll()
 
         lightgunTrigger[port] = input_state_cb(
             port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_TRIGGER);
-        m_mouseButtons[dev][0] = lightgunTrigger[port];
-        m_mouseButtons[dev][1] = 0;
         lightgunAuxA[port] = input_state_cb(
             port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_AUX_A);
         const bool lightgunReload = input_state_cb(
             port, RETRO_DEVICE_LIGHTGUN, 0,
             RETRO_DEVICE_ID_LIGHTGUN_RELOAD);
+        offscreenTriggerReload[port] =
+            m_gunSecondaryInput == GunSecondaryInput::Reload &&
+            g_options.offscreen_trigger_reload &&
+            g_options.gun_input == GunInput::Lightgun &&
+            lightgunOffscreen[port] && lightgunTrigger[port];
+        m_mouseButtons[dev][0] =
+            lightgunTrigger[port] && !offscreenTriggerReload[port];
+        m_mouseButtons[dev][1] = 0;
         switch (m_gunSecondaryInput)
         {
         case GunSecondaryInput::Reload:
-            m_mouseButtons[dev][2] = lightgunReload;
+            m_mouseButtons[dev][2] =
+                lightgunReload || offscreenTriggerReload[port];
             break;
         case GunSecondaryInput::AuxAOrReload:
             // Gun games without a reload action use AUX_A as their canonical
             // secondary trigger. Accept Reload as an ergonomic alias for
-            // Batocera's Wiimote A and mouse-right mappings.
-            m_mouseButtons[dev][2] = lightgunAuxA[port] || lightgunReload;
+            // Batocera's Wiimote A and mouse-right mappings, but do not turn a
+            // real off-screen reload shot into the game's secondary weapon.
+            m_mouseButtons[dev][2] = lightgunAuxA[port] ||
+                (lightgunReload && !lightgunOffscreen[port]);
             break;
         }
         m_mouseButtons[dev][3] = input_state_cb(
@@ -445,8 +455,9 @@ bool CLibretroInputSystem::Poll()
         m_mouseIsAbsolute[cursorDev] = true;
 
         m_mouseButtons[cursorDev][0] =
-            (allowLightgun && m_mouseButtons[lightgunDev][0]) ||
-            (allowMouse && m_mouseButtons[port][0]) ||
+            (!offscreenTriggerReload[port] &&
+             ((allowLightgun && m_mouseButtons[lightgunDev][0]) ||
+              (allowMouse && m_mouseButtons[port][0]))) ||
             (allowAnalog && m_joyButtons[port][0]);
         m_mouseButtons[cursorDev][1] = false;
         m_mouseButtons[cursorDev][2] =

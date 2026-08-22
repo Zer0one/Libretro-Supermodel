@@ -320,6 +320,20 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "hybrid"
    },
    {
+      "supermodel_offscreen_trigger_reload",
+      "Off-Screen Trigger Reload",
+      NULL,
+      "In Lightgun Only mode, when RetroArch reports the Lightgun as off-screen, route Trigger to Reload instead of Shot. Applies to The Lost World, preserves the dedicated Reload input, and takes effect immediately.",
+      NULL,
+      "input",
+      {
+         { "disabled", "Disabled (Default)" },
+         { "enabled",  "Enabled" },
+         { NULL, NULL },
+      },
+      "disabled"
+   },
+   {
       "supermodel_star_wars_input",
       "Star Wars Trilogy Input Mode",
       NULL,
@@ -768,6 +782,9 @@ void update_core_options(void)
                           : strcmp(gun_input, "analog") == 0   ? GunInput::AnalogSticks
                                                                : GunInput::Hybrid;
    }
+   g_options.offscreen_trigger_reload =
+      strcmp(option_get("supermodel_offscreen_trigger_reload", "disabled"),
+             "enabled") == 0;
    {
       const char *star_wars_input = option_get(
          "supermodel_star_wars_input", "hybrid");
