@@ -1122,6 +1122,19 @@ bool retro_load_game(const struct retro_game_info *info)
    int emulation = wrapper.Emulate(info->path);
    if (emulation != 0) return false;
    const Game loaded_game = wrapper.getGame();
+   const auto is_game_family = [&loaded_game](const char *name)
+   {
+      return loaded_game.name == name || loaded_game.parent == name;
+   };
+   auto libretro_input =
+      std::static_pointer_cast<CLibretroInputSystem>(wrapper.getInputSystem());
+   if (libretro_input)
+   {
+      using GunSecondaryInput = CLibretroInputSystem::GunSecondaryInput;
+      libretro_input->SetGunSecondaryInput(
+         is_game_family("lostwsga") ? GunSecondaryInput::Reload :
+                                      GunSecondaryInput::AuxAOrReload);
+   }
    g_active_input_game = loaded_game;
    g_has_active_input_game = true;
    update_core_option_visibility();
@@ -1953,6 +1966,9 @@ void set_input_descriptors(const Game *game)
       switch (profile->family)
       {
       case LibretroInputProfiles::Family::Gun:
+      {
+         const bool lost_world = game &&
+            (game->name == "lostwsga" || game->parent == "lostwsga");
          for (unsigned port = 0; port < 2; ++port)
          {
             switch (g_active_gun_input)
@@ -1971,9 +1987,23 @@ void set_input_descriptors(const Game *game)
                add(port, RETRO_DEVICE_JOYPAD, 0,
                    RETRO_DEVICE_ID_JOYPAD_A, "Right Shot (Analog)");
                add(port, RETRO_DEVICE_LIGHTGUN, 0,
-                   RETRO_DEVICE_ID_LIGHTGUN_TRIGGER, "Left Shot (Lightgun)");
-               add(port, RETRO_DEVICE_LIGHTGUN, 0,
-                   RETRO_DEVICE_ID_LIGHTGUN_RELOAD, "Right Shot (Lightgun)");
+                   RETRO_DEVICE_ID_LIGHTGUN_TRIGGER,
+                   lost_world ? "Shot (Lightgun)" : "Left Shot (Lightgun)");
+               if (!lost_world)
+               {
+                  add(port, RETRO_DEVICE_LIGHTGUN, 0,
+                      RETRO_DEVICE_ID_LIGHTGUN_AUX_A,
+                      "Right Shot (Lightgun Aux A)");
+                  add(port, RETRO_DEVICE_LIGHTGUN, 0,
+                      RETRO_DEVICE_ID_LIGHTGUN_RELOAD,
+                      "Right Shot (Batocera Reload Alias)");
+               }
+               else
+               {
+                  add(port, RETRO_DEVICE_LIGHTGUN, 0,
+                      RETRO_DEVICE_ID_LIGHTGUN_RELOAD,
+                      "Reload / Right Shot (Lightgun)");
+               }
                break;
 
             case GunInput::Lightgun:
@@ -1982,9 +2012,23 @@ void set_input_descriptors(const Game *game)
                add(port, RETRO_DEVICE_LIGHTGUN, 0,
                    RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y, "Gun Pitch");
                add(port, RETRO_DEVICE_LIGHTGUN, 0,
-                   RETRO_DEVICE_ID_LIGHTGUN_TRIGGER, "Left Shot");
-               add(port, RETRO_DEVICE_LIGHTGUN, 0,
-                   RETRO_DEVICE_ID_LIGHTGUN_RELOAD, "Right Shot");
+                   RETRO_DEVICE_ID_LIGHTGUN_TRIGGER,
+                   lost_world ? "Shot" : "Left Shot");
+               if (!lost_world)
+               {
+                  add(port, RETRO_DEVICE_LIGHTGUN, 0,
+                      RETRO_DEVICE_ID_LIGHTGUN_AUX_A,
+                      "Right Shot (Aux A)");
+                  add(port, RETRO_DEVICE_LIGHTGUN, 0,
+                      RETRO_DEVICE_ID_LIGHTGUN_RELOAD,
+                      "Right Shot (Reload Alias)");
+               }
+               else
+               {
+                  add(port, RETRO_DEVICE_LIGHTGUN, 0,
+                      RETRO_DEVICE_ID_LIGHTGUN_RELOAD,
+                      "Reload / Right Shot");
+               }
                break;
 
             case GunInput::Mouse:
@@ -2030,6 +2074,7 @@ void set_input_descriptors(const Game *game)
             }
          }
          break;
+      }
 
       case LibretroInputProfiles::Family::AnalogJoystick:
       {

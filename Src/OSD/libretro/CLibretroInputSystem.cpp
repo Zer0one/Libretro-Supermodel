@@ -142,15 +142,23 @@ bool CLibretroInputSystem::Poll()
             port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_TRIGGER);
         m_mouseButtons[dev][0] = lightgunTrigger[port];
         m_mouseButtons[dev][1] = 0;
-        // Ocean Hunter has two independent shot triggers. AUX_A is the
-        // natural second trigger; Reload is also accepted because RetroArch
-        // binds it to the second mouse button by default. IS_OFFSCREEN is a
-        // position state, not a button: treating it as one leaves Shot 2 stuck.
         lightgunAuxA[port] = input_state_cb(
             port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_AUX_A);
-        m_mouseButtons[dev][2] = lightgunAuxA[port] ||
-            input_state_cb(
-                port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_RELOAD);
+        const bool lightgunReload = input_state_cb(
+            port, RETRO_DEVICE_LIGHTGUN, 0,
+            RETRO_DEVICE_ID_LIGHTGUN_RELOAD);
+        switch (m_gunSecondaryInput)
+        {
+        case GunSecondaryInput::Reload:
+            m_mouseButtons[dev][2] = lightgunReload;
+            break;
+        case GunSecondaryInput::AuxAOrReload:
+            // Gun games without a reload action use AUX_A as their canonical
+            // secondary trigger. Accept Reload as an ergonomic alias for
+            // Batocera's Wiimote A and mouse-right mappings.
+            m_mouseButtons[dev][2] = lightgunAuxA[port] || lightgunReload;
+            break;
+        }
         m_mouseButtons[dev][3] = input_state_cb(
             port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_START);
         m_mouseButtons[dev][4] = input_state_cb(

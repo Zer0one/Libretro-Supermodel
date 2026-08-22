@@ -7,6 +7,12 @@
 class CLibretroInputSystem : public CInputSystem
 {
 public:
+    enum class GunSecondaryInput
+    {
+        Reload,
+        AuxAOrReload
+    };
+
     CLibretroInputSystem();
     virtual ~CLibretroInputSystem() override;
 
@@ -34,6 +40,7 @@ public:
     virtual const JoyDetails *GetJoyDetails(int joyNum) override;
     void SetRumbleInterface(struct retro_rumble_interface interface) { m_rumbleInterface = interface; }
     void SetFFBEnabled(bool enabled) { m_ffbEnabled = enabled; }
+    void SetGunSecondaryInput(GunSecondaryInput input) { m_gunSecondaryInput = input; }
     void StopAllRumble();
     // Signature match check: Supermodel usually uses the struct directly, 
     // but ensure your .cpp matches this exactly.
@@ -72,6 +79,7 @@ private:
 
     retro_rumble_interface m_rumbleInterface;
     bool m_ffbEnabled = false; // Guard flag
+    GunSecondaryInput m_gunSecondaryInput = GunSecondaryInput::AuxAOrReload;
 };
 
 #endif
