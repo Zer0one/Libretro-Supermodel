@@ -31,7 +31,7 @@
 #include "LibretroTiming.h"
 #include "vfs_ioapi.h"
 #include "Debugger/SupermodelDebugger.h"
-#if !defined(ANDROID) && !defined(CORE_GLES) || defined(USE_LEGACY3D)
+#if defined(HAVE_LEGACY3D) || defined(USE_LEGACY3D)
 #include "Graphics/Legacy3D/Legacy3D.h"
 #endif
 #include "Graphics/New3D/New3D.h"
