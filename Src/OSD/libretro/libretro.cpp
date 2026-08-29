@@ -2120,16 +2120,16 @@ void set_input_descriptors(const Game *game)
                                   "Analog Joystick Y");
             add(0, RETRO_DEVICE_LIGHTGUN, 0,
                 RETRO_DEVICE_ID_LIGHTGUN_TRIGGER,
-                identify_source ? "Trigger 1 (Lightgun)" : "Trigger 1");
+                "Trigger 1 (Index Button)");
             add(0, RETRO_DEVICE_LIGHTGUN, 0,
                 RETRO_DEVICE_ID_LIGHTGUN_AUX_A,
-                identify_source ? "Event 1 (Lightgun)" : "Event 1");
+                "Event Button 1 (Left)");
             add(1, RETRO_DEVICE_LIGHTGUN, 0,
                 RETRO_DEVICE_ID_LIGHTGUN_TRIGGER,
-                identify_source ? "Trigger 2 (Lightgun)" : "Trigger 2");
+                "Trigger 2 (Thumb Button)");
             add(1, RETRO_DEVICE_LIGHTGUN, 0,
                 RETRO_DEVICE_ID_LIGHTGUN_AUX_A,
-                identify_source ? "Event 2 (Lightgun)" : "Event 2");
+                "Event Button 2 (Right)");
          };
          const auto add_star_wars_mouse = [&add](bool identify_source)
          {
@@ -2143,16 +2143,16 @@ void set_input_descriptors(const Game *game)
                                   "Analog Joystick Y");
             add(0, RETRO_DEVICE_MOUSE, 0,
                 RETRO_DEVICE_ID_MOUSE_LEFT,
-                identify_source ? "Trigger 1 (Mouse)" : "Trigger 1");
+                "Trigger 1 (Index Button)");
             add(0, RETRO_DEVICE_MOUSE, 0,
                 RETRO_DEVICE_ID_MOUSE_RIGHT,
-                identify_source ? "Event 1 (Mouse)" : "Event 1");
+                "Event Button 1 (Left)");
             add(1, RETRO_DEVICE_MOUSE, 0,
                 RETRO_DEVICE_ID_MOUSE_LEFT,
-                identify_source ? "Trigger 2 (Mouse)" : "Trigger 2");
+                "Trigger 2 (Thumb Button)");
             add(1, RETRO_DEVICE_MOUSE, 0,
                 RETRO_DEVICE_ID_MOUSE_RIGHT,
-                identify_source ? "Event 2 (Mouse)" : "Event 2");
+                "Event Button 2 (Right)");
          };
          const auto add_star_wars_analog = [&add](bool identify_source)
          {
@@ -2166,16 +2166,28 @@ void set_input_descriptors(const Game *game)
                                   "Analog Joystick Y");
             add(0, RETRO_DEVICE_JOYPAD, 0,
                 RETRO_DEVICE_ID_JOYPAD_B,
-                identify_source ? "Trigger 1 (Analog)" : "Trigger 1");
+                "Trigger 1 (Index Button)");
             add(0, RETRO_DEVICE_JOYPAD, 0,
                 RETRO_DEVICE_ID_JOYPAD_A,
-                identify_source ? "Event 1 (Analog)" : "Event 1");
+                "Event Button 1 (Left)");
             add(0, RETRO_DEVICE_JOYPAD, 0,
                 RETRO_DEVICE_ID_JOYPAD_Y,
-                identify_source ? "Trigger 2 (Analog)" : "Trigger 2");
+                "Trigger 2 (Thumb Button)");
             add(0, RETRO_DEVICE_JOYPAD, 0,
                 RETRO_DEVICE_ID_JOYPAD_X,
-                identify_source ? "Event 2 (Analog)" : "Event 2");
+                "Event Button 2 (Right)");
+            add(0, RETRO_DEVICE_JOYPAD, 0,
+                RETRO_DEVICE_ID_JOYPAD_L,
+                "Trigger 1 (Index Button)");
+            add(0, RETRO_DEVICE_JOYPAD, 0,
+                RETRO_DEVICE_ID_JOYPAD_R,
+                "Trigger 2 (Thumb Button)");
+            add(0, RETRO_DEVICE_JOYPAD, 0,
+                RETRO_DEVICE_ID_JOYPAD_L2,
+                "Event Button 1 (Left)");
+            add(0, RETRO_DEVICE_JOYPAD, 0,
+                RETRO_DEVICE_ID_JOYPAD_R2,
+                "Event Button 2 (Right)");
          };
 
          switch (g_active_star_wars_input)

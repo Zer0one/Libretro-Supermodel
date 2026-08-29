@@ -603,23 +603,29 @@ bool CLibretroInputSystem::Poll()
     m_mouseAxes[analogJoystickDev][AXIS_Z] = 0;
     m_mouseWheelDir[analogJoystickDev] = 0;
     m_mouseIsAbsolute[analogJoystickDev] = true;
+    // Keep the face-button layout and accept cabinet-style shoulder aliases:
+    // Index = South/L, Thumb = West/R, Left = East/L2, Right = North/R2.
     m_mouseButtons[analogJoystickDev][0] =
         (analogAllowLightgun && lightgunTrigger[0]) ||
         (analogAllowMouse && m_mouseButtons[0][0]) ||
-        (analogAllowStick && m_joyButtons[0][0]);
+        (analogAllowStick &&
+         (m_joyButtons[0][0] || m_joyButtons[0][4]));
     m_mouseButtons[analogJoystickDev][1] = false;
     m_mouseButtons[analogJoystickDev][2] =
         (analogAllowLightgun && lightgunAuxA[0]) ||
         (analogAllowMouse && m_mouseButtons[0][2]) ||
-        (analogAllowStick && m_joyButtons[0][1]);
+        (analogAllowStick &&
+         (m_joyButtons[0][1] || m_joyButtons[0][6]));
     m_mouseButtons[analogJoystickDev][3] =
         (analogAllowLightgun && lightgunTrigger[1]) ||
         (analogAllowMouse && m_mouseButtons[1][0]) ||
-        (analogAllowStick && m_joyButtons[0][2]);
+        (analogAllowStick &&
+         (m_joyButtons[0][2] || m_joyButtons[0][5]));
     m_mouseButtons[analogJoystickDev][4] =
         (analogAllowLightgun && lightgunAuxA[1]) ||
         (analogAllowMouse && m_mouseButtons[1][2]) ||
-        (analogAllowStick && m_joyButtons[0][3]);
+        (analogAllowStick &&
+         (m_joyButtons[0][3] || m_joyButtons[0][7]));
 
     return true;
 }
