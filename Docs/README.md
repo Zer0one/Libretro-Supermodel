@@ -17,6 +17,9 @@ This disclosure is not a substitute for review: every change should be
 independently inspected and tested before it is accepted into an official
 release.
 
+Planned validation and evidence campaigns are tracked in the
+[project roadmap](ROADMAP.md).
+
 ## 🚀 Key Improvements
 - **Unified Makefile:** Single build configuration supporting 6 platforms (Linux, Windows, macOS, Android, RPi64, aarch64) following libretro/skeletor standards.
 - **Platform Auto-Detection:** Automatic platform detection with sensible defaults; platform-specific source filtering for incompatible features.
@@ -29,9 +32,9 @@ release.
 - **Force Feedback / Rumble:** Full force feedback support for steering wheel games via the Libretro rumble interface.
 - **Linked Cabinets:** Experimental API-native Model 3 networking through the Libretro Netpacket interface, without core-owned sockets or discovery.
 - **Game-aware NVRAM:** Optional per-game Service Menu settings and first-boot Single/Stand Alone/No Link initialization while preserving ordinary frontend `.srm` ownership.
-- **True Widescreen:** Expands the 3D horizontal field of view into a native
-  16:9 framebuffer, with an optional wide lower-background layer. Plain 4:3
-  stretching remains the frontend's responsibility.
+- **Widescreen Enhancement:** Expands the 3D horizontal field of view into a
+  16:9 framebuffer, with an optional wide lower-background layer. Model 3 games
+  retain their original 4:3 presentation when the enhancement is disabled.
 - **Libretro Portability:** Remapped configuration, NVRAM, and asset paths to follow official Libretro standards (`system` and `save` directories).
 - **No External GL Dependency:** GLEW replaced with `glsym` from libretro-common — no system GL extension library required on any platform.
 - **Android Support:** Full NDK integration with architecture-specific optimization (arm64, arm with NEON, x86_64, x86) and OpenGL ES 3.0.
@@ -56,8 +59,11 @@ fallback, but new installations should use the preferred flat directory.
 
 ## Video geometry
 
-`Widescreen Mode` reproduces Supermodel's native widescreen behavior instead
-of stretching the 4:3 image:
+No Model 3 title is known to have a native widescreen presentation. The
+hardware's visible area is 496x384 and both Supermodel and MAME use that same
+4:3 geometry for the complete game library. `Widescreen Mode` exposes
+Supermodel's optional widescreen rendering enhancement; it does not select an
+original game or cabinet mode and it does not merely stretch the 4:3 image:
 
 * `Disabled` renders the original 496x384 view.
 * `Widescreen` expands full-screen 3D viewports horizontally inside a 16:9
@@ -68,8 +74,9 @@ of stretching the 4:3 image:
 
 Supermodel's standalone `Stretch` setting is intentionally not exposed: final
 4:3-to-16:9 stretching is already provided by RetroArch's aspect-ratio and
-scaling controls. True widescreen renders about 37.7% more horizontal pixels
-than the native 4:3 mode, so its performance should be measured separately.
+scaling controls. The widescreen enhancement renders about 37.7% more
+horizontal pixels than the native 4:3 mode, so its performance should be
+measured separately.
 Changes to `Widescreen Mode` take effect after restarting the content, matching
 the renderer-initialization semantics of standalone Supermodel.
 
@@ -133,6 +140,12 @@ ROM set and reapplies those per-game choices at startup.
 board. During RetroArch Netplay, the core uses only the official Libretro
 Netpacket interface; it does not open its own sockets or perform peer
 discovery.
+
+`Linked Cabinets` is registered separately for each supported ROM set and only
+the option belonging to the loaded content is shown. Daytona USA 2 offers 2–16
+participants, Scud Race 2–8, Le Mans 24 and Sega Rally 2 2–5, and Dirt Devils,
+Harley-Davidson, Ski Champ, Spikeout, Spikeout Final Edition, and Virtual On 2
+2–4. Values saved for one set are not reused by another title or revision.
 
 The frontend and emulated-cabinet roles are deliberately paired. RetroArch
 assigns participant ID 0 to the host, which the core uses as the first Model 3

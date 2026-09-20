@@ -55,6 +55,7 @@ public:
     static const std::string& GetGameXMLPath() { return s_gameXMLFilePath; }
     void SetWidescreen(bool enabled, bool wideBackground);
     void SetCrosshairs(unsigned mask);
+    void SetNetworkCabinets(unsigned cabinets);
     void setXRes(unsigned val) { xRes = val; }
     void setYRes(unsigned val) { yRes = val; }
     void setXOffset(unsigned val) { xOffset = val; }

@@ -992,6 +992,17 @@ void LibretroWrapper::SetCrosshairs(unsigned mask)
     InfoLog("[Supermodel] Crosshairs mask applied: %u", mask);
 }
 
+void LibretroWrapper::SetNetworkCabinets(unsigned cabinets)
+{
+    cabinets = std::max(2u, std::min(16u, cabinets));
+    try {
+        s_runtime_config.Get("NetworkCabinets").SetValue(cabinets);
+    }
+    catch (const std::range_error&) {
+        s_runtime_config.Add("NetworkCabinets").SetValue(cabinets);
+    }
+}
+
 void LibretroWrapper::SetSoundVolume(int volume)
 {
     s_runtime_config.Get("SoundVolume").SetValue(volume);

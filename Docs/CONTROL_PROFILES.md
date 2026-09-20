@@ -79,17 +79,26 @@ Model 3 game list is effectively complete.
   Lightgun, Mouse, and Analog Stick modes restrict polling to the selected
   source. Mouse + Analog Stick keeps both relative cursor sources active
   without consuming RetroLightgun coordinates.
-- Standard-mode shot inputs are deliberately parallel: Lightgun Trigger and
-  RetroPad South are the primary shot. Gun games without a reload action use
-  Lightgun Aux A or an on-screen Reload alias and RetroPad East as the secondary
-  shot; an off-screen Reload event is not converted into a secondary shot.
-  The Lost World uses Reload as its dedicated reload/right-shot action. Its
-  optional `Off-Screen Trigger Reload` mode converts `IS_OFFSCREEN + Trigger`
-  into Reload without also firing the primary shot when Gun Input Mode is set
-  to Lightgun Only.
+- Standard-mode shot inputs are deliberately parallel: Lightgun Trigger,
+  Mouse Left and RetroPad South/RB are the primary shot. Gun games without a
+  reload action use Lightgun Aux A or an on-screen Reload alias, Mouse Right
+  and RetroPad East as the secondary shot; an off-screen Reload event is not
+  converted into a secondary shot.
+- The Lost World follows the same reload model as SM2-Emu. A physical
+  Lightgun `IS_OFFSCREEN + Trigger` is always routed to the cabinet reload
+  action. `Off-Screen Reload Shortcut` separately enables Lightgun Reload,
+  Mouse Right and RetroPad East/LB aliases. `Mouse Edge Off-Screen Reload` is
+  disabled by default; when enabled, Mouse Left within the outer five percent
+  of the screen performs the same reload because the Libretro Mouse interface
+  has no native off-screen status. Source ownership prevents Lightgun input
+  from being mistaken for this mouse-edge action.
 - The core option can restrict the profile to Lightgun, Mouse, Mouse + Analog
   Stick, or Analog Stick. It is applied immediately; content does not need to
   be reloaded.
+- `Show Crosshair` defaults to `Automatic`: it displays the external Player 1
+  crosshair for The Lost World, while L.A. Machineguns and The Ocean Hunter
+  retain their built-in reticles. Explicit player selections enable the
+  external crosshair in any of the three gun games and apply immediately.
 - Star Wars Trilogy Arcade keeps its separately recognized analog-joystick
   profile but exposes the same five input-source modes as Gun games. Lightgun 1
   absolute coordinates drive the arcade yoke; its Trigger/Aux A inputs are

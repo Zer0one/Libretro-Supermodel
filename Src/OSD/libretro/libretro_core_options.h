@@ -64,33 +64,6 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "enabled"
    },
    {
-      "supermodel_network_cabinets",
-      "Linked Cabinets",
-      NULL,
-      "Set the total number of Model 3 cabinets expected in the RetroArch Netplay session. The host waits for this exact number before starting the emulated cabinet link. Every instance must use the same value. The RetroArch host must use the game's Master role; clients cannot use Master. Type 1 clients must use Slave; Type 2 clients may use a supported Slave / Satellite role. Start the host before its clients. Two- and three-cabinet sessions have been tested; larger values remain experimental. Requires a content restart.",
-      NULL,
-      "system",
-      {
-         { "2",  "2 Cabinets (Default)" },
-         { "3",  "3 Cabinets" },
-         { "4",  "4 Cabinets" },
-         { "5",  "5 Cabinets" },
-         { "6",  "6 Cabinets" },
-         { "7",  "7 Cabinets" },
-         { "8",  "8 Cabinets" },
-         { "9",  "9 Cabinets" },
-         { "10", "10 Cabinets" },
-         { "11", "11 Cabinets" },
-         { "12", "12 Cabinets" },
-         { "13", "13 Cabinets" },
-         { "14", "14 Cabinets" },
-         { "15", "15 Cabinets" },
-         { "16", "16 Cabinets" },
-         { NULL, NULL },
-      },
-      "2"
-   },
-   {
       "supermodel_nvram_settings",
       "NVRAM Settings",
       NULL,
@@ -289,17 +262,18 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "supermodel_crosshairs",
       "Show Crosshair",
       NULL,
-      "Select which native Supermodel vector crosshair is displayed in light gun games.",
+      "Automatic displays the native Supermodel vector crosshair in The Lost World and preserves the built-in game crosshair in L.A. Machineguns and The Ocean Hunter. Explicit player selections also enable the external crosshair in those games. Changes take effect immediately.",
       NULL,
       "input",
       {
+         { "auto", "Automatic" },
          { "0", "Disabled" },
          { "1", "Player 1 Only" },
          { "2", "Player 2 Only" },
          { "3", "Players 1 & 2" },
          { NULL, NULL },
       },
-      "0"
+      "auto"
    },
    // Input
    {
@@ -320,14 +294,28 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "hybrid"
    },
    {
-      "supermodel_offscreen_trigger_reload",
-      "Off-Screen Trigger Reload",
+      "supermodel_offscreen_reload_shortcut",
+      "Off-Screen Reload Shortcut",
       NULL,
-      "In Lightgun Only mode, when RetroArch reports the Lightgun as off-screen, route Trigger to Reload instead of Shot. Applies to The Lost World, preserves the dedicated Reload input, and takes effect immediately.",
+      "For The Lost World, enables explicit forced off-screen reload inputs on RetroPad East/LB, Mouse Right and Lightgun Reload. A physical Lightgun off-screen Trigger remains an intrinsic cabinet action and always works. Takes effect immediately.",
       NULL,
       "input",
       {
-         { "disabled", "Disabled (Default)" },
+         { "enabled",  "Enabled" },
+         { "disabled", "Disabled" },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
+   {
+      "supermodel_mouse_edge_offscreen_reload",
+      "Mouse Edge Off-Screen Reload",
+      NULL,
+      "Provides off-screen reload when using a Mouse, because the Libretro Mouse interface does not report whether the pointer is off-screen. In Standard, Mouse + Analog Stick or Mouse Only mode, moving the virtual cursor within the outer five percent of the screen and pressing Mouse Left sends an off-screen shot in The Lost World. A Lightgun already supplies its native off-screen status and does not require this option. Takes effect immediately.",
+      NULL,
+      "input",
+      {
+         { "disabled", "Disabled" },
          { "enabled",  "Enabled" },
          { NULL, NULL },
       },
@@ -670,11 +658,6 @@ void update_core_options(void)
       strcmp(option_get("supermodel_network_board", "enabled"),
              "enabled") == 0;
 
-   g_options.network_cabinets = static_cast<unsigned>(
-      atoi(option_get("supermodel_network_cabinets", "2")));
-   if (g_options.network_cabinets < 2 || g_options.network_cabinets > 16)
-      g_options.network_cabinets = 2;
-
    g_options.nvram_settings_enabled =
       strcmp(option_get("supermodel_nvram_settings", "disabled"),
              "enabled") == 0;
@@ -759,10 +742,11 @@ void update_core_options(void)
          ? AVTimingMode::Native57524Hz
          : AVTimingMode::Default60Hz;
    {
-      const char *crosshairs = option_get("supermodel_crosshairs", "0");
+      const char *crosshairs = option_get("supermodel_crosshairs", "auto");
       // Accept the values used by earlier development builds so an existing
       // .opt file cannot leave the option in an undefined state.
-      g_options.crosshairs = strcmp(crosshairs, "enabled") == 0 ? 3u
+      g_options.crosshairs = strcmp(crosshairs, "auto") == 0 ? CROSSHAIRS_AUTOMATIC
+                           : strcmp(crosshairs, "enabled") == 0 ? 3u
                            : strcmp(crosshairs, "disabled") == 0 ? 0u
                            : static_cast<unsigned>(atoi(crosshairs)) & 3u;
    }
@@ -783,7 +767,10 @@ void update_core_options(void)
                                                                : GunInput::Hybrid;
    }
    g_options.offscreen_trigger_reload =
-      strcmp(option_get("supermodel_offscreen_trigger_reload", "disabled"),
+      strcmp(option_get("supermodel_offscreen_reload_shortcut", "enabled"),
+             "enabled") == 0;
+   g_options.mouse_edge_offscreen_reload =
+      strcmp(option_get("supermodel_mouse_edge_offscreen_reload", "disabled"),
              "enabled") == 0;
    {
       const char *star_wars_input = option_get(

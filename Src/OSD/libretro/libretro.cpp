@@ -64,16 +64,57 @@ struct NvramCoreOptionSet
    size_t definition_indices[kNvramSettingCount];
 };
 
+struct LinkedCabinetOptionSpec
+{
+   const char *game_name;
+   unsigned max_cabinets;
+};
+
+static constexpr LinkedCabinetOptionSpec kLinkedCabinetOptionSpecs[] = {
+   { "daytona2", 16 }, { "dayto2pe", 16 },
+   { "dirtdvls", 4 }, { "dirtdvlsu", 4 }, { "dirtdvlsau", 4 },
+   { "dirtdvlsj", 4 }, { "dirtdvlsg", 4 },
+   { "harley", 4 }, { "harleya", 4 },
+   { "lemans24", 5 },
+   { "scud", 8 }, { "scudau", 8 }, { "scudplus", 8 },
+   { "scudplusa", 8 },
+   { "skichamp", 4 },
+   { "spikeout", 4 }, { "spikeofe", 4 },
+   { "srally2", 5 },
+   { "von2", 4 }, { "von254g", 4 }, { "von2a", 4 }, { "von2o", 4 },
+};
+
+static constexpr struct retro_core_option_value kLinkedCabinetValues[] = {
+   { "2",  "2 Cabinets (Default)" }, { "3",  "3 Cabinets" },
+   { "4",  "4 Cabinets" },           { "5",  "5 Cabinets" },
+   { "6",  "6 Cabinets" },           { "7",  "7 Cabinets" },
+   { "8",  "8 Cabinets" },           { "9",  "9 Cabinets" },
+   { "10", "10 Cabinets" },          { "11", "11 Cabinets" },
+   { "12", "12 Cabinets" },          { "13", "13 Cabinets" },
+   { "14", "14 Cabinets" },          { "15", "15 Cabinets" },
+   { "16", "16 Cabinets" },
+};
+
+struct LinkedCabinetOptionSet
+{
+   const char *game_name;
+   unsigned max_cabinets;
+   size_t definition_index;
+};
+
 static std::vector<struct retro_core_option_v2_definition>
    g_registered_option_definitions;
 static std::vector<std::vector<char>> g_nvram_option_key_storage;
 static std::vector<std::vector<char>> g_nvram_default_label_storage;
 static std::vector<NvramCoreOptionSet> g_nvram_option_sets;
+static std::vector<std::vector<char>> g_linked_option_key_storage;
+static std::vector<LinkedCabinetOptionSet> g_linked_option_sets;
 static std::string g_visible_nvram_game;
+static std::string g_visible_network_cabinets_game(1, '\1');
 static int g_visible_nvram_enabled = -1;
 static int g_network_board_option_visible = -1;
-static int g_network_cabinets_option_visible = -1;
 static int g_offscreen_trigger_reload_option_visible = -1;
+static int g_mouse_edge_offscreen_reload_option_visible = -1;
 #if defined(HAVE_LEGACY3D) && !defined(USE_LEGACY3D)
 static int g_legacy_multi_texture_option_visible = -1;
 #endif
@@ -145,6 +186,40 @@ static void append_nvram_core_options(void)
    }
 }
 
+static void append_linked_cabinet_core_options(void)
+{
+   static constexpr const char *kInfo =
+      "Set the total number of Model 3 cabinets expected in the RetroArch "
+      "Netplay session. Only counts supported by the loaded game are shown. "
+      "The host waits for this exact number before starting the emulated "
+      "cabinet link. Every instance must use the same value and restart the "
+      "content. Start the host before its clients.";
+
+   for (const auto &spec : kLinkedCabinetOptionSpecs)
+   {
+      g_linked_option_key_storage.emplace_back(96, '\0');
+      auto &key = g_linked_option_key_storage.back();
+      snprintf(key.data(), key.size(), "supermodel_network_cabinets_%s",
+               spec.game_name);
+
+      struct retro_core_option_v2_definition definition = {};
+      definition.key = key.data();
+      definition.desc = "Linked Cabinets";
+      definition.info = kInfo;
+      definition.category_key = "system";
+      const unsigned value_count = spec.max_cabinets - 1;
+      for (unsigned i = 0; i < value_count; ++i)
+         definition.values[i] = kLinkedCabinetValues[i];
+      definition.default_value = "2";
+
+      g_linked_option_sets.push_back({
+         spec.game_name, spec.max_cabinets,
+         g_registered_option_definitions.size()
+      });
+      g_registered_option_definitions.push_back(definition);
+   }
+}
+
 static void build_core_option_definitions(void)
 {
    if (!g_registered_option_definitions.empty())
@@ -172,7 +247,15 @@ static void build_core_option_definitions(void)
       if (definition.key)
          ++base_option_count;
    g_registered_option_definitions.reserve(
-      base_option_count + nvram_option_count + 1);
+      base_option_count + nvram_option_count +
+      (sizeof(kLinkedCabinetOptionSpecs) /
+       sizeof(kLinkedCabinetOptionSpecs[0])) + 1);
+   g_linked_option_key_storage.reserve(
+      sizeof(kLinkedCabinetOptionSpecs) /
+      sizeof(kLinkedCabinetOptionSpecs[0]));
+   g_linked_option_sets.reserve(
+      sizeof(kLinkedCabinetOptionSpecs) /
+      sizeof(kLinkedCabinetOptionSpecs[0]));
    g_nvram_option_key_storage.reserve(nvram_option_count);
    g_nvram_default_label_storage.reserve(nvram_option_count);
    g_nvram_option_sets.reserve(game_count);
@@ -182,10 +265,37 @@ static void build_core_option_definitions(void)
       if (!definition.key)
          break;
       g_registered_option_definitions.push_back(definition);
+      if (strcmp(definition.key, "supermodel_network_board") == 0)
+         append_linked_cabinet_core_options();
       if (strcmp(definition.key, "supermodel_nvram_settings") == 0)
          append_nvram_core_options();
    }
    g_registered_option_definitions.push_back({});
+}
+
+static const LinkedCabinetOptionSet *active_linked_cabinet_option_set(void)
+{
+   if (!g_has_active_input_game)
+      return nullptr;
+   for (const auto &option_set : g_linked_option_sets)
+      if (g_active_input_game.name == option_set.game_name)
+         return &option_set;
+   return nullptr;
+}
+
+static unsigned configured_network_cabinets(void)
+{
+   const auto *option_set = active_linked_cabinet_option_set();
+   if (!option_set)
+      return 2;
+
+   const char *key =
+      g_registered_option_definitions[option_set->definition_index].key;
+   const char *value = option_get(key, "2");
+   char *end = nullptr;
+   const unsigned cabinets = static_cast<unsigned>(strtoul(value, &end, 10));
+   return end && *end == '\0' && cabinets >= 2 &&
+          cabinets <= option_set->max_cabinets ? cabinets : 2;
 }
 
 static const NvramCoreOptionSet *active_nvram_option_set(void)
@@ -233,14 +343,20 @@ static bool update_core_option_visibility(void)
       g_network_board_option_visible = network_board_visible;
       changed = true;
    }
-   if (g_network_cabinets_option_visible !=
-       static_cast<int>(network_board_visible))
+   const auto *linked_option_set = active_linked_cabinet_option_set();
+   const std::string linked_game =
+      linked_option_set ? linked_option_set->game_name : "";
+   if (g_visible_network_cabinets_game != linked_game)
    {
-      struct retro_core_option_display display = {
-         "supermodel_network_cabinets", network_board_visible
-      };
-      environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
-      g_network_cabinets_option_visible = network_board_visible;
+      struct retro_core_option_display display = { nullptr, false };
+      for (const auto &option_set : g_linked_option_sets)
+      {
+         display.key =
+            g_registered_option_definitions[option_set.definition_index].key;
+         display.visible = linked_game == option_set.game_name;
+         environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
+      }
+      g_visible_network_cabinets_game = linked_game;
       changed = true;
    }
 
@@ -252,11 +368,23 @@ static bool update_core_option_visibility(void)
        static_cast<int>(offscreen_trigger_reload_visible))
    {
       struct retro_core_option_display display = {
-         "supermodel_offscreen_trigger_reload",
+         "supermodel_offscreen_reload_shortcut",
          offscreen_trigger_reload_visible
       };
       environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
       g_offscreen_trigger_reload_option_visible =
+         offscreen_trigger_reload_visible;
+      changed = true;
+   }
+   if (g_mouse_edge_offscreen_reload_option_visible !=
+       static_cast<int>(offscreen_trigger_reload_visible))
+   {
+      struct retro_core_option_display display = {
+         "supermodel_mouse_edge_offscreen_reload",
+         offscreen_trigger_reload_visible
+      };
+      environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
+      g_mouse_edge_offscreen_reload_option_visible =
          offscreen_trigger_reload_visible;
       changed = true;
    }
@@ -356,7 +484,7 @@ CoreOptions g_options = {
    /* widescreen_mode      */ WidescreenMode::Disabled,
    /* no_white_flash       */ false,
    /* av_timing_mode       */ AVTimingMode::Default60Hz,
-   /* crosshairs           */ 0,
+   /* crosshairs           */ CROSSHAIRS_AUTOMATIC,
    /* force_feedback       */ true,
    /* steering_response    */ SteeringResponse::Linear,
    /* steering_output_range */ 100,
@@ -377,7 +505,8 @@ CoreOptions g_options = {
 #endif
    /* timing_overlay      */ false,
    /* gun_input           */ GunInput::Hybrid,
-   /* offscreen_trigger_reload */ false,
+   /* offscreen_trigger_reload */ true,
+   /* mouse_edge_offscreen_reload */ false,
    /* star_wars_input     */ StarWarsInput::Hybrid,
    /* star_wars_upright_x_inversion */ true,
    /* four_speed_shifter  */ FourSpeedShifter::HGate,
@@ -392,6 +521,19 @@ static bool wide_background_enabled()
 {
    return g_active_widescreen_mode ==
           WidescreenMode::WidescreenWideBackground;
+}
+
+static unsigned effective_crosshair_mask(const Game *game)
+{
+   if (g_options.crosshairs != CROSSHAIRS_AUTOMATIC)
+      return g_options.crosshairs & 3u;
+
+   // The Lost World uses physical lightguns and needs an emulator-drawn aim
+   // marker. L.A. Machineguns and The Ocean Hunter already draw their own.
+   if (game && (game->name == "lostwsga" || game->parent == "lostwsga"))
+      return 1u;
+
+   return 0u;
 }
 
 static unsigned scaled_native_dimension(unsigned value)
@@ -1156,10 +1298,13 @@ bool retro_load_game(const struct retro_game_info *info)
    }
    g_active_input_game = loaded_game;
    g_has_active_input_game = true;
+   g_options.network_cabinets = configured_network_cabinets();
    update_core_option_visibility();
    set_input_descriptors(&loaded_game);
    set_controller_info(loaded_game);
    wrapper.SetWidescreen(widescreen_enabled(), wide_background_enabled());
+   wrapper.SetNetworkCabinets(g_options.network_cabinets);
+   wrapper.SetCrosshairs(effective_crosshair_mask(&loaded_game));
    if (wrapper.SuperModelInit(wrapper.getGame()) != 0)
    {
       log_cb(RETRO_LOG_ERROR, "[Supermodel] Emulator initialization failed.\n");
@@ -1242,6 +1387,8 @@ void retro_run(void)
       GunInput old_gun_input = g_options.gun_input;
       bool old_offscreen_trigger_reload =
          g_options.offscreen_trigger_reload;
+      bool old_mouse_edge_offscreen_reload =
+         g_options.mouse_edge_offscreen_reload;
       StarWarsInput old_star_wars_input = g_options.star_wars_input;
       bool old_star_wars_upright_x_inversion =
          g_options.star_wars_upright_x_inversion;
@@ -1250,6 +1397,7 @@ void retro_run(void)
       EmulationThreading old_emulation_threading =
          g_options.emulation_threading;
       update_core_options();
+      g_options.network_cabinets = configured_network_cabinets();
       ppc_set_jit_enabled(g_options.jit_enable);
       update_core_option_visibility();
 
@@ -1347,13 +1495,15 @@ void retro_run(void)
                    "[Supermodel] Gun Input applied immediately.\n");
       }
 
-      if (g_options.offscreen_trigger_reload !=
-          old_offscreen_trigger_reload && log_cb)
+      if (g_options.offscreen_trigger_reload != old_offscreen_trigger_reload ||
+          g_options.mouse_edge_offscreen_reload !=
+             old_mouse_edge_offscreen_reload)
       {
-         log_cb(RETRO_LOG_INFO,
-                "[Supermodel] Off-screen Trigger Reload %s.\n",
-                g_options.offscreen_trigger_reload
-                   ? "enabled" : "disabled");
+         if (g_has_active_input_game)
+            set_input_descriptors(&g_active_input_game);
+         if (log_cb)
+            log_cb(RETRO_LOG_INFO,
+                   "[Supermodel] Off-screen reload options applied immediately.\n");
       }
 
       if (g_options.star_wars_input != old_star_wars_input)
@@ -1388,7 +1538,8 @@ void retro_run(void)
       }
 
       if (g_options.crosshairs != old_crosshairs)
-         wrapper.SetCrosshairs(g_options.crosshairs);
+         wrapper.SetCrosshairs(effective_crosshair_mask(
+            g_has_active_input_game ? &g_active_input_game : nullptr));
 
       wrapper.SetSoundVolume(g_options.sound_volume);
       wrapper.SetMusicVolume(g_options.music_volume);
@@ -1900,8 +2051,7 @@ void set_controller_info(const Game &game)
    }
    for (unsigned port = 0; port < 2; ++port)
    {
-      const bool gameplay_port = !profile || port < profile->players;
-      const char *base_name = gameplay_port ? device_name : "Common Controls B";
+      const char *base_name = device_name;
       snprintf(cabinet_device_names[port], sizeof(cabinet_device_names[port]),
                "%s + Test/Service slots", base_name);
 
@@ -2012,27 +2162,50 @@ void set_input_descriptors(const Game *game)
                    RETRO_DEVICE_ID_ANALOG_X, "Gun Yaw (Analog Cursor)");
                add(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
                    RETRO_DEVICE_ID_ANALOG_Y, "Gun Pitch (Analog Cursor)");
+               add(port, RETRO_DEVICE_MOUSE, 0,
+                   RETRO_DEVICE_ID_MOUSE_X, "Gun Yaw (Mouse)");
+               add(port, RETRO_DEVICE_MOUSE, 0,
+                   RETRO_DEVICE_ID_MOUSE_Y, "Gun Pitch (Mouse)");
                add(port, RETRO_DEVICE_JOYPAD, 0,
-                   RETRO_DEVICE_ID_JOYPAD_B, "Left Shot (Analog)");
+                   RETRO_DEVICE_ID_JOYPAD_B,
+                   lost_world ? "Shot (Analog)" : "Left Shot (Analog)");
                add(port, RETRO_DEVICE_JOYPAD, 0,
-                   RETRO_DEVICE_ID_JOYPAD_A, "Right Shot (Analog)");
+                   RETRO_DEVICE_ID_JOYPAD_R,
+                   lost_world ? "Shot (Analog Alternate)" :
+                                "Left Shot (Analog Alternate)");
                add(port, RETRO_DEVICE_LIGHTGUN, 0,
                    RETRO_DEVICE_ID_LIGHTGUN_TRIGGER,
                    lost_world ? "Shot (Lightgun)" : "Left Shot (Lightgun)");
+               add(port, RETRO_DEVICE_MOUSE, 0,
+                   RETRO_DEVICE_ID_MOUSE_LEFT,
+                   lost_world ? "Shot (Mouse)" : "Left Shot (Mouse)");
                if (!lost_world)
                {
+                  add(port, RETRO_DEVICE_JOYPAD, 0,
+                      RETRO_DEVICE_ID_JOYPAD_A, "Right Shot (Analog)");
                   add(port, RETRO_DEVICE_LIGHTGUN, 0,
                       RETRO_DEVICE_ID_LIGHTGUN_AUX_A,
                       "Right Shot (Lightgun Aux A)");
                   add(port, RETRO_DEVICE_LIGHTGUN, 0,
                       RETRO_DEVICE_ID_LIGHTGUN_RELOAD,
                       "Right Shot (Batocera Reload Alias)");
+                  add(port, RETRO_DEVICE_MOUSE, 0,
+                      RETRO_DEVICE_ID_MOUSE_RIGHT, "Right Shot (Mouse)");
                }
-               else
+               else if (g_options.offscreen_trigger_reload)
                {
                   add(port, RETRO_DEVICE_LIGHTGUN, 0,
                       RETRO_DEVICE_ID_LIGHTGUN_RELOAD,
-                      "Reload / Right Shot (Lightgun)");
+                      "Reload Offscreen (Lightgun)");
+                  add(port, RETRO_DEVICE_MOUSE, 0,
+                      RETRO_DEVICE_ID_MOUSE_RIGHT,
+                      "Reload Offscreen (Mouse)");
+                  add(port, RETRO_DEVICE_JOYPAD, 0,
+                      RETRO_DEVICE_ID_JOYPAD_A,
+                      "Reload Offscreen (Analog)");
+                  add(port, RETRO_DEVICE_JOYPAD, 0,
+                      RETRO_DEVICE_ID_JOYPAD_L,
+                      "Reload Offscreen (Analog Alternate)");
                }
                break;
 
@@ -2053,11 +2226,11 @@ void set_input_descriptors(const Game *game)
                       RETRO_DEVICE_ID_LIGHTGUN_RELOAD,
                       "Right Shot (Reload Alias)");
                }
-               else
+               else if (g_options.offscreen_trigger_reload)
                {
                   add(port, RETRO_DEVICE_LIGHTGUN, 0,
                       RETRO_DEVICE_ID_LIGHTGUN_RELOAD,
-                      "Reload / Right Shot");
+                      "Reload Offscreen");
                }
                break;
 
@@ -2067,9 +2240,12 @@ void set_input_descriptors(const Game *game)
                add(port, RETRO_DEVICE_MOUSE, 0,
                    RETRO_DEVICE_ID_MOUSE_Y, "Gun Pitch");
                add(port, RETRO_DEVICE_MOUSE, 0,
-                   RETRO_DEVICE_ID_MOUSE_LEFT, "Left Shot");
-               add(port, RETRO_DEVICE_MOUSE, 0,
-                   RETRO_DEVICE_ID_MOUSE_RIGHT, "Right Shot");
+                   RETRO_DEVICE_ID_MOUSE_LEFT,
+                   lost_world ? "Shot" : "Left Shot");
+               if (!lost_world || g_options.offscreen_trigger_reload)
+                  add(port, RETRO_DEVICE_MOUSE, 0,
+                      RETRO_DEVICE_ID_MOUSE_RIGHT,
+                      lost_world ? "Reload Offscreen" : "Right Shot");
                break;
 
             case GunInput::MouseAnalog:
@@ -2078,17 +2254,35 @@ void set_input_descriptors(const Game *game)
                add(port, RETRO_DEVICE_MOUSE, 0,
                    RETRO_DEVICE_ID_MOUSE_Y, "Gun Pitch (Mouse)");
                add(port, RETRO_DEVICE_MOUSE, 0,
-                   RETRO_DEVICE_ID_MOUSE_LEFT, "Left Shot (Mouse)");
-               add(port, RETRO_DEVICE_MOUSE, 0,
-                   RETRO_DEVICE_ID_MOUSE_RIGHT, "Right Shot (Mouse)");
+                   RETRO_DEVICE_ID_MOUSE_LEFT,
+                   lost_world ? "Shot (Mouse)" : "Left Shot (Mouse)");
+               if (!lost_world || g_options.offscreen_trigger_reload)
+                  add(port, RETRO_DEVICE_MOUSE, 0,
+                      RETRO_DEVICE_ID_MOUSE_RIGHT,
+                      lost_world ? "Reload Offscreen (Mouse)" :
+                                   "Right Shot (Mouse)");
                add(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
                    RETRO_DEVICE_ID_ANALOG_X, "Gun Yaw (Analog Cursor)");
                add(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
                    RETRO_DEVICE_ID_ANALOG_Y, "Gun Pitch (Analog Cursor)");
                add(port, RETRO_DEVICE_JOYPAD, 0,
-                   RETRO_DEVICE_ID_JOYPAD_B, "Left Shot (Analog)");
+                   RETRO_DEVICE_ID_JOYPAD_B,
+                   lost_world ? "Shot (Analog)" : "Left Shot (Analog)");
                add(port, RETRO_DEVICE_JOYPAD, 0,
-                   RETRO_DEVICE_ID_JOYPAD_A, "Right Shot (Analog)");
+                   RETRO_DEVICE_ID_JOYPAD_R,
+                   lost_world ? "Shot (Analog Alternate)" :
+                                "Left Shot (Analog Alternate)");
+               if (!lost_world || g_options.offscreen_trigger_reload)
+               {
+                  add(port, RETRO_DEVICE_JOYPAD, 0,
+                      RETRO_DEVICE_ID_JOYPAD_A,
+                      lost_world ? "Reload Offscreen (Analog)" :
+                                   "Right Shot (Analog)");
+                  if (lost_world)
+                     add(port, RETRO_DEVICE_JOYPAD, 0,
+                         RETRO_DEVICE_ID_JOYPAD_L,
+                         "Reload Offscreen (Analog Alternate)");
+               }
                break;
 
             case GunInput::AnalogSticks:
@@ -2097,9 +2291,22 @@ void set_input_descriptors(const Game *game)
                add(port, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
                    RETRO_DEVICE_ID_ANALOG_Y, "Gun Pitch");
                add(port, RETRO_DEVICE_JOYPAD, 0,
-                   RETRO_DEVICE_ID_JOYPAD_B, "Left Shot");
+                   RETRO_DEVICE_ID_JOYPAD_B,
+                   lost_world ? "Shot" : "Left Shot");
                add(port, RETRO_DEVICE_JOYPAD, 0,
-                   RETRO_DEVICE_ID_JOYPAD_A, "Right Shot");
+                   RETRO_DEVICE_ID_JOYPAD_R,
+                   lost_world ? "Shot (Alternate)" :
+                                "Left Shot (Alternate)");
+               if (!lost_world || g_options.offscreen_trigger_reload)
+               {
+                  add(port, RETRO_DEVICE_JOYPAD, 0,
+                      RETRO_DEVICE_ID_JOYPAD_A,
+                      lost_world ? "Reload Offscreen" : "Right Shot");
+                  if (lost_world)
+                     add(port, RETRO_DEVICE_JOYPAD, 0,
+                         RETRO_DEVICE_ID_JOYPAD_L,
+                         "Reload Offscreen (Alternate)");
+               }
                break;
             }
          }
@@ -2399,8 +2606,9 @@ void retro_set_environment(retro_environment_t cb)
    g_visible_nvram_enabled = -1;
    g_visible_nvram_game.clear();
    g_network_board_option_visible = -1;
-   g_network_cabinets_option_visible = -1;
+   g_visible_network_cabinets_game.assign(1, '\1');
    g_offscreen_trigger_reload_option_visible = -1;
+   g_mouse_edge_offscreen_reload_option_visible = -1;
 #if defined(HAVE_LEGACY3D) && !defined(USE_LEGACY3D)
    g_legacy_multi_texture_option_visible = -1;
 #endif

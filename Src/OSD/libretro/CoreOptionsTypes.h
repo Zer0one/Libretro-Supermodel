@@ -50,6 +50,8 @@ enum class FourSpeedShifter {
    HGate      // right-stick diagonals reproduce a four-position H-pattern
 };
 
+constexpr unsigned CROSSHAIRS_AUTOMATIC = 4u;
+
 struct CoreOptions {
    bool initial_nvram_setup;
    bool network_board;
@@ -65,7 +67,7 @@ struct CoreOptions {
    WidescreenMode widescreen_mode;
    bool no_white_flash;
    AVTimingMode av_timing_mode;
-   unsigned crosshairs;      // native Supermodel mask: 0=off, 1=P1, 2=P2, 3=both
+   unsigned crosshairs;      // 0=off, 1=P1, 2=P2, 3=both, 4=game-aware automatic
    bool force_feedback;
    SteeringResponse steering_response;
    int steering_output_range;
@@ -82,6 +84,7 @@ struct CoreOptions {
    bool timing_overlay;      // draw the ImGui frame-timing overlay (costs a draw pass every frame)
    GunInput gun_input;
    bool offscreen_trigger_reload;
+   bool mouse_edge_offscreen_reload;
    StarWarsInput star_wars_input;
    bool star_wars_upright_x_inversion;
    FourSpeedShifter four_speed_shifter;
