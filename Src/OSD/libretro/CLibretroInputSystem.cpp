@@ -2,7 +2,6 @@
 #include <libretro.h>
 #include "CLibretroInputSystem.h"
 #include "CoreOptionsTypes.h"
-#include "LibretroGunInput.h"
 #include <Inputs/Input.h>
 #include <cmath>
 #include <algorithm>
@@ -441,32 +440,44 @@ bool CLibretroInputSystem::Poll()
             ? static_cast<float>(m_gunCursorY[port] - minY) /
               static_cast<float>(maxY - minY)
             : 0.5f;
-        LibretroGunInput::State gunState;
-        gunState.mode = g_options.gun_input;
-        gunState.reloadProfile =
-            m_gunSecondaryInput == GunSecondaryInput::Reload;
-        gunState.reloadShortcut = g_options.offscreen_trigger_reload;
-        gunState.mouseEdgeReload = g_options.mouse_edge_offscreen_reload;
-        gunState.cursorAtEdge = normalizedX <= kMouseEdge ||
+        const bool cursorAtEdge = normalizedX <= kMouseEdge ||
             normalizedX >= 1.0f - kMouseEdge ||
             normalizedY <= kMouseEdge || normalizedY >= 1.0f - kMouseEdge;
-        gunState.lightgunMoved = lightgunMoved;
-        gunState.lightgunOffscreen = lightgunOffscreen[port];
-        gunState.lightgunTrigger = lightgunTrigger[port];
-        gunState.lightgunReload = lightgunReload[port];
-        gunState.lightgunAuxA = lightgunAuxA[port];
-        gunState.mouseTrigger = m_mouseButtons[port][0];
-        gunState.mouseSecondary = m_mouseButtons[port][2];
-        gunState.analogTrigger = m_joyButtons[port][0];
-        gunState.analogTriggerAlt = m_joyButtons[port][5];
-        gunState.analogSecondary = m_joyButtons[port][1];
-        gunState.analogSecondaryAlt = m_joyButtons[port][4];
-        const LibretroGunInput::Actions gunActions =
-            LibretroGunInput::Resolve(gunState);
+        const bool lightgunPrimary = useLightgun && lightgunTrigger[port];
+        const bool mousePrimary = allowMouse && m_mouseButtons[port][0];
+        const bool analogPrimary = allowAnalog &&
+            (m_joyButtons[port][0] || m_joyButtons[port][5]);
+        bool primary = lightgunPrimary || mousePrimary || analogPrimary;
+        bool secondary =
+            (useLightgun &&
+             (lightgunAuxA[port] ||
+              (lightgunReload[port] && !lightgunOffscreen[port]))) ||
+            (allowMouse && m_mouseButtons[port][2]) ||
+            (allowAnalog && m_joyButtons[port][1]);
 
-        m_mouseButtons[cursorDev][0] = gunActions.primary;
+        if (m_gunSecondaryInput == GunSecondaryInput::Reload)
+        {
+            const bool physicalOffscreenReload = useLightgun &&
+                lightgunOffscreen[port] && lightgunTrigger[port];
+            const bool shortcutReload = g_options.offscreen_trigger_reload &&
+                ((useLightgun && lightgunReload[port]) ||
+                 (allowMouse && m_mouseButtons[port][2]) ||
+                 (allowAnalog &&
+                  (m_joyButtons[port][1] || m_joyButtons[port][4])));
+            const bool mouseEdgeReload =
+                g_options.mouse_edge_offscreen_reload && allowMouse &&
+                m_mouseButtons[port][0] && !useLightgun && cursorAtEdge;
+
+            primary =
+                (lightgunPrimary && !physicalOffscreenReload) ||
+                (mousePrimary && !mouseEdgeReload) || analogPrimary;
+            secondary = physicalOffscreenReload || shortcutReload ||
+                        mouseEdgeReload;
+        }
+
+        m_mouseButtons[cursorDev][0] = primary;
         m_mouseButtons[cursorDev][1] = false;
-        m_mouseButtons[cursorDev][2] = gunActions.secondary;
+        m_mouseButtons[cursorDev][2] = secondary;
         m_mouseButtons[cursorDev][3] =
             (allowLightgun && m_mouseButtons[lightgunDev][3]) ||
             (allowMouse && m_mouseButtons[port][3]);

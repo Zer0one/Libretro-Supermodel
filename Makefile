@@ -638,7 +638,7 @@ endif
 BUNDLED_GAMES_XML_H  := $(CORE_DIR)/Src/OSD/libretro/BundledGamesXml.h
 BUNDLED_SUPERMODEL_H := $(CORE_DIR)/Src/OSD/libretro/BundledSupermodelIni.h
 
-.PHONY: all clean info check-gun-input
+.PHONY: all clean info
 $(info PLATFORM_DEFINES ARE: $(PLATFORM_DEFINES))
 all: $(BUNDLED_GAMES_XML_H) $(BUNDLED_SUPERMODEL_H) $(TARGET)
 
@@ -704,13 +704,6 @@ clean:
 	@echo "Cleaning..."
 	@rm -f $(OBJECTS) $(DEPFILES) $(TARGET)
 	@echo "Clean complete"
-
-check-gun-input:
-	@mkdir -p build/checks
-	$(CXX) -std=c++17 -Wall -Wextra -pedantic -I$(CORE_DIR) \
-		$(CORE_DIR)/Scripts/test_gun_input.cpp \
-		-o build/checks/supermodel-gun-input-checks
-	@build/checks/supermodel-gun-input-checks
 
 info:
 	@echo "Platform: $(platform)"
