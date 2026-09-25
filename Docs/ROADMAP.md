@@ -4,42 +4,52 @@
 
 Status: planned.
 
-Run a Service Menu acquisition campaign for every ROM set that currently
-exposes Libretro `NVRAM Settings`. The implementation currently covers 57 sets:
-22 parents and 35 clones. This first campaign is intentionally limited to the
-settings already exposed by the core; other visible Service Menu rows may
-appear in the evidence, but they are outside the catalog and implementation
-audit until explicitly added to the scope.
+Run a Service Menu acquisition campaign for every ROM set in `Games.xml` and
+catalog every setting available for each title. The current inventory contains
+63 sets: 22 parents and 41 clones. The catalog is not limited to settings
+already exposed by the core.
+
+The narrower initial scope applies only to supplemental samples and binary
+validation. Generate additional `.srm` samples, decode their storage and test
+write persistence for the settings currently exposed as Libretro `NVRAM
+Settings`. That implementation currently covers 57 sets: 22 parents and 35
+clones. Settings found in the Service Menu but not yet exposed must still be
+recorded in the catalog and identified as implementation gaps; they do not
+require supplemental `.srm` samples during this first campaign.
 
 The campaign must produce two repository documents modelled after the SM2-Emu
 reference work:
 
 - an authoritative `GAME_SETTINGS_CATALOG.md`, derived from Service Menu
-  screenshots and recording each implemented setting's visible label, relative
-  order, native default, and every observed selectable value;
+  screenshots and recording every available setting's visible label, relative
+  order, native default, and every observed selectable value for each set;
 - an `NVRAM_SETTINGS_AUDIT.md` comparing that catalog with
   `LibretroNvramSettings.h`, including option presence, order, labels, values,
   defaults, encoded values, integrity updates, template routing, and clone
-  routing.
+  routing. Settings present in the catalog but absent from the implementation
+  must be listed explicitly without expanding the initial sample scope.
 
 ### Acquisition rules
 
-1. Build the campaign inventory from the NVRAM options registered by the core
-   at the start of the campaign. Record the exact core revision and `Games.xml`
-   revision used for the evidence.
+1. Build the full catalog inventory from every set in `Games.xml`. Build a
+   separate supplemental-sample inventory from the NVRAM options registered by
+   the core at the start of the campaign. Record the exact core revision and
+   `Games.xml` revision used for the evidence.
 2. Acquire a clean native baseline for every supported set with `Automatic
    Initial NVRAM Setup` and `NVRAM Settings` disabled. Each option cycle must
    restart from that immutable baseline rather than from the preceding sample.
-3. Capture the base Game Settings screen and every distinct value of each
-   in-scope option. Screenshots are authoritative for visible presence, order,
-   labels, values, and native defaults; implementation tables, TOML recipes,
-   and parent metadata are secondary evidence.
+3. Capture every Game Settings page and enumerate every distinct selectable
+   value for every setting. Screenshots are authoritative for visible presence,
+   order, labels, values, and native defaults; implementation tables, TOML
+   recipes, and parent metadata are secondary evidence.
 4. Keep ROMs, generated Save RAM, raw screenshots, logs, and temporary frontend
    profiles outside Git. Commit the reproducible campaign definitions, the
    indexed catalog, the audit, and validation tooling.
-5. Validate each observed selection against the generated `.srm`: confirm the
-   expected byte encoding, checksum or mirror update, clean import, and
-   persistence after a second launch.
+5. For settings in the supplemental-sample inventory, validate each observed
+   selection against the generated `.srm`: confirm the expected byte encoding,
+   checksum or mirror update, clean import, and persistence after a second
+   launch. Catalog-only settings do not require generated samples in this first
+   campaign.
 
 ### Parent and clone criteria
 
@@ -47,8 +57,9 @@ reference work:
   prove that labels, order, values, defaults, offsets, checksums, or storage
   layout are compatible.
 - A clone may share a parent catalog only after its own evidence confirms the
-  same visible in-scope menu and every exposed value can be written and
-  persisted with the parent encoding rules.
+  same complete visible menu. For settings in the supplemental-sample
+  inventory, every exposed value must also be written and persisted with the
+  parent encoding rules.
 - A byte-identical native baseline alone is insufficient to authorize catalog
   inheritance. Conversely, a different baseline does not require a different
   catalog when direct menu acquisition and complete write validation prove the
@@ -80,17 +91,20 @@ deliberate policy overrides:
 
 ### Completion criteria
 
-- 100% of the sets and settings in the campaign inventory have indexed Service
-  Menu evidence, including every clone;
+- 100% of the 63 sets and every available setting have indexed Service Menu
+  evidence, including every clone;
 - every currently exposed NVRAM option is accounted for, and no unreviewed
   option or value remains exposed;
-- catalog and implementation agree on presence, order, labels, accepted values,
-  native defaults, encodings, and integrity handling;
+- every catalog setting absent from the implementation is listed explicitly;
+- for the currently exposed subset, catalog and implementation agree on
+  presence, order, labels, accepted values, native defaults, encodings, and
+  integrity handling;
 - every clone route is supported by clone-specific evidence;
 - native defaults and deliberate overrides are reported separately and covered
   by automated checks;
 - clean initialization, option application, save import, and persistence pass
-  for every supported set before the audit is marked complete.
+  for every set and setting in the supplemental-sample inventory before the
+  audit is marked complete.
 
 ## Cross-core widescreen assessment
 
