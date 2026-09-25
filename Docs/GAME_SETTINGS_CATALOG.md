@@ -695,15 +695,14 @@ del parent è archiviata come test diagnostico non pertinente.
 | 6 | TOURNAMENT MODE | OFF | uguale | schermata base clone |
 | 7 | COUNTRY | JAPAN | parent: USA | schermata base clone |
 
-La struttura e i default sono una trascrizione diretta del clone. Nel workbook
-i valori selezionabili sono derivati dalla ricetta fotografica di `bassdx` e
-marcati come tali; non vengono presentati come cicli acquisiti direttamente sul
-clone. I default divergenti restano invece quelli osservati in `getbassdx`.
+La struttura e i default sono una trascrizione diretta del clone. I valori delle
+opzioni NVRAM esposte sono stati successivamente acquisiti e verificati
+direttamente anche su `getbassdx`; i default divergenti restano quelli osservati
+nel clone.
 
-Il workbook `revisione_core_options_model3.xlsx` applica lo stesso criterio a
-tutti i cloni nella scheda `Cloni` e registra stato ed evidenze nella scheda
-`Copertura cloni`, mantenendo separati i valori direttamente osservati da
-quelli attribuiti al parent.
+Il workbook [`revisione_core_options_model3.xlsx`](revisione_core_options_model3.xlsx)
+applica lo stesso criterio a tutti i cloni nella scheda `Cloni` e registra stato
+ed evidenze nella scheda `Copertura cloni`.
 
 ## Esclusioni
 

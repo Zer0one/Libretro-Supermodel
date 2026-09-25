@@ -8,9 +8,10 @@ recipes; 38/40 clones have direct structural evidence. The two Sega Rally 2
 prototypes fail before reaching the Service Menu. Current coverage and findings are tracked in
 [`GAME_SETTINGS_CATALOG.md`](GAME_SETTINGS_CATALOG.md) and
 [`NVRAM_SETTINGS_AUDIT.md`](NVRAM_SETTINGS_AUDIT.md).
-The Model 3 workbook now contains separate `Cloni` and `Copertura cloni`
-worksheets derived only after direct clone menu acquisition, with parent-derived
-value cycles labelled by provenance.
+The Model 3 workbook
+[`revisione_core_options_model3.xlsx`](revisione_core_options_model3.xlsx)
+contains separate `Cloni` and `Copertura cloni` worksheets derived only after
+direct clone menu acquisition and complete NVRAM value validation.
 
 Prototype and location-test sets are part of the campaign whenever they can be
 run. Their status is never an exclusion criterion. At present only `mgtrkbad`
