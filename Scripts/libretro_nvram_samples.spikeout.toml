@@ -13,7 +13,8 @@ standard_srm = "~/Documents/RetroArch/model3-nvram-analysis/spikeout/game-base.s
 output_dir = "~/Documents/RetroArch/model3-nvram-analysis/spikeout/generated"
 
 # Common timings, in real seconds.
-startup_wait = 5.0
+# Wait until the game accepts deterministic Test/Service navigation.
+startup_wait = 12.0
 button_hold = 0.06
 button_hold_long = 0.12
 default_wait = 0.2

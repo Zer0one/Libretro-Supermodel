@@ -787,6 +787,12 @@ static NvramPatchResult apply_initial_nvram_settings(void)
       return NvramPatchResult::NotApplicable;
 
    LibretroNvramSettings::Selection selection;
+   const auto country = LibretroNvramSettings::Setting::Country;
+   if (LibretroNvramSettings::GetSettingInfo(&g_active_input_game, country))
+      selection.values[static_cast<unsigned>(country)] =
+         LibretroNvramSettings::GetDefaultValue(&g_active_input_game,
+                                                country);
+
    const auto link_mode = LibretroNvramSettings::Setting::LinkMode;
    if (LibretroNvramSettings::GetSettingInfo(&g_active_input_game, link_mode))
       selection.values[static_cast<unsigned>(link_mode)] =

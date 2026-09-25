@@ -13,7 +13,8 @@ standard_srm = "~/Documents/RetroArch/model3-nvram-analysis/bassdx/game-base.srm
 output_dir = "~/Documents/RetroArch/model3-nvram-analysis/bassdx/generated"
 
 # Common timings, in real seconds.
-startup_wait = 5.0
+# bassdx reaches its input-ready attract loop later than the other parents.
+startup_wait = 12.0
 button_hold = 0.06
 button_hold_long = 0.12
 default_wait = 0.18

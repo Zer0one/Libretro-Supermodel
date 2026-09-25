@@ -39,7 +39,7 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "supermodel_initial_nvram_setup",
       "Automatic Initial NVRAM Setup",
       NULL,
-      "When no frontend .srm or valid standalone .nv exists, initialize supported games with Single, Stand Alone, or No Link and set Star Wars Trilogy Arcade to the Upright cabinet. Other EEPROM fields retain the validated smoke-test values for that ROM set. Existing saves are never modified. Delete the game's .srm to regenerate this initial setup. Restart content to apply.",
+      "When no frontend .srm or valid standalone .nv exists, initialize supported games from a validated ROM-set sample, prefer Export country with USA as fallback, apply Single, Stand Alone, or No Link where available, and set Star Wars Trilogy Arcade to the Upright cabinet. Other fields retain the validated sample values. Existing saves are never modified. Delete the game's .srm to regenerate this initial setup. Restart content to apply.",
       NULL,
       "system",
       {

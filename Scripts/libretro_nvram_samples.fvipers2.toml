@@ -13,7 +13,9 @@ standard_srm = "~/Documents/RetroArch/model3-nvram-analysis/fvipers2/game-base.s
 output_dir = "~/Documents/RetroArch/model3-nvram-analysis/fvipers2/generated"
 
 # Common timings, in real seconds.
-startup_wait = 5.0
+# The regional warning remains active after 12 seconds; wait for the attract
+# loop before sending Test/Service input.
+startup_wait = 25.0
 button_hold = 0.06
 button_hold_long = 0.12
 default_wait = 0.2

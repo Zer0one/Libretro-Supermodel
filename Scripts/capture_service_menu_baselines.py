@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture base Service Menu pages from the existing parent NVRAM recipes."""
+"""Capture Service Menu evidence from the existing parent NVRAM recipes."""
 
 from __future__ import annotations
 
@@ -24,9 +24,17 @@ MENUS = (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Capture parent Service Menu baseline pages without retaining Save RAM."
+        description="Capture parent Service Menu pages without retaining Save RAM."
     )
     parser.add_argument("--game", action="append", default=[], metavar="SET")
+    parser.add_argument(
+        "--values", action="store_true",
+        help="photograph each selected value from the validated NVRAM recipe",
+    )
+    parser.add_argument(
+        "--sample", action="append", default=[], metavar="SUFFIX",
+        help="with --values, photograph only this recipe sample; repeat as needed",
+    )
     parser.add_argument("--output-root", type=Path, default=Path(
         "~/Documents/RetroArch/model3-game-settings-catalog"
     ))
@@ -66,10 +74,40 @@ def menu_samples(macros: dict[str, list[str]]) -> list[sampler.Sample]:
     return samples
 
 
+def value_samples(
+    path: Path, macros: dict[str, list[str]], requested: set[str],
+) -> list[sampler.Sample]:
+    with path.open("rb") as stream:
+        entries = tomllib.load(stream)["samples"]
+    known = {entry["suffix"] for entry in entries}
+    unknown = sorted(requested - known)
+    if unknown:
+        raise ValueError(
+            f"unknown sample(s) for {path.name}: " + ", ".join(unknown)
+        )
+    samples = []
+    for entry in entries:
+        suffix = entry["suffix"]
+        if requested and suffix not in requested:
+            continue
+        sequence = entry["sequence"]
+        if not isinstance(sequence, list) or len(sequence) != 6:
+            raise ValueError(f"unexpected validated sequence layout: {path.name}:{suffix}")
+        tokens = []
+        for part in sequence[:3]:
+            tokens.extend(sampler.split_tokens(part, f"sample {suffix} sequence"))
+        tokens.extend(("CAPTURE(selected)", "CLOSE"))
+        actions = sampler.validate_close(sampler.expand_actions(tokens, macros))
+        samples.append(sampler.Sample(suffix, tuple(actions)))
+    return samples
+
+
 def main() -> int:
     if sys.platform != "darwin":
         raise RuntimeError("this Service Menu capture utility currently supports macOS only")
     args = parse_args()
+    if args.sample and not args.values:
+        raise ValueError("--sample requires --values")
     scripts = Path(__file__).resolve().parent
     recipes = sorted(scripts.glob("libretro_nvram_samples.*.toml"))
     recipes = [path for path in recipes if not path.name.endswith(".example.toml")]
@@ -88,7 +126,11 @@ def main() -> int:
         settings, _ = sampler.load_campaign(recipe_args(recipe))
         if requested and settings.game not in requested:
             continue
-        samples = menu_samples(load_macros(recipe))
+        macros = load_macros(recipe)
+        samples = (
+            value_samples(recipe, macros, set(args.sample))
+            if args.values else menu_samples(macros)
+        )
         selected.append((recipe, settings, samples))
 
     if args.dry_run:
@@ -117,8 +159,18 @@ def main() -> int:
             results.append(result)
             print(f"       {sample.suffix}: {result.status}", flush=True)
             failures += result.status not in {"ok", "skipped"}
-        (output / "baseline-summary.json").write_text(
-            json.dumps([asdict(result) for result in results], indent=2) + "\n",
+        summary_name = "values-summary.json" if args.values else "baseline-summary.json"
+        summary_path = output / summary_name
+        serialized = [asdict(result) for result in results]
+        if args.sample and summary_path.is_file():
+            previous = json.loads(summary_path.read_text(encoding="utf-8"))
+            replacements = {item["sample"]: item for item in serialized}
+            serialized = [
+                replacements.pop(item["sample"], item) for item in previous
+            ]
+            serialized.extend(replacements.values())
+        summary_path.write_text(
+            json.dumps(serialized, indent=2) + "\n",
             encoding="utf-8",
         )
     return 1 if failures else 0
