@@ -12,6 +12,11 @@ game = "srally2"
 standard_srm = "~/Documents/RetroArch/model3-nvram-analysis/srally2/cabinet-deluxe-base.srm"
 output_dir = "~/Documents/RetroArch/model3-nvram-analysis/srally2/generated"
 
+# Set this to false for catalog-only Service Menu acquisition. Screenshots are
+# retained, while the automatically generated Save RAM remains isolated and is
+# discarded when RetroArch closes.
+collect_saves = true
+
 # Common timings, in real seconds.
 startup_wait = 10.0
 button_hold = 0.06
@@ -34,6 +39,7 @@ window_height = 384
 # pressed sequentially. Every HOLD must have a matching RELEASE before CLOSE.
 # Prefix a button with P2_ to address controller 2, for example P2_START.
 # The prefix also works with SHORT/LONG/HOLD/RELEASE and simultaneous buttons.
+# CAPTURE(label) writes a PNG of the RetroArch window to output_dir/screenshots.
 [macros]
 EnterServ = "L3, WAIT(0.7)"
 OpenGameAssignments = "R3*9, L3, WAIT(0.5)"
@@ -66,4 +72,4 @@ sequence = [
 #
 # [[samples]]
 # suffix = "another-setting"
-# sequence = "@EnterServ, R3*4, L3, WAIT(1.0), @Close"
+# sequence = "@EnterServ, R3*4, L3, WAIT(1.0), CAPTURE(setting), @Close"

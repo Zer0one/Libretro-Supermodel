@@ -19,6 +19,9 @@ release.
 
 Planned validation and evidence campaigns are tracked in the
 [project roadmap](ROADMAP.md).
+The active Service Menu campaign publishes its partial, evidence-backed results
+in the [Game Settings catalog](GAME_SETTINGS_CATALOG.md) and the corresponding
+[NVRAM Settings audit](NVRAM_SETTINGS_AUDIT.md).
 
 ## 🚀 Key Improvements
 - **Unified Makefile:** Single build configuration supporting 6 platforms (Linux, Windows, macOS, Android, RPi64, aarch64) following libretro/skeletor standards.

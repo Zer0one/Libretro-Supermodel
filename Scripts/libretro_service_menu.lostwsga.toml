@@ -1,0 +1,82 @@
+# Pilot catalog acquisition for The Lost World.
+
+[retroarch]
+executable = "~/Retro/Apps/RetroArch/Nightly/RetroArch (ARM).app/Contents/MacOS/RetroArch"
+core = "~/Library/Application Support/RetroArch/cores/supermodel_dev_libretro.dylib"
+rom_dir = "${SUPERMODEL_ROM_DIR}"
+system_assets = "../Config"
+base_config = "~/Library/Application Support/RetroArch/config/retroarch.cfg"
+
+[campaign]
+game = "lostwsga"
+standard_srm = "~/Documents/RetroArch/model3-nvram-analysis/lostwsga/game-base.srm"
+output_dir = "~/Documents/RetroArch/model3-game-settings-catalog/lostwsga"
+collect_saves = false
+startup_wait = 5.0
+button_hold = 0.06
+button_hold_long = 0.12
+default_wait = 0.2
+settle_before_close = 0.5
+close_gap = 0.7
+shutdown_timeout = 15.0
+window_width = 496
+window_height = 384
+
+[macros]
+EnterService = "L3, WAIT(2.0)"
+OpenGameAssignments = "R3*5, L3, WAIT(0.7)"
+OpenCountryAssignments = "START*2, R3, START, R3, L3, WAIT(0.7)"
+Close = "CLOSE"
+
+[[samples]]
+suffix = "difficulty"
+sequence = [
+  "@EnterService, @OpenGameAssignments, R3",
+  "CAPTURE(00), L3, CAPTURE(01), L3, CAPTURE(02), L3, CAPTURE(03)",
+  "L3, CAPTURE(04), L3, CAPTURE(05), L3, CAPTURE(06), L3, CAPTURE(07)",
+  "L3, CAPTURE(08), L3, CAPTURE(09), L3, CAPTURE(10), L3, CAPTURE(11)",
+  "L3, CAPTURE(12), L3, CAPTURE(13), L3, CAPTURE(14), L3, CAPTURE(15)",
+  "@Close",
+]
+
+[[samples]]
+suffix = "advertise-sound"
+sequence = [
+  "@EnterService, @OpenGameAssignments, R3*2",
+  "CAPTURE(00), L3, CAPTURE(01)",
+  "@Close",
+]
+
+[[samples]]
+suffix = "life"
+sequence = [
+  "@EnterService, @OpenGameAssignments, R3*3",
+  "CAPTURE(00), L3, CAPTURE(01), L3, CAPTURE(02), L3, CAPTURE(03)",
+  "L3, CAPTURE(04), L3, CAPTURE(05), L3, CAPTURE(06), L3, CAPTURE(07)",
+  "L3, CAPTURE(08)",
+  "@Close",
+]
+
+[[samples]]
+suffix = "country"
+sequence = [
+  "@EnterService, @OpenGameAssignments, R3*4",
+  "CAPTURE(00)",
+  "@Close",
+]
+
+[[samples]]
+suffix = "boss-action"
+sequence = [
+  "@EnterService, @OpenGameAssignments, R3*5",
+  "CAPTURE(00), L3, CAPTURE(01)",
+  "@Close",
+]
+
+[[samples]]
+suffix = "country-assignments"
+sequence = [
+  "@EnterService, @OpenCountryAssignments",
+  "CAPTURE(00), R3, CAPTURE(01), R3, CAPTURE(02), R3, CAPTURE(03)",
+  "@Close",
+]

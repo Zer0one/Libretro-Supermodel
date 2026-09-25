@@ -2,7 +2,10 @@
 
 ## Authoritative Game Settings acquisition and NVRAM audit
 
-Status: planned.
+Status: in progress. The acquisition path has been validated on `lostwsga`;
+current coverage and findings are tracked in
+[`GAME_SETTINGS_CATALOG.md`](GAME_SETTINGS_CATALOG.md) and
+[`NVRAM_SETTINGS_AUDIT.md`](NVRAM_SETTINGS_AUDIT.md).
 
 Run a Service Menu acquisition campaign for every ROM set in `Games.xml` and
 catalog every setting available for each title. The current inventory contains
@@ -20,10 +23,10 @@ require supplemental `.srm` samples during this first campaign.
 The campaign must produce two repository documents modelled after the SM2-Emu
 reference work:
 
-- an authoritative `GAME_SETTINGS_CATALOG.md`, derived from Service Menu
+- an authoritative [`GAME_SETTINGS_CATALOG.md`](GAME_SETTINGS_CATALOG.md), derived from Service Menu
   screenshots and recording every available setting's visible label, relative
   order, native default, and every observed selectable value for each set;
-- an `NVRAM_SETTINGS_AUDIT.md` comparing that catalog with
+- an [`NVRAM_SETTINGS_AUDIT.md`](NVRAM_SETTINGS_AUDIT.md) comparing that catalog with
   `LibretroNvramSettings.h`, including option presence, order, labels, values,
   defaults, encoded values, integrity updates, template routing, and clone
   routing. Settings present in the catalog but absent from the implementation
