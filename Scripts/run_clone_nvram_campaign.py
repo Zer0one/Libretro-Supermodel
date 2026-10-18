@@ -29,7 +29,7 @@ PROFILES: dict[str, tuple[str, tuple[str, ...]]] = {
     "fvipers2o": ("fvipers2", ("difficulty", "country")),
     "harleya": ("harley", ("difficulty", "country", "cabinet", "link", "link-id")),
     "oceanhuna": ("oceanhun", ("difficulty", "country", "cabinet")),
-    "scudau": ("scud", ("link", "link-id")),
+    "scudau": ("scud", ("difficulty", "cabinet", "link", "link-id")),
     "scuddx": ("scud", ("difficulty", "country")),
     "scuddxo": ("scud", ("difficulty", "country")),
     "scudplus": ("scud", ("difficulty", "country", "cabinet", "link", "link-id")),
@@ -172,8 +172,9 @@ def exceptional_sample(clone: str, group: str, step: int) -> sampler.Sample | No
                   f"SERVICE*{leave}", "TEST", "WAIT(0.5)",
                   "SERVICE*3", "TEST", "WAIT(3.0)", "CLOSE"]
         return sampler.Sample(f"{group}-step-{step:02d}", action_tokens(tokens))
-    if clone == "scudau" and group in {"link", "link-id"}:
-        select, leave = (1, 8) if group == "link" else (2, 7)
+    if clone == "scudau" and group in {"link", "link-id", "cabinet", "difficulty"}:
+        select = {"link": 1, "link-id": 2, "cabinet": 3, "difficulty": 4}[group]
+        leave = 9 - select
         tokens = common_start + [
             "SERVICE*8", "TEST", "WAIT(1.0)", f"SERVICE*{select}",
             f"TEST*{step}", "WAIT(0.5)", f"SERVICE*{leave}", "TEST",

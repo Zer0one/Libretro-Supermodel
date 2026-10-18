@@ -807,56 +807,81 @@ const MouseDetails *CLibretroInputSystem::GetMouseDetails(int mseNum)
     return &d[mseNum];
 }
 
-bool CLibretroInputSystem::ProcessForceFeedbackCmd(int joyNum, int /*axisNum*/, ForceFeedbackCmd ffCmd)
+bool CLibretroInputSystem::ProcessForceFeedbackCmd(int joyNum, int axisNum, ForceFeedbackCmd ffCmd)
+{
+    if (joyNum < 0 || joyNum >= 2 || axisNum < 0 || axisNum >= NUM_JOY_AXES)
+        return false;
+    std::lock_guard<std::mutex> lock(m_rumbleMutex);
+    if (ffCmd.id == FFStop)
+    {
+        std::fill_n(m_rumbleEffects[joyNum][axisNum], 4, uint16_t{0});
+    }
+    else
+    {
+        if (ffCmd.id < FFConstantForce || ffCmd.id > FFVibrate)
+            return false;
+        // Preserve native force magnitudes; there is no synthetic cornering
+        // signal or steering threshold in this backend.
+        m_rumbleEffects[joyNum][axisNum][ffCmd.id] = static_cast<uint16_t>(
+            std::min(std::abs(ffCmd.force), 1.0f) * 65535);
+    }
+    // Track native changes while muted so enabling output restores the current
+    // effects even when the drive board deduplicates unchanged commands.
+    PublishRumble(static_cast<unsigned>(joyNum));
+    return true;
+}
+
+void CLibretroInputSystem::PublishRumble(unsigned port, bool force)
 {
     if (!m_rumbleInterface.set_rumble_state)
+        return;
+    uint16_t strong = 0, weak = 0;
+    if (m_ffbEnabled)
+        for (const auto &axis : m_rumbleEffects[port])
+        {
+            strong = std::max(strong, std::max(
+                axis[FFConstantForce], axis[FFSelfCenter]));
+            weak = std::max(weak, std::max(axis[FFFriction], axis[FFVibrate]));
+        }
+    for (unsigned motor = 0; motor < 2; ++motor)
     {
-        return false;
+        const uint16_t strength = motor == 0 ? strong : weak;
+        if (force || m_rumbleMotors[port][motor] != strength)
+        {
+            m_rumbleInterface.set_rumble_state(port,
+                motor == 0 ? RETRO_RUMBLE_STRONG : RETRO_RUMBLE_WEAK,
+                strength);
+            m_rumbleMotors[port][motor] = strength;
+        }
     }
+}
 
-    // If the user disabled FFB in the menu, or we have no interface, abort early
-    if (!m_ffbEnabled || !m_rumbleInterface.set_rumble_state)
-        return false;
-        
-    // 2. Map the float force (-1.0 to 1.0) to Libretro's uint16_t (0 to 65535)
-    // Most gamepads only support vibration strength, not direction, so we use absolute value.
-    uint16_t strength = (uint16_t)(std::min(std::abs(ffCmd.force), 1.0f) * 65535);
+void CLibretroInputSystem::SetRumbleInterface(struct retro_rumble_interface interface)
+{
+    std::lock_guard<std::mutex> lock(m_rumbleMutex);
+    m_rumbleInterface = interface;
+    for (unsigned port = 0; port < 2; ++port)
+        PublishRumble(port, true);
+}
 
-    switch (ffCmd.id)
-    {
-        case FFConstantForce:
-        case FFSelfCenter:
-            // High torque effects go to the Strong (Low-Frequency) motor
-            m_rumbleInterface.set_rumble_state(joyNum, RETRO_RUMBLE_STRONG, strength);
-            break;
-
-        case FFVibrate:
-        case FFFriction:
-            // High frequency effects go to the Weak (High-Frequency) motor
-            m_rumbleInterface.set_rumble_state(joyNum, RETRO_RUMBLE_WEAK, strength);
-            break;
-
-        case FFStop:
-            m_rumbleInterface.set_rumble_state(joyNum, RETRO_RUMBLE_STRONG, 0);
-            m_rumbleInterface.set_rumble_state(joyNum, RETRO_RUMBLE_WEAK, 0);
-            break;
-
-        default:
-            return false;
-    }
-
-    return true;
+void CLibretroInputSystem::SetFFBEnabled(bool enabled)
+{
+    std::lock_guard<std::mutex> lock(m_rumbleMutex);
+    if (m_ffbEnabled == enabled)
+        return;
+    m_ffbEnabled = enabled;
+    for (unsigned port = 0; port < 2; ++port)
+        PublishRumble(port);
 }
 
 void CLibretroInputSystem::StopAllRumble()
 {
-    if (!m_rumbleInterface.set_rumble_state)
-        return;
-
+    std::lock_guard<std::mutex> lock(m_rumbleMutex);
     for (unsigned port = 0; port < 2; ++port)
     {
-        m_rumbleInterface.set_rumble_state(port, RETRO_RUMBLE_STRONG, 0);
-        m_rumbleInterface.set_rumble_state(port, RETRO_RUMBLE_WEAK, 0);
+        for (auto &axis : m_rumbleEffects[port])
+            std::fill_n(axis, 4, uint16_t{0});
+        PublishRumble(port, true);
     }
 }
 

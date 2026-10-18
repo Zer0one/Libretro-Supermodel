@@ -69,8 +69,9 @@ project catalogue/embedded fallback; normal ROM identities and CRCs are unchange
 
 The native role is configurable, not assigned automatically: Single runs attract;
 Master and Slave issue their respective board requests, with retained identities.
-Scud Australia now exposes only the two verified native networking fields. All
-other fields remain outside its NVRAM overrides pending separate selection.
+The networking delivery initially exposed only the two verified native networking
+fields. The 2026-10-18 follow-up below completes the already-supported parent
+Difficulty and Cabinet Type scope for this clone.
 
 The existing RetroArch campaign runner and Scud recipe were adapted to the missing
 Country row. Inventory precedes supplemental variations: eight operator settings,
@@ -238,3 +239,37 @@ authorization; owned QA trials exited 0. Build and 25-export/dependency gates
 pass. Standard local core SHA-256: `5cca917dc93bcc9ea9b65377d5f87658533038c14c1bee20506b4e04442c7862`. Info,
 active configuration and external System assets remain unchanged. Scoped source
 rollback/rebuild is retained; no extra binary backup, commit or push.
+
+## Scud Australia Override Completion — 2026-10-18
+
+The native inventory was complete, but an obsolete per-set exclusion and missing
+selector defaults still blocked Difficulty and Cabinet Type. The exclusion now
+applies only to Country, which has no native selector in this Australian release.
+The existing Scud field patcher is reused: Difficulty is the low byte of words
+16/45 (Easy=0, Normal=1, Hard=2, Hardest=3); Cabinet Type is the high byte
+(Deluxe=0, Twin=1). Defaults are Normal and Twin.
+
+Six supplemental values were acquired through the existing RetroArch campaign
+runner from the previously validated game-committed baseline. All six pass fresh
+RetroArch reloads with photographed native values, EEPROM CRC and mirrors.
+The previous eleven networking samples remain valid and unchanged. The existing
+clone validator now passes 478 acquired values across 35 release clones.
+Evidence: `outputs/scudau-settings-20261018/validation.json` and
+`outputs/scudau-settings-20261018/clone-validation.tsv`.
+
+The dedicated initial EEPROM seed already contains Normal/Twin and is preserved;
+Automatic Initial NVRAM still explicitly applies Single without overwriting valid
+user saves. The common workbook, diagnostic YAML, standalone recipe and clone
+runner now reflect all four managed fields. Advertise Sound, Game Mode, Motor
+Power and Multi Display remain inventoried and pending selection in the roadmap,
+consistent with the current parent implementation.
+
+macOS ARM build and 25-export ABI validation pass. Registration adds exactly two
+definitions (258 total), preserving all 256 previous definitions. A real RetroArch
+Service Menu probe also confirms that enabled NVRAM overrides apply Hardest and
+Deluxe together. This does not add linked gameplay or other-platform qualification.
+
+A supplemental runner failure exposed a timing race in `wait_while_alive`: a
+second monotonic-clock read could cross the deadline and pass a negative sleep.
+Clamp the remaining delay at zero. Existing successful samples were retained;
+only the interrupted sample was retried.

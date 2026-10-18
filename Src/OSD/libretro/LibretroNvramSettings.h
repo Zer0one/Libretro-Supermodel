@@ -132,7 +132,7 @@ inline const SupportedGame *GetSupportedGames(size_t &count)
         nullptr, nullptr, nullptr, nullptr, "disabled" } },
     { "scud", nullptr,
       { "export", "normal", "single", "1", "twin" } },
-    { "scudau", "scud", { nullptr, nullptr, "single", "1" } },
+    { "scudau", "scud", { nullptr, "normal", "single", "1", "twin" } },
     { "scuddx", "scud",
       { "export", "normal" } },
     { "scuddxo", "scud",
@@ -319,11 +319,10 @@ inline bool CountryExcluded(const Game &game)
 
 inline bool SettingExcluded(const Game &game, Setting setting)
 {
-  // Runtime-verified role/identity fields. The earlier campaign entered the
-  // Games.xml-patched graphics debug menu, not the native operator catalogue.
-  // Other fields retain their previous exclusion pending a separate inventory.
+  // The native Australian operator catalogue has no Country selector.
+  // Difficulty, Cabinet Type and networking use directly verified native fields.
   if (game.name == "scudau")
-    return setting != Setting::LinkMode && setting != Setting::LinkId;
+    return setting == Setting::Country;
   if (game.name == "scuddx" || game.name == "scuddxo")
     return setting == Setting::LinkMode || setting == Setting::LinkId ||
            setting == Setting::Cabinet;

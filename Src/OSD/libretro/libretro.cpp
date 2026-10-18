@@ -41,7 +41,6 @@ retro_input_state_t input_state_cb = NULL;
 retro_log_printf_t log_cb;
 
 struct retro_hw_render_callback hw_render;
-struct retro_rumble_interface rumble;
 struct retro_vfs_interface *g_vfs_interface = nullptr;
 static LibretroWrapper wrapper = LibretroWrapper();
 void set_input_descriptors(const Game *game);
@@ -1470,22 +1469,6 @@ bool retro_load_game(const struct retro_game_info *info)
        return false;
    }
 
-   // 1. Attempt to get the Rumble Interface from the frontend
-   if (environ_cb(RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE, &rumble))
-   {
-      // Cast the base shared_ptr to the specific derived shared_ptr
-      auto libretroInput = std::static_pointer_cast<CLibretroInputSystem>(wrapper.getInputSystem());
-      
-      if (libretroInput) {
-         libretroInput->SetRumbleInterface(rumble);
-         libretroInput->SetFFBEnabled(g_options.force_feedback);
-      }
-   }
-   else
-   {
-        // Optional: Log that rumble is not supported by this frontend/controller
-   }
-
    g_active_gun_input = g_options.gun_input;
    g_active_star_wars_input = g_options.star_wars_input;
    ppc_set_jit_enabled(g_options.jit_enable);
@@ -1529,13 +1512,6 @@ bool retro_load_game(const struct retro_game_info *info)
       wrapper.ShutDownSupermodel();
       return false;
    }
-   // Re-apply FFB state after full DriveBoard initialization
-   auto libretroInput2 = std::static_pointer_cast<CLibretroInputSystem>(wrapper.getInputSystem());
-   if (libretroInput2 && g_options.force_feedback) {
-      libretroInput2->SetFFBEnabled(false);   // force a state transition
-      libretroInput2->SetFFBEnabled(true);
-   }
-
    return true;
 }
 void retro_unload_game(void)
@@ -1749,9 +1725,6 @@ void retro_run(void)
       if (libretroInput) {
          libretroInput->SetFFBEnabled(g_options.force_feedback);
 
-         // If we just disabled it, kill any active vibration immediately
-         if (!g_options.force_feedback)
-            libretroInput->StopAllRumble();
       }
    }
 

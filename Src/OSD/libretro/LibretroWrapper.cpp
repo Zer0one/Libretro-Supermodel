@@ -535,6 +535,7 @@ int LibretroWrapper::SuperModelInit(const Game &game) {
       auto* libInput = static_cast<CLibretroInputSystem*>(m_inputSystem.get());
       if (libInput) {
           libInput->SetRumbleInterface(rumble);
+          libInput->SetFFBEnabled(g_options.force_feedback);
           printf("[Supermodel] Libretro Rumble Interface initialized.\n");
       }
   }

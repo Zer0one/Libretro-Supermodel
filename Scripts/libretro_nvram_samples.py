@@ -723,7 +723,7 @@ def wait_while_alive(process: subprocess.Popen[bytes], seconds: float) -> None:
         exit_code = process.poll()
         if exit_code is not None:
             raise RuntimeError(f"RetroArch exited early with code {exit_code}")
-        time.sleep(min(0.10, deadline - time.monotonic()))
+        time.sleep(max(0.0, min(0.10, deadline - time.monotonic())))
 
 
 def activate_process(process: subprocess.Popen[bytes], timeout: float = 3.0) -> None:

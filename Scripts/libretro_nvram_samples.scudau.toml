@@ -1,4 +1,4 @@
-# Scud Australia: inventory and native networking persistence verified separately.
+# Scud Australia: native operator inventory and managed-field persistence.
 # Use the reviewed Games.xml without the historical graphics-debug-menu patch.
 [retroarch]
 executable = "~/Retro/Apps/RetroArch/Nightly/RetroArch (ARM).app/Contents/MacOS/RetroArch"
@@ -73,3 +73,27 @@ sequence = ["@EnterServ", "@OpenNetAssignments", "@SelectLinkId, TEST*6, WAIT(0.
 [[samples]]
 suffix = "link-id-07-car-08"
 sequence = ["@EnterServ", "@OpenNetAssignments", "@SelectLinkId, TEST*7, WAIT(0.5)", "@ExitLinkId", "@ExitServfromNet", "@Close"]
+
+[[samples]]
+suffix = "cabinet-00-twin"
+sequence = ["@EnterServ", "@OpenGameAssignments", "SERVICE*3, TEST*0, WAIT(0.5)", "SERVICE*6, TEST, WAIT(0.5)", "@ExitServfromNet", "@Close"]
+
+[[samples]]
+suffix = "cabinet-01-deluxe"
+sequence = ["@EnterServ", "@OpenGameAssignments", "SERVICE*3, TEST*1, WAIT(0.5)", "SERVICE*6, TEST, WAIT(0.5)", "@ExitServfromNet", "@Close"]
+
+[[samples]]
+suffix = "difficulty-00-normal"
+sequence = ["@EnterServ", "@OpenGameAssignments", "SERVICE*4, TEST*0, WAIT(0.5)", "SERVICE*5, TEST, WAIT(0.5)", "@ExitServfromNet", "@Close"]
+
+[[samples]]
+suffix = "difficulty-01-hard"
+sequence = ["@EnterServ", "@OpenGameAssignments", "SERVICE*4, TEST*1, WAIT(0.5)", "SERVICE*5, TEST, WAIT(0.5)", "@ExitServfromNet", "@Close"]
+
+[[samples]]
+suffix = "difficulty-02-hardest"
+sequence = ["@EnterServ", "@OpenGameAssignments", "SERVICE*4, TEST*2, WAIT(0.5)", "SERVICE*5, TEST, WAIT(0.5)", "@ExitServfromNet", "@Close"]
+
+[[samples]]
+suffix = "difficulty-03-easy"
+sequence = ["@EnterServ", "@OpenGameAssignments", "SERVICE*4, TEST*3, WAIT(0.5)", "SERVICE*5, TEST, WAIT(0.5)", "@ExitServfromNet", "@Close"]

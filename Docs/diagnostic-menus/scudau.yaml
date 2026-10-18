@@ -5,12 +5,13 @@ game:
   title: Scud Race
   version: Australia, Twin/DX
 verification:
-  date: "2026-10-17"
+  date: "2026-10-18"
   inventory_status: Photographed Full Value Cycles
   method: RetroArch Core With Isolated Configuration And Save RAM
   primary_evidence: outputs/network-two-option-20261017/scudau-campaign/screenshots
   native_defaults: Fresh EEPROM, Changed And Returned To Native Default, Full Menu Exit And Re-entry
-  supplemental_samples: Verified 11 Native-Committed Role And Car Number Samples
+  supplemental_samples: Verified 17 Native-Committed Samples And Fresh RetroArch Reloads Across Four Managed Fields
+  supplemental_evidence: outputs/scudau-settings-20261018/validation.json
   initial_nvram_template: Native Campaign And Fresh Frontend Reload Verified
   scope: No Linked Gameplay Qualification
   prior_error: The Historical Test Menu Photograph Was The Graphics Debug Menu Enabled By Games.xml
@@ -47,14 +48,16 @@ menus:
         native_default: Twin
         values: [Twin, Deluxe]
         photographed_cycle: [Twin, Deluxe, Twin]
-        implemented: false
+        implemented: true
+        nvram: {word: 16, mask: 65280, mirror_word: 45, encodings: [256, 0]}
       - key: difficulty
         label: Difficulty
         position: 4
         native_default: Normal
         values: [Normal, Hard, Hardest, Easy]
         photographed_cycle: [Normal, Hard, Hardest, Easy, Normal]
-        implemented: false
+        implemented: true
+        nvram: {word: 16, mask: 255, mirror_word: 45, encodings: [1, 2, 3, 0]}
       - key: advertise_sound
         label: Advertise Sound
         position: 5

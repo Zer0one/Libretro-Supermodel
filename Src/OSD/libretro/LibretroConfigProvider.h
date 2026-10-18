@@ -371,7 +371,9 @@ namespace LibretroConfigProvider {
         config.Set("SoundVolume", g_options.sound_volume);
         config.Set("MusicVolume", g_options.music_volume);
         config.Set("LegacySoundDSP", g_options.legacy_sound_dsp);
-        config.Set("ForceFeedback", g_options.force_feedback);
+        // Gamepad Rumble mutes frontend output, not the emulated drive board.
+        // Keep native effects running so output can be enabled without reload.
+        config.Set("ForceFeedback", true);
         config.Set("PowerPCFrequency", static_cast<unsigned>(g_options.ppc_frequency));
         config.Set("MultiThreaded",
                    g_options.emulation_threading !=
