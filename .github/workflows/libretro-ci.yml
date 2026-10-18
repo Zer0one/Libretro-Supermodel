@@ -76,6 +76,7 @@ jobs:
           update: true
           install: >-
             file
+            git
             make
             mingw-w64-x86_64-binutils
             mingw-w64-x86_64-gcc

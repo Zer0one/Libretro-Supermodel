@@ -2,11 +2,13 @@
 """Assemble and verify the actual Supermodel distribution (no runtime manifest)."""
 import argparse
 import ctypes
+import ctypes.util
 import hashlib
 from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import xml.etree.ElementTree as ET
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -73,6 +75,12 @@ class SystemInfo(ctypes.Structure):
     _fields_ = [('name', ctypes.c_char_p), ('version', ctypes.c_char_p),
                 ('extensions', ctypes.c_char_p), ('fullpath', ctypes.c_bool),
                 ('block_extract', ctypes.c_bool)]
+# Desktop Linux resolves core OpenGL entry points from the frontend's global
+# GL library. Supply that host dependency for this standalone identity probe;
+# retain eager symbol resolution so unrelated missing symbols still fail.
+if sys.platform.startswith('linux'):
+    host_gl = ctypes.CDLL(ctypes.util.find_library('GL') or 'libGL.so.1',
+                          mode=ctypes.RTLD_GLOBAL)
 lib = ctypes.CDLL(str(root/name))
 lib.retro_get_system_info.argtypes = [ctypes.POINTER(SystemInfo)]
 actual = SystemInfo()

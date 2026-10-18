@@ -57,6 +57,11 @@ Embedded fallback and non-overwriting user overrides retain their existing
 runtime ownership. The package gate compares actual runtime library identity
 with metadata and checks every shipped file's hash and exact inventory.
 
+The standalone desktop Linux identity probe preloads the system OpenGL library,
+matching the frontend's host dependency while retaining eager symbol resolution.
+The Windows MSYS2 environment explicitly installs Git for build identity and
+source provenance; the checkout action's separate Git is not on that shell's PATH.
+
 Historical multi-platform binary validation is complete: [GitHub run
 36183994220](https://github.com/Zer0one/Libretro-Supermodel/actions/runs/36183994220),
 commit `4566c9470ab89ec8e2738bfb43c18281df580971`, passed Linux x86_64, Windows
