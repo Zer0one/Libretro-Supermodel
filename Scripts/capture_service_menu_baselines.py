@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
         "~/Documents/RetroArch/model3-game-settings-catalog"
     ))
     parser.add_argument("--core", type=Path, default=Path(
-        "~/Library/Application Support/RetroArch/cores/supermodel_dev_libretro.dylib"
+        "~/Library/Application Support/RetroArch/cores/supermodel_libretro.dylib"
     ))
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--dry-run", action="store_true")

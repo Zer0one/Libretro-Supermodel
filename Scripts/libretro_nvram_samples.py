@@ -48,6 +48,8 @@ BUTTONS = {
     "R2": 13,
     "L3": 14,
     "R3": 15,
+    "SERVICE": 14,  # LCF cabinet slots; recipes use native action names.
+    "TEST": 15,
 }
 SUFFIX_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 WAIT_RE = re.compile(r"^WAIT\(\s*([0-9]+(?:\.[0-9]+)?)\s*\)$", re.IGNORECASE)
@@ -567,9 +569,11 @@ def write_isolated_config(settings: Settings, work: Path, remote_port: int) -> l
 
     core_options = work / "config" / "core-options.cfg"
     core_options.write_text(
+        'supermodel_controller_profile_type = "test_service"\n'
         'supermodel_initial_nvram_setup = "disabled"\n'
         'supermodel_nvram_settings = "disabled"\n'
-        'supermodel_network_board = "enabled"\n'
+        f'supermodel_network_cabinets_{settings.game} = "2"\n'
+        f'supermodel_automatic_network_{settings.game} = "-1"\n'
         'supermodel_force_feedback = "disabled"\n'
         'supermodel_jit_enable = "disabled"\n',
         encoding="utf-8",
@@ -585,6 +589,12 @@ def write_isolated_config(settings: Settings, work: Path, remote_port: int) -> l
         "log_verbosity": "true",
         "core_options_path": core_options,
         "global_core_options": "true",
+        "rgui_config_directory": work / "config",
+        "auto_overrides_enable": "false",
+        "auto_remaps_enable": "false",
+        "auto_shaders_enable": "false",
+        "content_runtime_log": "false",
+        "content_runtime_log_aggregate": "false",
         "input_remapping_directory": work / "remaps",
         "content_history_path": work / "config" / "content_history.lpl",
         "content_favorites_path": work / "config" / "content_favorites.lpl",

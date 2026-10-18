@@ -54,14 +54,15 @@ Model 3 game list is effectively complete.
   same Driving-only application rule. Both are unipolar `00-FF` axes and
   default to a transparent 100%. Their
   75.3% preset maps full physical travel to the exact `00-C0` range.
-- Single-view driving cabinets map VR1 to D-Pad Up. The Sega Rally 2-style
+- Single-view driving cabinets map the same VR1 action to both D-Pad Up and
+  D-Pad Down. Existing keyboard bindings are retained. The Sega Rally 2-style
   profile additionally maps Handbrake to South.
 - All 4-speed profiles expose Neutral on West, alongside the right-stick
   four-way gate and the L/R sequential controls.
 - Four-button VR cabinets use the D-Pad as a POV: VR1 Red/Up, VR2 Blue/Down,
   VR3 Yellow/Left, and VR4 Green/Right. This arrangement follows the button
   order reported by Daytona USA 2's Service menu.
-- Harley-Davidson maps VR1 to D-Pad Up, Rear Brake to South, and Music Select to
+- Harley-Davidson maps VR1 to D-Pad Up/Down, Rear Brake to South, and Music Select to
   East.
 - Magical Truck exposes one cabinet side per RetroPad: each player's centered
   analog lever uses the left stick Y axis and each foot pedal uses South.
@@ -123,9 +124,14 @@ Model 3 game list is effectively complete.
 - RetroArch controller information is regenerated at the same time, so the
   current Port Device displays the exact recognized profile name instead of
   the generic `RetroPad` label.
-- The default device variant on each port is the complete detected profile
-  with `+ Test/Service slots`: Test uses L3 and Service uses R3 as ordinary
-  remappable Libretro slots. The profile without these slots remains available
-  as an explicit alternative device selected by the user.
+- `Controller Profile Type` is the first Input option and selects `Normal`
+  or `Normal + Test/Service` (default) for all ports. Normal omits operator
+  descriptors and polling. Controls advertises only the selected game profile
+  and None; historical reduced-device IDs follow the global selection.
+  Operator defaults are L3 Service / R3 Test on both ports. Keyboard bindings
+  and native polarity are unchanged; existing frontend remaps are retained.
+  Modern frontends refresh profile names and descriptors while paused; older
+  frontends refresh on Resume. None disables RetroPad, Mouse and Lightgun polling for that port.
+  Existing core keyboard bindings remain independent.
 - An unknown signature receives the generic RetroPad fallback and a warning in
   the frontend log. It is never assigned to the closest known profile.

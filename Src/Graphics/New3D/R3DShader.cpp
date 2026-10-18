@@ -98,7 +98,8 @@ bool R3DShader::LoadShader(const char* vertexShader, const char* fragmentShader)
 #if !defined(ANDROID) && !defined(CORE_GLES)
 	if (quads) {
 		m_geoShader = glCreateShader(GL_GEOMETRY_SHADER);
-		glShaderSource(m_geoShader, 1, (const GLchar **)&gShader, nullptr);
+		const char* gSources[] = { versionStr.c_str(), gShader };
+		glShaderSource(m_geoShader, 2, gSources, nullptr);
 		glCompileShader(m_geoShader);
 		glAttachShader(m_shaderProgram, m_geoShader);
 		PrintShaderResult(m_geoShader);

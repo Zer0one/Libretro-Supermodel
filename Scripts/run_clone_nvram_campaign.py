@@ -29,6 +29,7 @@ PROFILES: dict[str, tuple[str, tuple[str, ...]]] = {
     "fvipers2o": ("fvipers2", ("difficulty", "country")),
     "harleya": ("harley", ("difficulty", "country", "cabinet", "link", "link-id")),
     "oceanhuna": ("oceanhun", ("difficulty", "country", "cabinet")),
+    "scudau": ("scud", ("link", "link-id")),
     "scuddx": ("scud", ("difficulty", "country")),
     "scuddxo": ("scud", ("difficulty", "country")),
     "scudplus": ("scud", ("difficulty", "country", "cabinet", "link", "link-id")),
@@ -74,7 +75,7 @@ def parse_args() -> argparse.Namespace:
         "~/Documents/RetroArch/model3-game-settings-catalog"
     ))
     parser.add_argument("--core", type=Path, default=Path(
-        "~/Library/Application Support/RetroArch/cores/supermodel_dev_libretro.dylib"
+        "~/Library/Application Support/RetroArch/cores/supermodel_libretro.dylib"
     ))
     return parser.parse_args()
 
@@ -97,93 +98,101 @@ def stable_actions(actions: tuple[sampler.Action, ...]) -> tuple[sampler.Action,
 
 
 def exceptional_sample(clone: str, group: str, step: int) -> sampler.Sample | None:
-    common_start = ["L3", "WAIT(2.0)"]
+    common_start = ["TEST", "WAIT(2.0)"]
     if clone == "dayto2pe" and group == "difficulty":
         tokens = common_start + [
-            "R3*8", "L3", "WAIT(1.0)", "R3*4", f"L3*{step}",
-            "WAIT(1.0)", "R3*9", "L3", "WAIT(1.0)",
-            "R3*5", "L3", "WAIT(5.0)", "CLOSE",
+            "SERVICE*8", "TEST", "WAIT(1.0)", "SERVICE*4", f"TEST*{step}",
+            "WAIT(1.0)", "SERVICE*9", "TEST", "WAIT(1.0)",
+            "SERVICE*5", "TEST", "WAIT(5.0)", "CLOSE",
         ]
         return sampler.Sample(f"{group}-step-{step:02d}", action_tokens(tokens))
     if clone == "dayto2pe" and group == "link":
         leave = (12, 4, 2, 11)[step]
         tokens = common_start + [
-            "R3*8", "L3", "WAIT(1.0)", "R3", f"L3*{step}",
-            "WAIT(1.0)", f"R3*{leave}", "L3", "WAIT(1.0)",
-            "R3*5", "L3", "WAIT(5.0)", "CLOSE",
+            "SERVICE*8", "TEST", "WAIT(1.0)", "SERVICE", f"TEST*{step}",
+            "WAIT(1.0)", f"SERVICE*{leave}", "TEST", "WAIT(1.0)",
+            "SERVICE*5", "TEST", "WAIT(5.0)", "CLOSE",
         ]
         return sampler.Sample(f"{group}-step-{step:02d}", action_tokens(tokens))
     if clone == "dayto2pe" and group == "link-id":
         tokens = common_start + [
-            "R3*8", "L3", "WAIT(1.0)", "R3", "R3", f"L3*{step}",
-            "WAIT(1.0)", "R3*11", "L3", "WAIT(1.0)",
-            "R3*5", "L3", "WAIT(5.0)", "CLOSE",
+            "SERVICE*8", "TEST", "WAIT(1.0)", "SERVICE", "SERVICE", f"TEST*{step}",
+            "WAIT(1.0)", "SERVICE*11", "TEST", "WAIT(1.0)",
+            "SERVICE*5", "TEST", "WAIT(5.0)", "CLOSE",
         ]
         return sampler.Sample(f"{group}-step-{step:02d}", action_tokens(tokens))
     if clone == "dayto2pe" and group == "cabinet":
         tokens = common_start + [
-            "R3*8", "L3", "WAIT(1.0)", "R3*3", f"L3*{step}",
-            "WAIT(1.0)", "R3*10", "L3", "WAIT(1.0)",
-            "R3*5", "L3", "WAIT(5.0)", "CLOSE",
+            "SERVICE*8", "TEST", "WAIT(1.0)", "SERVICE*3", f"TEST*{step}",
+            "WAIT(1.0)", "SERVICE*10", "TEST", "WAIT(1.0)",
+            "SERVICE*5", "TEST", "WAIT(5.0)", "CLOSE",
         ]
         return sampler.Sample(f"{group}-step-{step:02d}", action_tokens(tokens))
     if clone == "dayto2pe" and group == "vocal":
         tokens = common_start + [
-            "R3*8", "L3", "WAIT(1.0)", "R3*6", f"L3*{step}",
-            "WAIT(1.0)", "R3*7", "L3", "WAIT(1.0)",
-            "R3*5", "L3", "WAIT(5.0)", "CLOSE",
+            "SERVICE*8", "TEST", "WAIT(1.0)", "SERVICE*6", f"TEST*{step}",
+            "WAIT(1.0)", "SERVICE*7", "TEST", "WAIT(1.0)",
+            "SERVICE*5", "TEST", "WAIT(5.0)", "CLOSE",
         ]
         return sampler.Sample(f"{group}-step-{step:02d}", action_tokens(tokens))
     if clone in {"scudplus", "scudplusa"} and group == "country":
         tokens = common_start + [
-            "R3*8", "L3", "WAIT(1.0)", "R3*4", f"L3*{step}",
-            "WAIT(1.0)", "R3*11", "L3", "WAIT(1.0)",
-            "R3*4", "L3", "WAIT(5.0)", "CLOSE",
+            "SERVICE*8", "TEST", "WAIT(1.0)", "SERVICE*4", f"TEST*{step}",
+            "WAIT(1.0)", "SERVICE*11", "TEST", "WAIT(1.0)",
+            "SERVICE*4", "TEST", "WAIT(5.0)", "CLOSE",
         ]
         return sampler.Sample(f"{group}-step-{step:02d}", action_tokens(tokens))
     if clone in {"scuddx", "scuddxo"}:
         select, leave = (2, 4) if group == "difficulty" else (1, 5)
         tokens = common_start + [
-            "R3*8", "L3", "WAIT(0.5)", f"R3*{select}", f"L3*{step}",
-            "WAIT(0.5)", f"R3*{leave}", "L3", "WAIT(0.5)",
-            "R3*4", "L3", "WAIT(5.0)", "CLOSE",
+            "SERVICE*8", "TEST", "WAIT(0.5)", f"SERVICE*{select}", f"TEST*{step}",
+            "WAIT(0.5)", f"SERVICE*{leave}", "TEST", "WAIT(0.5)",
+            "SERVICE*4", "TEST", "WAIT(5.0)", "CLOSE",
         ]
         return sampler.Sample(f"{group}-step-{step:02d}", action_tokens(tokens))
     if clone == "vf3tb":
         select, leave = (3, 14) if group == "difficulty" else (12, 5)
         tokens = common_start + [
-            "R3*9", "L3", "WAIT(0.5)", f"R3*{select}", f"L3*{step}",
-            "WAIT(0.5)", f"R3*{leave}", "L3", "WAIT(0.5)",
-            "R3*6", "L3", "WAIT(5.0)", "CLOSE",
+            "SERVICE*9", "TEST", "WAIT(0.5)", f"SERVICE*{select}", f"TEST*{step}",
+            "WAIT(0.5)", f"SERVICE*{leave}", "TEST", "WAIT(0.5)",
+            "SERVICE*6", "TEST", "WAIT(5.0)", "CLOSE",
         ]
         return sampler.Sample(f"{group}-step-{step:02d}", action_tokens(tokens))
     if clone in {"vf3a", "vf3c"} and group == "difficulty":
         tokens = common_start + [
-            "R3*9", "L3", "WAIT(1.0)", "R3*3", f"L3*{step}",
-            "WAIT(1.0)", "R3*13", "L3", "WAIT(1.0)",
-            "R3*6", "L3", "WAIT(5.0)", "CLOSE",
+            "SERVICE*9", "TEST", "WAIT(1.0)", "SERVICE*3", f"TEST*{step}",
+            "WAIT(1.0)", "SERVICE*13", "TEST", "WAIT(1.0)",
+            "SERVICE*6", "TEST", "WAIT(5.0)", "CLOSE",
         ]
         return sampler.Sample(f"{group}-step-{step:02d}", action_tokens(tokens))
     if clone == "srally2dx" and group in {"difficulty", "default-view"}:
         select, leave = (2, 5) if group == "difficulty" else (4, 3)
-        tokens = ["L3", "WAIT(0.7)", "R3*9", "L3", "WAIT(0.5)",
-                  f"R3*{select}", f"L3*{step}", "WAIT(0.5)",
-                  f"R3*{leave}", "L3", "WAIT(0.5)",
-                  "R3*3", "L3", "WAIT(3.0)", "CLOSE"]
+        tokens = ["TEST", "WAIT(0.7)", "SERVICE*9", "TEST", "WAIT(0.5)",
+                  f"SERVICE*{select}", f"TEST*{step}", "WAIT(0.5)",
+                  f"SERVICE*{leave}", "TEST", "WAIT(0.5)",
+                  "SERVICE*3", "TEST", "WAIT(3.0)", "CLOSE"]
+        return sampler.Sample(f"{group}-step-{step:02d}", action_tokens(tokens))
+    if clone == "scudau" and group in {"link", "link-id"}:
+        select, leave = (1, 8) if group == "link" else (2, 7)
+        tokens = common_start + [
+            "SERVICE*8", "TEST", "WAIT(1.0)", f"SERVICE*{select}",
+            f"TEST*{step}", "WAIT(0.5)", f"SERVICE*{leave}", "TEST",
+            "WAIT(0.5)", "SERVICE*4", "TEST", "WAIT(5.0)", "CLOSE",
+        ]
         return sampler.Sample(f"{group}-step-{step:02d}", action_tokens(tokens))
     if clone == "getbass" and group == "difficulty":
-        tokens = ["L3", "WAIT(0.7)", "R3*9", "L3", "WAIT(0.5)",
-                  "R3*1", f"L3*{step}", "WAIT(0.5)",
-                  "R3*3", "L3", "WAIT(0.5)",
-                  "R3*5", "L3", "WAIT(3.0)", "CLOSE"]
+        tokens = ["TEST", "WAIT(0.7)", "SERVICE*9", "TEST", "WAIT(0.5)",
+                  "SERVICE*1", f"TEST*{step}", "WAIT(0.5)",
+                  "SERVICE*3", "TEST", "WAIT(0.5)",
+                  "SERVICE*5", "TEST", "WAIT(3.0)", "CLOSE"]
         return sampler.Sample(f"{group}-step-{step:02d}", action_tokens(tokens))
     if clone in {"vs299j", "vs29915j"} and group == "difficulty":
         # These Japanese baselines reopen Game Assignments on COUNTRY rather
         # than EXIT, so Difficulty is two Service presses away, not three.
         tokens = common_start + [
-            "R3*8", "L3", "WAIT(1.0)", "R3*2", f"L3*{step}",
-            "WAIT(1.0)", "R3*10", "L3", "WAIT(0.5)",
-            "R3*6", "L3", "WAIT(5.0)", "CLOSE",
+            "SERVICE*8", "TEST", "WAIT(1.0)", "SERVICE*2", f"TEST*{step}",
+            "WAIT(1.0)", "SERVICE*10", "TEST", "WAIT(0.5)",
+            "SERVICE*6", "TEST", "WAIT(5.0)", "CLOSE",
         ]
         return sampler.Sample(f"{group}-step-{step:02d}", action_tokens(tokens))
     return None

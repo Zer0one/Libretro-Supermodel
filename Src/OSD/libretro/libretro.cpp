@@ -47,9 +47,28 @@ static LibretroWrapper wrapper = LibretroWrapper();
 void set_input_descriptors(const Game *game);
 void set_controller_info(const Game &game);
 
+static void notify_frontend(const char *text, unsigned frames = 180)
+{
+   if (!environ_cb) return;
+   unsigned version = 0;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION, &version) &&
+       version >= 1)
+   {
+      struct retro_message_ext message = {
+         text, frames * 1000 / 60, 1, RETRO_LOG_INFO,
+         RETRO_MESSAGE_TARGET_OSD, RETRO_MESSAGE_TYPE_NOTIFICATION, -1
+      };
+      if (environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &message)) return;
+   }
+   struct retro_message message = {text, frames};
+   environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, &message);
+}
+
 static constexpr unsigned kNoCabinetControlsDevice =
    RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 0);
 bool g_cabinet_controls_enabled[2] = { true, true };
+bool g_joypad_enabled[2] = { true, true };
+static bool g_controller_profile_full = true;
 bool g_star_wars_invert_x = false;
 static Game g_active_input_game;
 static bool g_has_active_input_game = false;
@@ -71,9 +90,9 @@ struct LinkedCabinetOptionSpec
 };
 
 static constexpr LinkedCabinetOptionSpec kLinkedCabinetOptionSpecs[] = {
-   { "daytona2", 16 }, { "dayto2pe", 16 },
-   { "dirtdvls", 4 }, { "dirtdvlsu", 4 }, { "dirtdvlsau", 4 },
-   { "dirtdvlsj", 4 }, { "dirtdvlsg", 4 },
+   { "daytona2", 17 }, { "dayto2pe", 17 },
+   { "dirtdvls", 5 }, { "dirtdvlsu", 5 }, { "dirtdvlsau", 5 },
+   { "dirtdvlsj", 5 }, { "dirtdvlsg", 5 },
    { "harley", 4 }, { "harleya", 4 },
    { "lemans24", 5 },
    { "scud", 8 }, { "scudau", 8 }, { "scudplus", 8 },
@@ -81,18 +100,7 @@ static constexpr LinkedCabinetOptionSpec kLinkedCabinetOptionSpecs[] = {
    { "skichamp", 4 },
    { "spikeout", 4 }, { "spikeofe", 4 },
    { "srally2", 5 },
-   { "von2", 4 }, { "von254g", 4 }, { "von2a", 4 }, { "von2o", 4 },
-};
-
-static constexpr struct retro_core_option_value kLinkedCabinetValues[] = {
-   { "2",  "2 Cabinets (Default)" }, { "3",  "3 Cabinets" },
-   { "4",  "4 Cabinets" },           { "5",  "5 Cabinets" },
-   { "6",  "6 Cabinets" },           { "7",  "7 Cabinets" },
-   { "8",  "8 Cabinets" },           { "9",  "9 Cabinets" },
-   { "10", "10 Cabinets" },          { "11", "11 Cabinets" },
-   { "12", "12 Cabinets" },          { "13", "13 Cabinets" },
-   { "14", "14 Cabinets" },          { "15", "15 Cabinets" },
-   { "16", "16 Cabinets" },
+   { "von2", 5 }, { "von254g", 5 }, { "von2a", 5 }, { "von2o", 5 },
 };
 
 struct LinkedCabinetOptionSet
@@ -100,6 +108,7 @@ struct LinkedCabinetOptionSet
    const char *game_name;
    unsigned max_cabinets;
    size_t definition_index;
+   size_t automatic_definition_index = std::numeric_limits<size_t>::max();
 };
 
 static std::vector<struct retro_core_option_v2_definition>
@@ -107,12 +116,45 @@ static std::vector<struct retro_core_option_v2_definition>
 static std::vector<std::vector<char>> g_nvram_option_key_storage;
 static std::vector<std::vector<char>> g_nvram_default_label_storage;
 static std::vector<NvramCoreOptionSet> g_nvram_option_sets;
-static std::vector<std::vector<char>> g_linked_option_key_storage;
 static std::vector<LinkedCabinetOptionSet> g_linked_option_sets;
 static std::string g_visible_nvram_game;
 static std::string g_visible_network_cabinets_game(1, '\1');
 static int g_visible_nvram_enabled = -1;
-static int g_network_board_option_visible = -1;
+static int g_nvram_master_visible = -1;
+static bool g_core_options_update_pending = false;
+static bool g_nvram_settings_pending = false;
+static int g_visible_network_role_managed = -1;
+static LibretroNvramSettings::Selection g_network_managed_applied;
+static bool g_network_automation_applied = false;
+static std::vector<std::pair<std::string, std::string>> g_network_option_updates;
+static std::vector<std::pair<std::string, std::string>> g_network_invalid_values;
+static bool g_publishing_network_options = false;
+static std::vector<std::vector<char>> g_network_label_storage;
+
+static const char *network_string(const std::string &text)
+{
+   g_network_label_storage.emplace_back(text.begin(), text.end());
+   g_network_label_storage.back().push_back('\0');
+   return g_network_label_storage.back().data();
+}
+
+static void publish_network_option_updates(void)
+{
+   // Detach pending work before calling a frontend that can re-enter visibility.
+   auto updates = std::move(g_network_option_updates);
+   g_network_option_updates.clear();
+   auto invalid = std::move(g_network_invalid_values);
+   g_network_invalid_values.clear();
+   g_publishing_network_options = true;
+   for (const auto &entry : updates)
+   {
+      struct retro_variable variable = {entry.first.c_str(), entry.second.c_str()};
+      environ_cb(RETRO_ENVIRONMENT_SET_VARIABLE, &variable);
+   }
+   g_publishing_network_options = false;
+   if (!invalid.empty())
+      notify_frontend("Invalid network option; using the reviewed default.");
+}
 static int g_offscreen_trigger_reload_option_visible = -1;
 static int g_mouse_edge_offscreen_reload_option_visible = -1;
 #if defined(HAVE_LEGACY3D) && !defined(USE_LEGACY3D)
@@ -189,33 +231,82 @@ static void append_nvram_core_options(void)
 static void append_linked_cabinet_core_options(void)
 {
    static constexpr const char *kInfo =
-      "Set the total number of Model 3 cabinets expected in the RetroArch "
-      "Netplay session. Only counts supported by the loaded game are shown. "
-      "The host waits for this exact number before starting the emulated "
-      "cabinet link. Every instance must use the same value and restart the "
-      "content. Start the host before its clients.";
-
+      "Select the total number of linked cabinets, including a Relay where supported. Disabled disconnects optional communication boards or keeps required boards in local loopback; it does not change the selected native role. Supported totals and role combinations depend on the game. Effective changes reset automatically when returning to the game.";
+   static constexpr const char *kRoleInfo =
+      "Apply the native role and game identity independently of Linked Cabinets, even with NVRAM Settings disabled. Disabled restores manual management. Managed native fields are hidden; unrelated settings are preserved. Effective changes reset automatically when returning to the game.";
+   // One visible pair also exists without a supported current game.
+   for (bool role : {false, true})
+   {
+      retro_core_option_v2_definition d = {};
+      d.key = role ? "supermodel_automatic_network_unsupported" :
+                     "supermodel_network_cabinets_unsupported";
+      d.desc = role ? "Auto Network Role Settings" : "Linked Cabinets";
+      d.info = "Networking is not supported for this game.";
+      d.category_key = "system";
+      d.values[0] = {"-1", "Not Supported"};
+      d.default_value = "-1";
+      g_registered_option_definitions.push_back(d);
+   }
    for (const auto &spec : kLinkedCabinetOptionSpecs)
    {
-      g_linked_option_key_storage.emplace_back(96, '\0');
-      auto &key = g_linked_option_key_storage.back();
-      snprintf(key.data(), key.size(), "supermodel_network_cabinets_%s",
-               spec.game_name);
-
-      struct retro_core_option_v2_definition definition = {};
-      definition.key = key.data();
+      retro_core_option_v2_definition definition = {};
+      definition.key = network_string(std::string("supermodel_network_cabinets_") + spec.game_name);
       definition.desc = "Linked Cabinets";
       definition.info = kInfo;
       definition.category_key = "system";
-      const unsigned value_count = spec.max_cabinets - 1;
-      for (unsigned i = 0; i < value_count; ++i)
-         definition.values[i] = kLinkedCabinetValues[i];
-      definition.default_value = "2";
-
-      g_linked_option_sets.push_back({
-         spec.game_name, spec.max_cabinets,
-         g_registered_option_definitions.size()
-      });
+      definition.values[0] = {"-1", "Disabled"};
+      definition.values[1] = {"0", "Disabled"};
+      definition.values[2] = {"1", "Disabled"};
+      for (unsigned i = 2; i <= spec.max_cabinets; ++i)
+         definition.values[i + 1] = {
+            network_string(std::to_string(i)),
+            network_string(std::to_string(i) + " Cabinets")};
+      definition.default_value = "-1";
+      g_linked_option_sets.push_back({spec.game_name, spec.max_cabinets,
+                                     g_registered_option_definitions.size()});
+      g_registered_option_definitions.push_back(definition);
+      Game game;
+      game.name = spec.game_name;
+      size_t count = 0;
+      const auto *games = LibretroNvramSettings::GetSupportedGames(count);
+      for (size_t i = 0; i < count; ++i)
+         if (game.name == games[i].name && games[i].parent)
+            game.parent = games[i].parent;
+      using namespace LibretroNvramSettings;
+      const unsigned cabinets = AutomaticNetworkCabinets(&game);
+      definition = {};
+      definition.key = network_string(std::string("supermodel_automatic_network_") + spec.game_name);
+      definition.desc = "Auto Network Role Settings";
+      definition.info = cabinets ? kRoleInfo :
+         "No reviewed native role settings are available for this game.";
+      definition.category_key = "system";
+      definition.values[0] = {"-1", cabinets ? "Disabled" : "Not Supported"};
+      definition.default_value = cabinets ? "0" : "-1";
+      if (cabinets)
+      {
+         const auto *mode = GetSettingInfo(&game, Setting::LinkMode);
+         const auto *identity = GetSettingInfo(&game, Setting::LinkId);
+         const char *offline = GetDefaultValue(&game, Setting::LinkMode);
+         for (size_t v = 0; v < mode->valueCount; ++v)
+            if (strcmp(mode->values[v].key, offline) == 0)
+               definition.values[1] = {"0", mode->values[v].label};
+         for (unsigned i = 1; i <= cabinets; ++i)
+         {
+            std::string label = i == 1 ? "Master" : "Slave";
+            if (identity) label = std::string(identity->values[i - 1].label) + " (" + label + ")";
+            else if (game.name == "srally2") label = "Car " + std::to_string(i) + " (" + label + ")";
+            definition.values[i + 1] = {network_string(std::to_string(i)), network_string(label)};
+         }
+         if (AutomaticNetworkRelay(&game))
+         {
+            const char *label = game.name == "daytona2" || game.name == "dayto2pe"
+               ? "Live" : game.name == "srally2" ? "Relay" : "Satellite";
+            definition.values[cabinets + 2] = {"r", label};
+            definition.values[cabinets + 3] = {"l", label};
+            definition.values[cabinets + 4] = {"s", label};
+         }
+      }
+      g_linked_option_sets.back().automatic_definition_index = g_registered_option_definitions.size();
       g_registered_option_definitions.push_back(definition);
    }
 }
@@ -248,11 +339,8 @@ static void build_core_option_definitions(void)
          ++base_option_count;
    g_registered_option_definitions.reserve(
       base_option_count + nvram_option_count +
-      (sizeof(kLinkedCabinetOptionSpecs) /
-       sizeof(kLinkedCabinetOptionSpecs[0])) + 1);
-   g_linked_option_key_storage.reserve(
-      sizeof(kLinkedCabinetOptionSpecs) /
-      sizeof(kLinkedCabinetOptionSpecs[0]));
+      2 * (sizeof(kLinkedCabinetOptionSpecs) /
+           sizeof(kLinkedCabinetOptionSpecs[0])) + 1);
    g_linked_option_sets.reserve(
       sizeof(kLinkedCabinetOptionSpecs) /
       sizeof(kLinkedCabinetOptionSpecs[0]));
@@ -265,7 +353,7 @@ static void build_core_option_definitions(void)
       if (!definition.key)
          break;
       g_registered_option_definitions.push_back(definition);
-      if (strcmp(definition.key, "supermodel_network_board") == 0)
+      if (strcmp(definition.key, "supermodel_initial_nvram_setup") == 0)
          append_linked_cabinet_core_options();
       if (strcmp(definition.key, "supermodel_nvram_settings") == 0)
          append_nvram_core_options();
@@ -283,19 +371,51 @@ static const LinkedCabinetOptionSet *active_linked_cabinet_option_set(void)
    return nullptr;
 }
 
+static std::string configured_network_value(size_t index, bool role)
+{
+   const auto &definition = g_registered_option_definitions[index];
+   const std::string value = option_get(definition.key, definition.default_value);
+   for (const auto &choice : definition.values)
+   {
+      if (!choice.value) break;
+      if (value != choice.value) continue;
+      if (!role && (value == "0" || value == "1")) return "-1";
+      if (role && (value == "l" || value == "s")) return "r";
+      return value;
+   }
+   const auto correction = std::make_pair(std::string(definition.key),
+                                           std::string(definition.default_value));
+   if (!g_publishing_network_options &&
+       std::find(g_network_option_updates.begin(), g_network_option_updates.end(), correction) == g_network_option_updates.end())
+   {
+      g_network_option_updates.push_back(correction);
+      g_network_invalid_values.emplace_back(definition.key, value);
+   }
+   return definition.default_value;
+}
+
 static unsigned configured_network_cabinets(void)
 {
-   const auto *option_set = active_linked_cabinet_option_set();
-   if (!option_set)
-      return 2;
+   const auto *set = active_linked_cabinet_option_set();
+   if (!set) return 1;
+   const std::string value = configured_network_value(set->definition_index, false);
+   return value == "-1" ? 1 : static_cast<unsigned>(std::stoul(value));
+}
 
-   const char *key =
-      g_registered_option_definitions[option_set->definition_index].key;
-   const char *value = option_get(key, "2");
-   char *end = nullptr;
-   const unsigned cabinets = static_cast<unsigned>(strtoul(value, &end, 10));
-   return end && *end == '\0' && cabinets >= 2 &&
-          cabinets <= option_set->max_cabinets ? cabinets : 2;
+static std::string configured_network_role(void)
+{
+   const auto *set = active_linked_cabinet_option_set();
+   return set ? configured_network_value(set->automatic_definition_index, true) : "-1";
+}
+
+static void configure_network_topology(void)
+{
+   g_options.network_cabinets = configured_network_cabinets();
+   // All reviewed Model 3 communication boards are optional. Keep this
+   // derived machine setting separate from the independently selected role.
+   g_options.network_board = g_options.network_cabinets >= 2;
+   wrapper.SetNetworkBoard(g_options.network_board);
+   wrapper.SetNetworkCabinets(g_options.network_cabinets);
 }
 
 static const NvramCoreOptionSet *active_nvram_option_set(void)
@@ -323,40 +443,103 @@ static const char *active_nvram_option_key(
 static void register_core_options(void)
 {
    build_core_option_definitions();
-   struct retro_core_options_v2 options_v2 = {
-      option_cats, g_registered_option_definitions.data()
-   };
-   environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_V2, &options_v2);
+   unsigned version = 0;
+   environ_cb(RETRO_ENVIRONMENT_GET_CORE_OPTIONS_VERSION, &version);
+   if (version >= 2)
+   {
+      struct retro_core_options_v2 options = {
+         option_cats, g_registered_option_definitions.data()
+      };
+      environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_V2, &options);
+   }
+   else if (version == 1)
+   {
+      static std::vector<retro_core_option_definition> definitions;
+      definitions.clear();
+      for (const auto &source : g_registered_option_definitions)
+      {
+         retro_core_option_definition target = {};
+         target.key = source.key;
+         target.desc = source.desc;
+         target.info = source.info;
+         std::copy(std::begin(source.values), std::end(source.values),
+                   std::begin(target.values));
+         target.default_value = source.default_value;
+         definitions.push_back(target);
+      }
+      environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS, definitions.data());
+   }
+   else
+   {
+      static std::vector<std::string> strings;
+      static std::vector<retro_variable> variables;
+      strings.clear();
+      variables.clear();
+      strings.reserve(g_registered_option_definitions.size());
+      for (const auto &source : g_registered_option_definitions)
+      {
+         if (!source.key) break;
+         std::string text = std::string(source.desc) + "; " + source.default_value;
+         for (const auto &value : source.values)
+         {
+            if (!value.value) break;
+            if (strcmp(value.value, source.default_value) != 0)
+               text += std::string("|") + value.value;
+         }
+         strings.push_back(std::move(text));
+         variables.push_back({source.key, strings.back().c_str()});
+      }
+      variables.push_back({nullptr, nullptr});
+      environ_cb(RETRO_ENVIRONMENT_SET_VARIABLES, variables.data());
+   }
+}
+
+static bool refresh_controller_profile(void)
+{
+   const bool full = strcmp(option_get("supermodel_controller_profile_type",
+                                      "test_service"), "normal") != 0;
+   if (full == g_controller_profile_full) return false;
+   g_controller_profile_full = full;
+   for (unsigned port = 0; port < 2; ++port)
+      g_cabinet_controls_enabled[port] = full && g_joypad_enabled[port];
+   if (g_has_active_input_game)
+   {
+      set_input_descriptors(&g_active_input_game);
+      set_controller_info(g_active_input_game);
+   }
+   return true;
 }
 
 static bool update_core_option_visibility(void)
 {
-   bool changed = false;
-   const bool network_board_visible =
-      g_has_active_input_game && g_active_input_game.netboard_present;
-   if (g_network_board_option_visible != static_cast<int>(network_board_visible))
-   {
-      struct retro_core_option_display display = {
-         "supermodel_network_board", network_board_visible
-      };
-      environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
-      g_network_board_option_visible = network_board_visible;
-      changed = true;
-   }
+   // RetroArch clears its update flag on GET_VARIABLE. Preserve it before
+   // reading options in the paused-menu callback so Resume still applies them.
+   bool updated = false;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
+      g_core_options_update_pending = true;
+   bool changed = refresh_controller_profile();
    const auto *linked_option_set = active_linked_cabinet_option_set();
-   const std::string linked_game =
-      linked_option_set ? linked_option_set->game_name : "";
-   if (g_visible_network_cabinets_game != linked_game)
+   const std::string linked_game = linked_option_set ? linked_option_set->game_name : "";
+   const bool managed = configured_network_role() != "-1";
+   const bool network_visibility_changed = g_visible_network_cabinets_game != linked_game ||
+      g_visible_network_role_managed != static_cast<int>(managed);
+   if (network_visibility_changed)
    {
-      struct retro_core_option_display display = { nullptr, false };
+      retro_core_option_display display = {nullptr, false};
       for (const auto &option_set : g_linked_option_sets)
+         for (size_t index : {option_set.definition_index, option_set.automatic_definition_index})
+         {
+            display.key = g_registered_option_definitions[index].key;
+            display.visible = linked_game == option_set.game_name;
+            environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
+         }
+      for (const char *key : {"supermodel_network_cabinets_unsupported", "supermodel_automatic_network_unsupported"})
       {
-         display.key =
-            g_registered_option_definitions[option_set.definition_index].key;
-         display.visible = linked_game == option_set.game_name;
+         display = {key, linked_game.empty()};
          environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
       }
       g_visible_network_cabinets_game = linked_game;
+      g_visible_network_role_managed = managed;
       changed = true;
    }
 
@@ -409,9 +592,23 @@ static bool update_core_option_visibility(void)
       strcmp(option_get("supermodel_nvram_settings", "disabled"),
              "enabled") == 0;
    const auto *active_set = active_nvram_option_set();
+   const bool master_visible = active_set && std::any_of(
+      std::begin(active_set->definition_indices),
+      std::end(active_set->definition_indices), [](size_t index) {
+         return index != std::numeric_limits<size_t>::max();
+      });
+   if (g_nvram_master_visible != static_cast<int>(master_visible))
+   {
+      struct retro_core_option_display display = {
+         "supermodel_nvram_settings", master_visible
+      };
+      environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
+      g_nvram_master_visible = master_visible;
+      changed = true;
+   }
    const std::string active_game = active_set ? active_set->game_name : "";
    if (g_visible_nvram_enabled != static_cast<int>(enabled) ||
-       g_visible_nvram_game != active_game)
+       g_visible_nvram_game != active_game || network_visibility_changed)
    {
       struct retro_core_option_display display = { nullptr, false };
       for (const auto &option_set : g_nvram_option_sets)
@@ -424,7 +621,9 @@ static bool update_core_option_visibility(void)
             if (index == std::numeric_limits<size_t>::max())
                continue;
             display.key = g_registered_option_definitions[index].key;
-            display.visible = game_visible;
+            display.visible = game_visible && !(managed &&
+               (i == static_cast<unsigned>(LibretroNvramSettings::Setting::LinkMode) ||
+                i == static_cast<unsigned>(LibretroNvramSettings::Setting::LinkId)));
             environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
          }
       }
@@ -471,8 +670,8 @@ char retro_base_directory[4096];
 
 CoreOptions g_options = {
    /* initial_nvram_setup */ true,
-   /* network_board       */ true,
-   /* network_cabinets    */ 2,
+   /* network_board       */ false,
+   /* network_cabinets    */ 1,
    /* nvram_settings_enabled */ false,
    /* resolution_multiplier */ 1,
    /* renderer_3d          */ Renderer3D::New3D,
@@ -901,33 +1100,47 @@ static void initialize_new_nvram(void)
 
 static bool apply_configured_nvram_settings(void)
 {
-   if (!g_options.nvram_settings_enabled || !g_has_active_input_game ||
-       wrapper.getEmulator() == nullptr)
-      return false;
+   if (!g_has_active_input_game || wrapper.getEmulator() == nullptr) return false;
+   using namespace LibretroNvramSettings;
+   Selection selection;
+   if (g_options.nvram_settings_enabled)
+      for (unsigned i = 0; i < kNvramSettingCount; ++i)
+      {
+         const auto setting = static_cast<Setting>(i);
+         const char *key = active_nvram_option_key(setting);
+         const char *fallback = GetDefaultValue(&g_active_input_game, setting);
+         const char *selected = key && fallback ? option_get(key, fallback) : nullptr;
+         selection.values[i] = IsValueSupported(&g_active_input_game, setting, selected) ? selected : fallback;
+      }
+   const std::string preset = configured_network_role();
+   Selection requested;
+   const bool automation = ApplyAutomaticNetwork(&g_active_input_game, preset.c_str(), requested);
+   const Selection managed = automation ? requested :
+      g_network_automation_applied ? g_network_managed_applied : Selection{};
+   for (Setting setting : {Setting::LinkMode, Setting::LinkId})
+      if (managed.Get(setting) && (automation || g_options.nvram_settings_enabled))
+         selection.values[static_cast<unsigned>(setting)] = managed.Get(setting);
 
-   LibretroNvramSettings::Selection selection;
-   for (unsigned i = 0;
-        i < static_cast<unsigned>(LibretroNvramSettings::Setting::Count); ++i)
+   const NvramPatchResult result = apply_nvram_selection(selection, "game-aware NVRAM settings");
+   if (result == NvramPatchResult::Changed || result == NvramPatchResult::Unchanged ||
+       (!automation && !g_options.nvram_settings_enabled))
    {
-      const auto setting = static_cast<LibretroNvramSettings::Setting>(i);
-      const char *key = active_nvram_option_key(setting);
-      const char *default_value =
-         LibretroNvramSettings::GetDefaultValue(&g_active_input_game, setting);
-      const char *selected = key && default_value
-         ? option_get(key, default_value) : nullptr;
-      selection.values[i] = LibretroNvramSettings::IsValueSupported(
-            &g_active_input_game, setting, selected)
-         ? selected : default_value;
+      // Publish only committed values. Handover uses the last applied values,
+      // even when hidden selectors held earlier manual choices (SM2 contract).
+      for (Setting setting : {Setting::LinkMode, Setting::LinkId})
+      {
+         const char *value = managed.Get(setting);
+         const char *key = active_nvram_option_key(setting);
+         if (key && value && strcmp(option_get(key, GetDefaultValue(&g_active_input_game, setting)), value) != 0)
+            g_network_option_updates.emplace_back(key, value);
+      }
+      g_network_automation_applied = automation;
+      g_network_managed_applied = requested;
    }
-   if (!selection.HasAny())
-      return false;
-
-   const NvramPatchResult result = apply_nvram_selection(
-      selection, "game-aware NVRAM settings");
+   g_nvram_settings_pending = result == NvramPatchResult::Error;
+   publish_network_option_updates();
    if (result == NvramPatchResult::Changed)
-      log_cb(RETRO_LOG_INFO,
-             "[Supermodel] Applied configured NVRAM settings for %s\n",
-             g_active_input_game.name.c_str());
+      log_cb(RETRO_LOG_INFO, "[Supermodel] Applied configured NVRAM settings for %s\n", g_active_input_game.name.c_str());
    return result == NvramPatchResult::Changed;
 }
 
@@ -1078,22 +1291,12 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
    if (port >= 2)
       return;
 
-   bool enabled;
-   if (device == RETRO_DEVICE_JOYPAD)
-      enabled = true;
-   else if (device == kNoCabinetControlsDevice)
-      enabled = false;
-   else
+   if (device != RETRO_DEVICE_NONE && device != RETRO_DEVICE_JOYPAD &&
+       device != kNoCabinetControlsDevice)
       return;
-   if (g_cabinet_controls_enabled[port] == enabled)
-      return;
-
-   g_cabinet_controls_enabled[port] = enabled;
-   if (log_cb)
-      log_cb(RETRO_LOG_INFO,
-             "[Supermodel] Cabinet Test/Service slots %s on port %u\n",
-             enabled ? "enabled" : "disabled", port + 1);
-
+   g_joypad_enabled[port] = device != RETRO_DEVICE_NONE;
+   g_cabinet_controls_enabled[port] =
+      g_joypad_enabled[port] && g_controller_profile_full;
    if (g_has_active_input_game)
       set_input_descriptors(&g_active_input_game);
 }
@@ -1195,6 +1398,11 @@ bool retro_load_game(const struct retro_game_info *info)
    g_cached_serialize_size = 0;
    g_first_run = true;
    g_nvram_initialized = false;
+   g_nvram_settings_pending = false;
+   g_network_automation_applied = false;
+   g_network_managed_applied = {};
+   g_network_option_updates.clear();
+   g_network_invalid_values.clear();
    g_skip_counter = 0;
    last_width = 0;
    last_height = 0;
@@ -1222,12 +1430,8 @@ bool retro_load_game(const struct retro_game_info *info)
    hw_render.version_major = 3;
    hw_render.version_minor = 0;
 #else
-   // Legacy3D uses fixed-function compatibility entry points. New3D uses a
-   // core profile, raised from 4.1 to 4.5 when geometry-shader-based native
-   // quad rendering is requested.
-   const bool active_quad_rendering =
-      g_options.renderer_3d == Renderer3D::New3D &&
-      g_options.quad_rendering;
+   // Legacy3D uses fixed-function compatibility entry points. Both New3D
+   // triangle and native quad rendering use an OpenGL 4.1 core profile.
 #ifdef HAVE_LEGACY3D
    if (g_options.renderer_3d == Renderer3D::Legacy3D)
    {
@@ -1240,7 +1444,7 @@ bool retro_load_game(const struct retro_game_info *info)
    {
       hw_render.context_type = RETRO_HW_CONTEXT_OPENGL_CORE;
       hw_render.version_major = 4;
-      hw_render.version_minor = active_quad_rendering ? 5 : 1;
+      hw_render.version_minor = 1;
    }
 #endif
    log_cb(RETRO_LOG_INFO,
@@ -1304,7 +1508,7 @@ bool retro_load_game(const struct retro_game_info *info)
    }
    g_active_input_game = loaded_game;
    g_has_active_input_game = true;
-   g_options.network_cabinets = configured_network_cabinets();
+   configure_network_topology();
    update_core_option_visibility();
    set_input_descriptors(&loaded_game);
    set_controller_info(loaded_game);
@@ -1373,8 +1577,12 @@ void retro_run(void)
 
    // Check if options were changed
    bool options_updated = false;
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &options_updated) && options_updated)
+   environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &options_updated);
+   options_updated = options_updated || g_core_options_update_pending;
+   refresh_controller_profile();
+   if (options_updated)
    {
+      g_core_options_update_pending = false;
       float old_multiplier = g_options.resolution_multiplier;
       bool old_network_board = g_options.network_board;
       unsigned old_network_cabinets = g_options.network_cabinets;
@@ -1403,16 +1611,27 @@ void retro_run(void)
       EmulationThreading old_emulation_threading =
          g_options.emulation_threading;
       update_core_options();
-      g_options.network_cabinets = configured_network_cabinets();
+      configure_network_topology();
       ppc_set_jit_enabled(g_options.jit_enable);
       update_core_option_visibility();
 
-      if (g_nvram_initialized && apply_configured_nvram_settings())
+      const bool network_changed = g_options.network_board != old_network_board ||
+         (g_options.network_board && g_options.network_cabinets != old_network_cabinets);
+      if (network_changed)
       {
-         static const struct retro_message message = {
-            "NVRAM settings saved. Restart content to apply them.", 180
-         };
-         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
+         wrapper.SetNetworkBoard(g_options.network_board);
+         wrapper.SetNetworkCabinets(g_options.network_cabinets);
+      }
+      const bool nvram_changed = g_nvram_initialized && apply_configured_nvram_settings();
+      if (network_changed && g_first_run) wrapper.Reset();
+      if ((network_changed || nvram_changed) && !g_first_run)
+      {
+         wrapper.Reset();
+         serialize_nvram();
+         update_star_wars_cabinet_orientation();
+         notify_frontend(network_changed
+            ? "Applied Network Settings; machine reset."
+            : "Applied NVRAM Settings; machine reset.", 180);
       }
 
       if (g_options.renderer_3d != old_renderer_3d ||
@@ -1422,60 +1641,33 @@ void retro_run(void)
           g_options.supersampling != old_supersampling ||
           g_options.no_white_flash != old_no_white_flash)
       {
-         static const struct retro_message message = {
-            "Renderer and supersampling changes require restarting the content.", 240
-         };
-         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
+         notify_frontend("Renderer and supersampling changes require restarting the content.", 240);
       }
 
       if (g_options.emulation_threading != old_emulation_threading)
       {
-         static const struct retro_message message = {
-            "Emulation Threading will apply after restarting the content.", 180
-         };
-         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
-      }
-
-      if (g_options.network_board != old_network_board ||
-          g_options.network_cabinets != old_network_cabinets)
-      {
-         static const struct retro_message message = {
-            "Network Board settings will apply after restarting the content.", 180
-         };
-         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
+         notify_frontend("Emulation Threading will apply after restarting the content.", 180);
       }
 
       if (g_options.widescreen_mode != old_widescreen_mode)
       {
-         static const struct retro_message message = {
-            "Widescreen Mode will apply after restarting the content.", 180
-         };
-         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
+         notify_frontend("Widescreen Mode will apply after restarting the content.", 180);
       }
 
       if (g_options.av_timing_mode != old_av_timing_mode)
       {
-         static const struct retro_message message = {
-            "Model 3 Timing Mode will apply after restarting the content.", 180
-         };
-         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
+         notify_frontend("A/V Timing will apply after restarting the content.", 180);
       }
 
       if (g_options.upscale_mode != old_upscale_mode ||
           g_options.legacy_sound_dsp != old_legacy_sound_dsp)
       {
-         static const struct retro_message message = {
-            "Renderer/audio engine changes will apply after restarting the content.", 180
-         };
-         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
+         notify_frontend("Renderer/audio engine changes will apply after restarting the content.", 180);
       }
 
       if (g_options.sound_enable != old_sound_enable)
       {
-         static const struct retro_message message = {
-            "Sound Enable will apply after restarting the content.", 180
-         };
-         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void *)&message);
+         notify_frontend("Sound Enable will apply after restarting the content.", 180);
       }
 
       if (g_options.resolution_multiplier != old_multiplier)
@@ -1562,6 +1754,7 @@ void retro_run(void)
    }
 
    // NVRAM Loading: Do this on first frame, AFTER RetroArch has loaded .srm
+   const bool initializing_nvram = g_first_run;
    if (g_first_run)
    {
       g_first_run = false;
@@ -1616,6 +1809,13 @@ void retro_run(void)
 
       apply_configured_nvram_settings();
       update_star_wars_cabinet_orientation();
+   }
+
+   if (g_nvram_settings_pending && !initializing_nvram && apply_configured_nvram_settings())
+   {
+      wrapper.Reset();
+      serialize_nvram();
+      notify_frontend("Applied Network/NVRAM Settings; machine reset.");
    }
 
     if (input_poll_cb) input_poll_cb();
@@ -2021,6 +2221,11 @@ bool retro_unserialize(const void* data, size_t size)
         log_cb(RETRO_LOG_ERROR, "[Supermodel] Save State data ended unexpectedly while loading\n");
         return false;
     }
+    // Authoritative enabled frontend overrides win over an older state.
+    if (g_nvram_initialized && apply_configured_nvram_settings())
+       wrapper.Reset();
+    serialize_nvram();
+    update_star_wars_cabinet_orientation();
     return true;
 }
 
@@ -2062,12 +2267,12 @@ void set_controller_info(const Game &game)
                "%s + Test/Service slots", base_name);
 
       retro_controller_description *types = &descriptions[port * 2];
-      // The base RetroPad is RetroArch's default device. Give it the complete
-      // profile, including remappable Test/Service slots; the reduced profile
-      // remains available as an explicit device subclass.
-      types[0] = { cabinet_device_names[port], RETRO_DEVICE_JOYPAD };
-      types[1] = { base_name, kNoCabinetControlsDevice };
-      ports[port] = { types, 2 };
+      // The global Core Option selects the variant; historical subclass IDs
+      // remain accepted, while Controls advertises only the current profile.
+      types[0] = { g_controller_profile_full ? cabinet_device_names[port] : base_name,
+                   RETRO_DEVICE_JOYPAD };
+      types[1] = {};
+      ports[port] = { types, 1 };
    }
    ports[2] = { nullptr, 0 };
 
@@ -2082,6 +2287,7 @@ void set_input_descriptors(const Game *game)
    const auto add = [&desc](unsigned port, unsigned device, unsigned index,
                            unsigned id, const char *description)
    {
+      if (port < 2 && !g_joypad_enabled[port]) return;
       desc.push_back({ port, device, index, id, description });
    };
 
@@ -2092,9 +2298,9 @@ void set_input_descriptors(const Game *game)
       if (g_cabinet_controls_enabled[port])
       {
          add(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,
-             port == 0 ? "Test A" : "Test B");
-         add(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,
              port == 0 ? "Service A" : "Service B");
+         add(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,
+             port == 0 ? "Test A" : "Test B");
       }
    };
 
@@ -2571,6 +2777,7 @@ void set_input_descriptors(const Game *game)
          else if (profile->inputs & Game::INPUT_VIEWCHANGE)
          {
             add(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP, "VR1");
+            add(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN, "VR1");
          }
          if (profile->inputs & Game::INPUT_HANDBRAKE)
          {
@@ -2610,8 +2817,9 @@ void retro_set_environment(retro_environment_t cb)
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_UPDATE_DISPLAY_CALLBACK,
               &update_display_cb);
    g_visible_nvram_enabled = -1;
+   g_nvram_master_visible = -1;
    g_visible_nvram_game.clear();
-   g_network_board_option_visible = -1;
+   g_visible_network_role_managed = -1;
    g_visible_network_cabinets_game.assign(1, '\1');
    g_offscreen_trigger_reload_option_visible = -1;
    g_mouse_edge_offscreen_reload_option_visible = -1;
@@ -2623,6 +2831,7 @@ void retro_set_environment(retro_environment_t cb)
    // 3. Variable Update Check
    bool dummy = false;
    environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &dummy);
+   g_core_options_update_pending = false;
    
    // 4. Input Descriptors
    set_input_descriptors(nullptr);
@@ -2655,7 +2864,19 @@ void retro_set_video_refresh(retro_video_refresh_t cb)
 
 // --- Stubs (Unused) ---
 
-void retro_reset(void) { wrapper.Reset(); }
+void retro_reset(void)
+{
+   if (wrapper.getEmulator() == nullptr) return;
+   // Explicit Restart consumes paused edits too, without unloading content or
+   // restarting the frontend-owned lobby. One reset follows the combined apply.
+   update_core_option_visibility();
+   update_core_options();
+   configure_network_topology();
+   if (g_nvram_initialized) apply_configured_nvram_settings();
+   wrapper.Reset();
+   if (g_nvram_initialized) serialize_nvram();
+   g_core_options_update_pending = false;
+}
 bool retro_load_game_special(unsigned, const struct retro_game_info *, size_t) { return false; }
 void retro_cheat_reset(void) {}
 void retro_cheat_set(unsigned, bool, const char *) {}

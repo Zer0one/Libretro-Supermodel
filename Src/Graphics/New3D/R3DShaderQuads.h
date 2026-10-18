@@ -136,16 +136,17 @@ void main(void)
 	gs_out.LODBase = gs_in[0].LODBase;
 
 	// precompute crossproducts for all vertex combinations to be looked up in loop below for area computation
-	precise float cross[4][4];
+	// (cross[i*4+j] for vertices i and j; a flat array because arrays of arrays would need GLSL 4.30)
+	precise float cross[16];
 	for (int i=0; i<4; i++)
 	{
-		cross[i][i] = 0.0;
+		cross[i*4+i] = 0.0;
 		for (int j=i+1; j<4; j++)
-			cross[i][j] = DifferenceOfProducts(gl_in[i].gl_Position.x, gl_in[j].gl_Position.y, gl_in[j].gl_Position.x, gl_in[i].gl_Position.y) / (gl_in[i].gl_Position.w * gl_in[j].gl_Position.w);
+			cross[i*4+j] = DifferenceOfProducts(gl_in[i].gl_Position.x, gl_in[j].gl_Position.y, gl_in[j].gl_Position.x, gl_in[i].gl_Position.y) / (gl_in[i].gl_Position.w * gl_in[j].gl_Position.w);
 	}
 	for (int i=1; i<4; i++)
 		for (int j=0; j<i; j++)
-			cross[i][j] = -cross[j][i];
+			cross[i*4+j] = -cross[j*4+i];
 
 	for (int i=0; i<4; i++) {
 		// Mapping of polygon vertex order to triangle strip vertex order.
@@ -166,7 +167,7 @@ void main(void)
 			int j_next = (j+1) % 4;
 			// compute area via shoelace algorithm BUT divided by w afterwards to improve precision!
 			// in addition also use Kahans algorithm to further improve precision of the 2D crossproducts
-			gs_out.area[j] = cross[j][j_next] + cross[j_next][ii] + cross[ii][j];
+			gs_out.area[j] = cross[j*4+j_next] + cross[j_next*4+ii] + cross[ii*4+j];
 		}
 
 		const vec3 bary[4] = vec3[](
@@ -328,9 +329,7 @@ void QuadraticInterpolation()
 		}
 
 		if (lambdaSignCount == 0) { // one can either check for == 0 or abs(...) != 4, both should(!) be equivalent (but in practice its not due to precision issues, but these cases are extremely rare)
-			if(!gl_HelperInvocation) {
-				discard;
-			}
+			discard;	// fine for helper invocations too: nothing here uses derivatives (textures are read with texelFetch)
 		}
 
 		for (int i=0; i<4; i++) {

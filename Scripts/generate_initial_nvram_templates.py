@@ -10,8 +10,9 @@ from pathlib import Path
 
 # Released sets whose current Automatic Initial NVRAM route has been validated
 # for Country, Link Mode, an approved cabinet default, or analog calibration.
-# Prototypes, location tests, other pre-release sets, fixed-country sets and
-# sets without an automatic field are excluded.
+# Prototypes, location tests, other pre-release sets and sets without an
+# automatic field are excluded. Fixed-country releases may still have a
+# reviewed automatic network-role field (for example, scudau).
 GAMES = (
     "bassdx", "getbassdx", "getbassur", "getbass",
     "daytona2", "dayto2pe",
@@ -23,7 +24,7 @@ GAMES = (
     "lostwsga",
     "magtruck",
     "oceanhun", "oceanhuna",
-    "scud", "scuddx", "scuddxo", "scudplus", "scudplusa",
+    "scud", "scudau", "scuddx", "scuddxo", "scudplus", "scudplusa",
     "skichamp",
     "spikeofe", "spikeout",
     "srally2", "srally2dx",

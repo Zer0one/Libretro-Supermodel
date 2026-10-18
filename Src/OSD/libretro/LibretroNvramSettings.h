@@ -132,7 +132,7 @@ inline const SupportedGame *GetSupportedGames(size_t &count)
         nullptr, nullptr, nullptr, nullptr, "disabled" } },
     { "scud", nullptr,
       { "export", "normal", "single", "1", "twin" } },
-    { "scudau", "scud", {} },
+    { "scudau", "scud", { nullptr, nullptr, "single", "1" } },
     { "scuddx", "scud",
       { "export", "normal" } },
     { "scuddxo", "scud",
@@ -319,8 +319,11 @@ inline bool CountryExcluded(const Game &game)
 
 inline bool SettingExcluded(const Game &game, Setting setting)
 {
+  // Runtime-verified role/identity fields. The earlier campaign entered the
+  // Games.xml-patched graphics debug menu, not the native operator catalogue.
+  // Other fields retain their previous exclusion pending a separate inventory.
   if (game.name == "scudau")
-    return true;
+    return setting != Setting::LinkMode && setting != Setting::LinkId;
   if (game.name == "scuddx" || game.name == "scuddxo")
     return setting == Setting::LinkMode || setting == Setting::LinkId ||
            setting == Setting::Cabinet;
@@ -533,20 +536,17 @@ NVRAM_INFO(kDifficultyInfo8, Setting::Difficulty, "Difficulty", "Set the operato
 NVRAM_INFO(kDifficultyInfo16, Setting::Difficulty, "Difficulty", "Set the operator difficulty level stored in NVRAM.", kDifficulty16);
 NVRAM_INFO(kCabinetInfoTwinSpecial, Setting::Cabinet, "Cabinet Type", "Select Daytona USA 2 Power Edition's cabinet type stored in NVRAM.", kCabinetTwinSpecial);
 
-static constexpr char kType1LinkDescription[] =
-  "Set the cabinet link mode stored in NVRAM. For RetroArch Netplay, start "
-  "the host first and select Master on it. Every client must use Slave.";
-static constexpr char kType2LinkDescription[] =
-  "Set the cabinet link mode stored in NVRAM. For RetroArch Netplay, start "
-  "the host first and select Master on it. Clients cannot use Master; select "
-  "a supported Slave / Satellite role.";
+static constexpr char kLinkDescription[] =
+  "Set the native link mode stored in NVRAM. Native roles are independent of "
+  "RetroArch host/client identity and Linked Cabinets. Auto Network Role "
+  "Settings takes priority while enabled.";
 
-NVRAM_INFO(kLinkInfoDaytona, Setting::LinkMode, "Link Mode", kType1LinkDescription, kLinkDaytona);
-NVRAM_INFO(kLinkInfoSingle, Setting::LinkMode, "Link Mode", kType1LinkDescription, kLinkSingle);
-NVRAM_INFO(kLinkInfoA3, Setting::LinkMode, "Link Mode", kType2LinkDescription, kLinkA3Four);
-NVRAM_INFO(kLinkInfoLeMans, Setting::LinkMode, "Link Mode", kType2LinkDescription, kLinkLeMans);
-NVRAM_INFO(kLinkInfoStandAlone, Setting::LinkMode, "Link Mode", kType1LinkDescription, kLinkStandAlone);
-NVRAM_INFO(kLinkInfoRally, Setting::LinkMode, "Link Configuration", kType1LinkDescription, kLinkRally);
+NVRAM_INFO(kLinkInfoDaytona, Setting::LinkMode, "Link Mode", kLinkDescription, kLinkDaytona);
+NVRAM_INFO(kLinkInfoSingle, Setting::LinkMode, "Link Mode", kLinkDescription, kLinkSingle);
+NVRAM_INFO(kLinkInfoA3, Setting::LinkMode, "Link Mode", kLinkDescription, kLinkA3Four);
+NVRAM_INFO(kLinkInfoLeMans, Setting::LinkMode, "Link Mode", kLinkDescription, kLinkLeMans);
+NVRAM_INFO(kLinkInfoStandAlone, Setting::LinkMode, "Link Mode", kLinkDescription, kLinkStandAlone);
+NVRAM_INFO(kLinkInfoRally, Setting::LinkMode, "Link Configuration", kLinkDescription, kLinkRally);
 NVRAM_INFO(kCarInfo16, Setting::LinkId, "Car Number", "Set the linked-cabinet car number stored in NVRAM.", kCar16);
 NVRAM_INFO(kCarInfo8, Setting::LinkId, "Car Number", "Set the linked-cabinet car number stored in NVRAM.", kCar8);
 NVRAM_INFO(kMachineInfo4, Setting::LinkId, "Machine Number", "Set the linked machine number stored in NVRAM.", kMachine4);
@@ -832,6 +832,84 @@ inline bool IsValueSupported(const Game *game, Setting setting,
     if (std::strcmp(value, info->values[i].key) == 0)
       return true;
   return false;
+}
+
+// Frontend role/identity presets are independent of board presence and totals.
+inline unsigned AutomaticNetworkCabinets(const Game *game)
+{
+  if (!GetSettingInfo(game, Setting::LinkMode)) return 0;
+  switch (Detail::GetFamily(game))
+  {
+  case Detail::Family::Spikeout: return 2; // Native role only, no cabinet ID.
+  case Detail::Family::Daytona2: return 16;
+  case Detail::Family::Scud: return 8;
+  case Detail::Family::DirtDevils:
+  case Detail::Family::Harley:
+  case Detail::Family::LeMans24:
+  case Detail::Family::SkiChamp:
+  case Detail::Family::SegaRally2:
+  case Detail::Family::VirtualOn2: return 4;
+  default: return 0;
+  }
+}
+
+inline bool AutomaticNetworkRelay(const Game *game)
+{
+  if (!AutomaticNetworkCabinets(game)) return false;
+  const auto family = Detail::GetFamily(game);
+  return family == Detail::Family::Daytona2 ||
+         family == Detail::Family::SegaRally2 ||
+         family == Detail::Family::DirtDevils ||
+         family == Detail::Family::LeMans24 ||
+         family == Detail::Family::VirtualOn2;
+}
+
+inline bool ApplyAutomaticNetwork(const Game *game, const char *preset,
+                                  Selection &selection)
+{
+  static constexpr const char *ids[] = {
+    "1", "2", "3", "4", "5", "6", "7", "8",
+    "9", "10", "11", "12", "13", "14", "15", "16"
+  };
+  static constexpr const char *rally[] = {
+    "master_car_1", "slave_car_2", "slave_car_3", "slave_car_4"
+  };
+  static constexpr const char *seats[] = {"seat_a", "seat_b", "seat_c", "seat_d"};
+  if (!preset || !AutomaticNetworkCabinets(game)) return false;
+  const auto family = Detail::GetFamily(game);
+  const char *mode = nullptr;
+  const char *id = GetDefaultValue(game, Setting::LinkId);
+  if (std::strcmp(preset, "0") == 0)
+    mode = GetDefaultValue(game, Setting::LinkMode);
+  else if (std::strcmp(preset, "r") == 0)
+  {
+    if (!AutomaticNetworkRelay(game)) return false;
+    if (family == Detail::Family::Daytona2) mode = "live";
+    else if (family == Detail::Family::SegaRally2) mode = "relay";
+    else if (family == Detail::Family::LeMans24)
+    {
+      // Le Mans puts Satellite in Cabinet Number, not Communication Mode.
+      mode = "slave";
+      id = "satellite";
+    }
+    else mode = "satellite";
+  }
+  else
+  {
+    unsigned cabinet = 0;
+    for (unsigned i = 0; i < AutomaticNetworkCabinets(game); ++i)
+      if (std::strcmp(preset, ids[i]) == 0) cabinet = i + 1;
+    if (!cabinet) return false;
+    mode = cabinet == 1 ? "master" : "slave";
+    if (family == Detail::Family::SegaRally2) mode = rally[cabinet - 1];
+    else if (family == Detail::Family::VirtualOn2) id = seats[cabinet - 1];
+    else if (GetSettingInfo(game, Setting::LinkId)) id = ids[cabinet - 1];
+  }
+  if (!IsValueSupported(game, Setting::LinkMode, mode) ||
+      (id && !IsValueSupported(game, Setting::LinkId, id))) return false;
+  selection.values[static_cast<unsigned>(Setting::LinkMode)] = mode;
+  if (id) selection.values[static_cast<unsigned>(Setting::LinkId)] = id;
+  return true;
 }
 
 inline unsigned GetCapabilities(const Game *game)

@@ -10,6 +10,7 @@ extern retro_input_poll_t input_poll_cb;
 extern retro_input_state_t input_state_cb;
 extern retro_log_printf_t log_cb;  // defined in libretro.cpp
 extern bool g_cabinet_controls_enabled[2];
+extern bool g_joypad_enabled[2];
 extern bool g_star_wars_invert_x;
 
 CLibretroInputSystem::CLibretroInputSystem()
@@ -49,10 +50,18 @@ bool CLibretroInputSystem::Poll()
         return false;
 
     input_poll_cb();
+    const auto readInput = [](unsigned port, unsigned device,
+                              unsigned index, unsigned id) -> int16_t
+    {
+        if (port < 2 && !g_joypad_enabled[port] &&
+            device != RETRO_DEVICE_KEYBOARD)
+            return 0;
+        return input_state_cb(port, device, index, id);
+    };
 
     // ----- Keyboard -----
     for (int k = 0; k < 512; k++)
-        m_keyState[k] = input_state_cb(0, RETRO_DEVICE_KEYBOARD, 0, k);
+        m_keyState[k] = readInput(0, RETRO_DEVICE_KEYBOARD, 0, k);
 
     // Ensure we have some display dimensions
     if (m_dispW == 0) { m_dispW = 496; m_dispH = 384; }
@@ -78,9 +87,9 @@ bool CLibretroInputSystem::Poll()
             m_mousePositionInitialized[port] = true;
         }
 
-        mouseDeltaX[port] = input_state_cb(
+        mouseDeltaX[port] = readInput(
             port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_X);
-        mouseDeltaY[port] = input_state_cb(
+        mouseDeltaY[port] = readInput(
             port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_Y);
         m_mouseX[port] += mouseDeltaX[port];
         m_mouseY[port] += mouseDeltaY[port];
@@ -95,23 +104,23 @@ bool CLibretroInputSystem::Poll()
         m_mouseAxes[port][AXIS_X] = m_mouseX[port];
         m_mouseAxes[port][AXIS_Y] = m_mouseY[port];
         m_mouseWheelDir[port] = 0;
-        if (input_state_cb(port, RETRO_DEVICE_MOUSE, 0,
+        if (readInput(port, RETRO_DEVICE_MOUSE, 0,
                            RETRO_DEVICE_ID_MOUSE_WHEELUP))
             m_mouseWheelDir[port] = 1;
-        else if (input_state_cb(port, RETRO_DEVICE_MOUSE, 0,
+        else if (readInput(port, RETRO_DEVICE_MOUSE, 0,
                                 RETRO_DEVICE_ID_MOUSE_WHEELDOWN))
             m_mouseWheelDir[port] = -1;
 
         // CInputSystem mouse button order is Left, Middle, Right, X1, X2.
-        m_mouseButtons[port][0] = input_state_cb(
+        m_mouseButtons[port][0] = readInput(
             port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT);
-        m_mouseButtons[port][1] = input_state_cb(
+        m_mouseButtons[port][1] = readInput(
             port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_MIDDLE);
-        m_mouseButtons[port][2] = input_state_cb(
+        m_mouseButtons[port][2] = readInput(
             port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT);
-        m_mouseButtons[port][3] = input_state_cb(
+        m_mouseButtons[port][3] = readInput(
             port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_BUTTON_4);
-        m_mouseButtons[port][4] = input_state_cb(
+        m_mouseButtons[port][4] = readInput(
             port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_BUTTON_5);
         m_mouseIsAbsolute[port] = false;
     }
@@ -121,11 +130,11 @@ bool CLibretroInputSystem::Poll()
     {
         const int dev = port + 2;
         // Use SCREEN_X/Y for absolute position (-32768 to 32767)
-        lightgunX[port] = input_state_cb(
+        lightgunX[port] = readInput(
             port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
-        lightgunY[port] = input_state_cb(
+        lightgunY[port] = readInput(
             port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
-        lightgunOffscreen[port] = input_state_cb(
+        lightgunOffscreen[port] = readInput(
             port, RETRO_DEVICE_LIGHTGUN, 0,
             RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN);
         
@@ -139,11 +148,11 @@ bool CLibretroInputSystem::Poll()
         m_mouseAxes[dev][AXIS_Z] = 0;
         m_mouseWheelDir[dev] = 0;
 
-        lightgunTrigger[port] = input_state_cb(
+        lightgunTrigger[port] = readInput(
             port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_TRIGGER);
-        lightgunAuxA[port] = input_state_cb(
+        lightgunAuxA[port] = readInput(
             port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_AUX_A);
-        lightgunReload[port] = input_state_cb(
+        lightgunReload[port] = readInput(
             port, RETRO_DEVICE_LIGHTGUN, 0,
             RETRO_DEVICE_ID_LIGHTGUN_RELOAD);
         m_mouseButtons[dev][0] = lightgunTrigger[port];
@@ -163,9 +172,9 @@ bool CLibretroInputSystem::Poll()
                 (lightgunReload[port] && !lightgunOffscreen[port]);
             break;
         }
-        m_mouseButtons[dev][3] = input_state_cb(
+        m_mouseButtons[dev][3] = readInput(
             port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_START);
-        m_mouseButtons[dev][4] = input_state_cb(
+        m_mouseButtons[dev][4] = readInput(
             port, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SELECT);
         m_mouseIsAbsolute[dev] = true;
     }
@@ -196,11 +205,11 @@ bool CLibretroInputSystem::Poll()
         }
 
         // ----- Axes -----
-        int16_t x = input_state_cb(joy, RETRO_DEVICE_ANALOG,
+        int16_t x = readInput(joy, RETRO_DEVICE_ANALOG,
                                    RETRO_DEVICE_INDEX_ANALOG_LEFT,
                                    RETRO_DEVICE_ID_ANALOG_X);
 
-        int16_t y = input_state_cb(joy, RETRO_DEVICE_ANALOG,
+        int16_t y = readInput(joy, RETRO_DEVICE_ANALOG,
                                    RETRO_DEVICE_INDEX_ANALOG_LEFT,
                                    RETRO_DEVICE_ID_ANALOG_Y);
 
@@ -209,28 +218,28 @@ bool CLibretroInputSystem::Poll()
 
         // Right stick -> RX/RY, which the analog driving layout uses as a gate shifter
         // (JOY1_RYAXIS_NEG/POS = gears 1/2, JOY1_RXAXIS_NEG/POS = gears 3/4).
-        m_joyAxes[joy][AXIS_RX] = input_state_cb(joy, RETRO_DEVICE_ANALOG,
+        m_joyAxes[joy][AXIS_RX] = readInput(joy, RETRO_DEVICE_ANALOG,
                                                  RETRO_DEVICE_INDEX_ANALOG_RIGHT,
                                                  RETRO_DEVICE_ID_ANALOG_X);
-        m_joyAxes[joy][AXIS_RY] = input_state_cb(joy, RETRO_DEVICE_ANALOG,
+        m_joyAxes[joy][AXIS_RY] = readInput(joy, RETRO_DEVICE_ANALOG,
                                                  RETRO_DEVICE_INDEX_ANALOG_RIGHT,
                                                  RETRO_DEVICE_ID_ANALOG_Y);
 
         // Triggers as analog axes (0..32767). Frontends with only digital L2/R2 report 0 or
         // 32767 here, so this is safe either way. L2 -> ZAXIS, R2 -> RZAXIS, matching how
         // Supermodel names trigger axes elsewhere.
-        m_joyAxes[joy][AXIS_Z]  = input_state_cb(joy, RETRO_DEVICE_ANALOG,
+        m_joyAxes[joy][AXIS_Z]  = readInput(joy, RETRO_DEVICE_ANALOG,
                                                  RETRO_DEVICE_INDEX_ANALOG_BUTTON,
                                                  RETRO_DEVICE_ID_JOYPAD_L2);
-        m_joyAxes[joy][AXIS_RZ] = input_state_cb(joy, RETRO_DEVICE_ANALOG,
+        m_joyAxes[joy][AXIS_RZ] = readInput(joy, RETRO_DEVICE_ANALOG,
                                                  RETRO_DEVICE_INDEX_ANALOG_BUTTON,
                                                  RETRO_DEVICE_ID_JOYPAD_R2);
 
         // ----- D-Pad -----
-        bool d_up    = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP);
-        bool d_down  = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN);
-        bool d_left  = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT);
-        bool d_right = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT);
+        bool d_up    = readInput(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP);
+        bool d_down  = readInput(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN);
+        bool d_left  = readInput(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT);
+        bool d_right = readInput(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT);
 
         // CInputSystem POV directions are ordered Up, Down, Left, Right.
         // Keep this array in the same order: IsJoyPOVInDir() indexes it with
@@ -253,29 +262,28 @@ bool CLibretroInputSystem::Poll()
         for (int b = 0; b < 4; b++)
         {
             m_joyButtons[joy][b] =
-                input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, game_buttons[b]);
+                readInput(joy, RETRO_DEVICE_JOYPAD, 0, game_buttons[b]);
         }
 
         // Shoulder/trigger buttons (4-7: L, R, L2, R2)
-        m_joyButtons[joy][4] = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L);
-        m_joyButtons[joy][5] = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R);
-        m_joyButtons[joy][6] = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2);
-        m_joyButtons[joy][7] = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2);
+        m_joyButtons[joy][4] = readInput(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L);
+        m_joyButtons[joy][5] = readInput(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R);
+        m_joyButtons[joy][6] = readInput(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2);
+        m_joyButtons[joy][7] = readInput(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2);
 
         // Coin/Start buttons (8-9)
         // Button 8: START button -> maps to InputStart1/InputStart2
         // Button 9: SELECT button -> maps to InputCoin1/InputCoin2
-        m_joyButtons[joy][8] = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START);
-        m_joyButtons[joy][9] = input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT);
+        m_joyButtons[joy][8] = readInput(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START);
+        m_joyButtons[joy][9] = readInput(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT);
 
-        // L3/R3 are reserved as remappable cabinet slots, but stay completely
-        // inactive in the default detected profile. The user must explicitly
-        // select the "+ Test/Service slots" device type for this port.
+        // The global Controller Profile Type owns operator-slot polling.
+        // Normal and None omit callbacks for these slots entirely.
         m_joyButtons[joy][14] = g_cabinet_controls_enabled[joy]
-            ? input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3)
+            ? readInput(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3)
             : 0;
         m_joyButtons[joy][15] = g_cabinet_controls_enabled[joy]
-            ? input_state_cb(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3)
+            ? readInput(joy, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3)
             : 0;
         
         // **FIX: Map D-Pad AND Analog Stick to buttons 10-13**
@@ -389,9 +397,11 @@ bool CLibretroInputSystem::Poll()
             allowLightgun && lightgunPositionValid[port];
         const bool lightgunMoved =
             allowLightgun && lightgunPositionMoved[port];
+        // Off-screen status describes selected gun input; it does not prove
+        // source activity when a frontend reports it continuously.
         const bool lightgunAction = allowLightgun &&
             (lightgunTrigger[port] || lightgunReload[port] ||
-             lightgunAuxA[port] || lightgunOffscreen[port]);
+             lightgunAuxA[port]);
         const bool useLightgun =
             g_options.gun_input == GunInput::Lightgun ||
             (g_options.gun_input == GunInput::Hybrid &&

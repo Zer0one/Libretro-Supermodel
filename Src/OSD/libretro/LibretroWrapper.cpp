@@ -45,6 +45,7 @@
 #include "libretroCrosshair.h"
 #include "LibretroWrapper.h"
 #include "CLibretroInputSystem.h"
+void ResetLibretroAudio();
 #include "CLibretroOutputSystem.h"
 #include "libretroGui.h"
 #include "LibretroConfigProvider.h"
@@ -769,7 +770,11 @@ void LibretroWrapper::Reset()
     if (!Model3)
         return;
     if (!paused) Model3->PauseThreads();
+    auto libretroInput = std::static_pointer_cast<CLibretroInputSystem>(m_inputSystem);
+    if (libretroInput) libretroInput->StopAllRumble();
     Model3->Reset();
+    ResetLibretroAudio();
+    m_audioFrameRemainder = 0;
     if (!paused) Model3->ResumeThreads();
     InfoLog("Model 3 reset.");
 }
@@ -992,9 +997,14 @@ void LibretroWrapper::SetCrosshairs(unsigned mask)
     InfoLog("[Supermodel] Crosshairs mask applied: %u", mask);
 }
 
+void LibretroWrapper::SetNetworkBoard(bool connected)
+{
+    s_runtime_config.Get("Network").SetValue(connected);
+}
+
 void LibretroWrapper::SetNetworkCabinets(unsigned cabinets)
 {
-    cabinets = std::max(2u, std::min(16u, cabinets));
+    cabinets = std::max(1u, std::min(17u, cabinets));
     try {
         s_runtime_config.Get("NetworkCabinets").SetValue(cabinets);
     }

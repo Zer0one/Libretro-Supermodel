@@ -23,44 +23,44 @@ window_width = 496
 window_height = 384
 
 [macros]
-EnterService = "L3, WAIT(2.0)"
-OpenGameAssignments = "R3*5, L3, WAIT(0.7)"
-OpenCountryAssignments = "START*2, R3, START, R3, L3, WAIT(0.7)"
+EnterService = "TEST, WAIT(2.0)"
+OpenGameAssignments = "SERVICE*5, TEST, WAIT(0.7)"
+OpenCountryAssignments = "START*2, SERVICE, START, SERVICE, TEST, WAIT(0.7)"
 Close = "CLOSE"
 
 [[samples]]
 suffix = "difficulty"
 sequence = [
-  "@EnterService, @OpenGameAssignments, R3",
-  "CAPTURE(00), L3, CAPTURE(01), L3, CAPTURE(02), L3, CAPTURE(03)",
-  "L3, CAPTURE(04), L3, CAPTURE(05), L3, CAPTURE(06), L3, CAPTURE(07)",
-  "L3, CAPTURE(08), L3, CAPTURE(09), L3, CAPTURE(10), L3, CAPTURE(11)",
-  "L3, CAPTURE(12), L3, CAPTURE(13), L3, CAPTURE(14), L3, CAPTURE(15)",
+  "@EnterService, @OpenGameAssignments, SERVICE",
+  "CAPTURE(00), TEST, CAPTURE(01), TEST, CAPTURE(02), TEST, CAPTURE(03)",
+  "TEST, CAPTURE(04), TEST, CAPTURE(05), TEST, CAPTURE(06), TEST, CAPTURE(07)",
+  "TEST, CAPTURE(08), TEST, CAPTURE(09), TEST, CAPTURE(10), TEST, CAPTURE(11)",
+  "TEST, CAPTURE(12), TEST, CAPTURE(13), TEST, CAPTURE(14), TEST, CAPTURE(15)",
   "@Close",
 ]
 
 [[samples]]
 suffix = "advertise-sound"
 sequence = [
-  "@EnterService, @OpenGameAssignments, R3*2",
-  "CAPTURE(00), L3, CAPTURE(01)",
+  "@EnterService, @OpenGameAssignments, SERVICE*2",
+  "CAPTURE(00), TEST, CAPTURE(01)",
   "@Close",
 ]
 
 [[samples]]
 suffix = "life"
 sequence = [
-  "@EnterService, @OpenGameAssignments, R3*3",
-  "CAPTURE(00), L3, CAPTURE(01), L3, CAPTURE(02), L3, CAPTURE(03)",
-  "L3, CAPTURE(04), L3, CAPTURE(05), L3, CAPTURE(06), L3, CAPTURE(07)",
-  "L3, CAPTURE(08)",
+  "@EnterService, @OpenGameAssignments, SERVICE*3",
+  "CAPTURE(00), TEST, CAPTURE(01), TEST, CAPTURE(02), TEST, CAPTURE(03)",
+  "TEST, CAPTURE(04), TEST, CAPTURE(05), TEST, CAPTURE(06), TEST, CAPTURE(07)",
+  "TEST, CAPTURE(08)",
   "@Close",
 ]
 
 [[samples]]
 suffix = "country"
 sequence = [
-  "@EnterService, @OpenGameAssignments, R3*4",
+  "@EnterService, @OpenGameAssignments, SERVICE*4",
   "CAPTURE(00)",
   "@Close",
 ]
@@ -68,8 +68,8 @@ sequence = [
 [[samples]]
 suffix = "boss-action"
 sequence = [
-  "@EnterService, @OpenGameAssignments, R3*5",
-  "CAPTURE(00), L3, CAPTURE(01)",
+  "@EnterService, @OpenGameAssignments, SERVICE*5",
+  "CAPTURE(00), TEST, CAPTURE(01)",
   "@Close",
 ]
 
@@ -77,6 +77,6 @@ sequence = [
 suffix = "country-assignments"
 sequence = [
   "@EnterService, @OpenCountryAssignments",
-  "CAPTURE(00), R3, CAPTURE(01), R3, CAPTURE(02), R3, CAPTURE(03)",
+  "CAPTURE(00), SERVICE, CAPTURE(01), SERVICE, CAPTURE(02), SERVICE, CAPTURE(03)",
   "@Close",
 ]

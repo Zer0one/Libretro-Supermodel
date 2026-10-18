@@ -434,6 +434,6 @@ int main(int argc, char **argv)
             << " release clones; acquired_samples=" << acquiredCount
             << "; failures=" << failureCount << '\n';
   const bool completeSamplesOkay = !requireComplete || acquiredCount == valueCount;
-  return failureCount == 0 && cloneCount == 34 &&
+  return failureCount == 0 && cloneCount == 35 &&
          completeSamplesOkay ? 0 : 1;
 }
