@@ -105,3 +105,14 @@ with the selective coverage above; excluded standalone GUI changes remain
 excluded. Publication now uses `main`; historical branches are retained.
 The earlier references to 0.3.0-beta and v0.3a-libretro describe the preceding
 delivery. See [current release notes](RELEASE_NOTES.md).
+
+
+## Release Checkout Integrity
+
+Windows Git autocrlf conversion changes mixed-ending upstream source files and
+can make a clean CI checkout appear modified. The Windows CI job now disables
+autocrlf and restores tracked files from the index in its fresh checkout before
+building, preserving committed bytes. Artifact assembly rejects tracked working
+tree changes on every platform. This does not normalize upstream files or alter
+the user's working copy. Release archives must record the same clean source
+commit and tracked-source fingerprint across all platforms.
