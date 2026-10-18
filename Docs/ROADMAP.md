@@ -24,18 +24,26 @@ Legend: 🟢 Completed · 🟡 Partial · ⚪ Not Started · 🔵 Deferred
 | 🟢 | F09 — Service/Test Order And VR1 | L3 Service / R3 Test retained. Single-View profiles bind D-Pad Up and Down to Change View where neither conflicts; native/keyboard bindings and VR4 distinctions retained. |
 | 🟢 | F10 — Lightgun Standard And Reload | Combined-source arbitration and The Lost World reload behavior implemented; constant off-screen status alone does not take Lightgun ownership. Existing dedicated modes retained. |
 | 🟢 | F21 — RetroArch Notifications | Extended notifications and fallback paths verified; actual Resume/reset OSD inspected. |
+| 🟢 | Gamepad Rumble Lifecycle And Effect Mixing | Common adapter preserves independent effects, ports and axes; mute/re-enable retains current native state without reset or reload. Native board emulation is independent of gamepad output. Scud runtime regression and direct adapter checks documented in `GAMEPAD_RUMBLE_2026-10-18.md`. No synthetic cornering threshold is applied. |
 | 🟢 | F04/F05/F07 — Reviewed Names And Help | Canonical wording applied with documented Sound Volume and Internal Resolution exceptions. Values/defaults and native operator labels retained. |
 | 🟢 | F06 — NVRAM Master Visibility | Per-set reviewed-field gating and saved selections retained; managed network fields use ANRS authority while unrelated fields keep normal management. |
-| 🟢 | F13 — Supplemental Release-Clone NVRAM Campaign | 472/472 acquired values across 35 release clones validate. Existing valid samples are retained; no regeneration required by menu ordering. |
-| 🟢 | F13 — Scud Australia Correction And Acquisition | Eight settings, thirty distinct values, 52 primary photographs and eleven native-committed/fresh-reloaded samples. Recipe, YAML, workbook, two network overrides and initial seed reconciled. |
-| 🟢 | F13 — Common Campaign Workbook | Common four-sheet summary adopted, with Framework 0.1.33 core-specific verification columns: 605 native setting rows, 62 sets, all 177 implemented controls and 50 actual EEPROM seeds reconciled with source. Four obsolete Country exposure flags corrected. Historical records preserved in notes; five replaced summary files removed. |
+| 🟢 | F13 — Supplemental Release-Clone NVRAM Campaign | 478/478 acquired values across 35 release clones validate. Existing valid samples are retained; no regeneration required by menu ordering. |
+| 🟢 | F13 — Scud Australia Correction And Acquisition | Eight settings and thirty distinct values inventoried. Seventeen native-committed/fresh-reloaded samples now cover Link ID, Car Number, Difficulty and Cabinet Type. Six supplemental samples close the previously omitted clone overrides; native defaults Normal/Twin and existing initial seed verified. |
+| 🟢 | F13 — Common Campaign Workbook | Common four-sheet summary adopted, with Framework 0.1.33 core-specific verification columns: 605 native setting rows, 62 sets, all 179 implemented controls and 50 actual EEPROM seeds reconciled with source. Four obsolete Country exposure flags corrected. Historical records preserved in notes; five replaced summary files removed. |
 | 🟢 | Selected Upstream Quad/Catalogue Integration | OpenGL 4.1/macOS Quad adaptation and corrected vs298 catalogue CRC integrated locally. Reviewed upstream snapshot and exclusions remain in the integration ledger; no fresh upstream review is implied. |
 | 🟢 | Quad Rendering Performance Investigation | Closed by the user. The Mac geometry-stage/draw-path penalty was isolated; tested workarounds did not produce a safe production correction. |
 | 🟢 | Existing Multi-Platform CI And Release Artifacts | Commit 4566c94 / release 0.3.0-beta already passed Linux x86_64, Windows x86_64 and both macOS jobs, including format/API/dependencies and artifact assembly. Reconfirmed from GitHub run 36183994220 on 2026-10-18. |
 | 🟢 | F18/F19 — New Package Checks | Source `c12cd392` passed all four desktop CI jobs, including runtime identity, inventory, XML, notices, provenance, checksums and artifact upload. Linux host-GL and Windows Git prerequisites corrected. [CI evidence](https://github.com/Zer0one/Libretro-Supermodel/actions/runs/39134741470). |
+| 🟢 | Libretro Upstream Submission | [PR #20](https://github.com/libretro/Libretro-Supermodel/pull/20) published from existing `main`, including the Scud Australia and rumble fixes in `36a105e2`. Desktop CI run 39173389437 started for that implementation commit. New standalone changes remain pending below; no new branch or native upstream import. |
 | 🟢 | Source Publication And GitHub Page | Accumulated source/docs committed and pushed; README and repository description updated. Current release source is published on `main`; `supermodel-modern` remains the repository default and historical branches are retained. The new four-platform prerelease is published; see Current Local Delivery. |
+| ⚪ | U01 — Native Wheel Drive-Board Corrections | Integrate upstream `beb421ed` (servo registers, gain, idle stop and final per-frame force) with `175add57` (command queue), reviewing reset/load compatibility. Reuse the Scud rumble probes; verify Scud, Daytona 2 and Sega Rally 2 before making title-specific claims. These native changes complement the delivered Libretro output fix. |
+| ⚪ | U02 — PowerPC Interpreter Correctness | Review and integrate upstream `70b1b316` (#347). Check arithmetic/shift edge cases, carry/exception behavior and representative game startup; keep interpreter and JIT coverage distinct. |
+| ⚪ | U03 — Quad Triangle Rendering Corrections | Integrate `5dbc97fa`, `3574db93` and `53ff7674` (#348) as one coherent change. Preserve the Libretro OpenGL 4.1 shader prefix and live renderer reattachment; compare Quad on/off scenes for triangle slivers, depth and texture regressions. This does not reopen the closed general macOS performance investigation. |
+| ⚪ | U04 — Shared Model 3 / Real3D Updates | Review the Model 3-relevant portions of `4f5d686b`, `a8297d4c` and `ddbc3066`: renderer bounds/traversal, fog and shared interface changes. Identify dependencies before importing individual hunks; retain the local texture/register reattachment fix. New Pro-1000 hardware and host SCSI transport are outside this item's scope. |
+| 🔵 | U05 — Shared Force-Feedback Effect Count | Align `NUM_FF_EFFECTS` with upstream `0a99174d` when shared input sources are reconciled. Its overflow fix concerns standalone DirectInput, which is not built by this core; the Libretro adapter already keeps all four native effects independently. No current Libretro runtime defect is implied by the old macro value. |
 | 🟡 | F13 — Complete Visual Game Settings Catalogue | 120/130 pending parent cycles completed, plus Bass Fishing Event Game Time; 720 cycle photographs and two contexts archived. YAML/Excel/catalogue reconciled. Only ten vs298 rows remain blocked by the local ROM CRC mismatch. |
 | 🔵 | Optional Standalone GUI/Configuration Changes | Review upstream GUI/configuration changes only if a core-owned writer needs them. RetroArch owns the option GUI; the current adapter does not rewrite user INI files. |
+| 🔵 | Pro-1000 And Host SCSI Expansion | New standalone hardware in #343/#350 and Windows `wnaspi32.dll` are not Model 3 frontend fixes. No addition to this core is planned without a separate scope decision. Unmerged SCSP #349 and GLES/Wayland #332 remain watch items, not delivered updates. |
 | 🔵 | F15 — Multi-Core Launcher | Owned by the separate launcher project. Do not build a second launcher in this repository. |
 
 ## Current Local Delivery
@@ -122,7 +130,7 @@ The summary records 121 newly verified cycles, including one newly discovered
 conditional field; ten vs298 cycles remain pending. Thirteen other clone rows
 still lack direct value cycles; 250 clone value lists explicitly cite parent
 evidence. The supplemental binary
-campaign is complete at 35 release clones / 472 acquired values; this does not
+campaign is complete at 35 release clones / 478 acquired values; this does not
 complete every photographic value cycle.
 
 Campaign uses Model 3 evidence-specific columns: Sample Validation, Persistence
@@ -130,7 +138,7 @@ Verification and Integrity Verification. The 22 parent recipe campaigns retain
 their accepted 355 samples and photographic reconciliation; a separate frontend
 reload or per-sample integrity report is not inferred. The 35-clone results
 distinguish native encoding/integrity checks from save-container persistence
-simulation. Scud Australia additionally records eleven fresh RetroArch reloads
+simulation. Scud Australia additionally records seventeen fresh RetroArch reloads
 and explicit CRC/mirror checks. Backup RAM families are not labelled as EEPROM
 CRC tests. Fixed frame checkpoints are not imposed on unrelated methods. This
 documentary adaptation opens no new acquisition campaign and changes neither
@@ -153,9 +161,13 @@ the core, existing valid samples nor runtime policy.
    photographs and valid binary samples were retained; no ROM bypass was used.
 
 For Scud Australia, normal operator-menu routing is restored. Native default is
-Master / Car 1, while frontend ANRS defaults to Single. Only Link ID and Car
-Number are exposed as overrides; the other six inventoried fields are documented
-but remain unexposed. The old debug-menu photographs are historical diagnostics.
+Master / Car 1, while frontend ANRS defaults to Single. Link ID, Car
+Number, Difficulty and Cabinet Type are exposed as overrides. Difficulty defaults
+to Normal and Cabinet Type to Twin, matching the existing initial seed. Country
+is fixed by this release and has no selector. The four other inventoried fields
+are excluded from clone overrides to match the parent's exposed scope, as
+confirmed by the user; they are not pending integration. The old
+debug-menu photographs are historical diagnostics.
 
 ## Scope Exclusions And Deferred Decisions
 
