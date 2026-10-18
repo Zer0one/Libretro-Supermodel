@@ -31,9 +31,9 @@ Legend: 🟢 Completed · 🟡 Partial · ⚪ Not Started · 🔵 Deferred
 | 🟢 | Selected Upstream Quad/Catalogue Integration | OpenGL 4.1/macOS Quad adaptation and corrected vs298 catalogue CRC integrated locally. Reviewed upstream snapshot and exclusions remain in the integration ledger; no fresh upstream review is implied. |
 | 🟢 | Quad Rendering Performance Investigation | Closed by the user. The Mac geometry-stage/draw-path penalty was isolated; tested workarounds did not produce a safe production correction. |
 | 🟢 | Existing Multi-Platform CI And Release Artifacts | Commit 4566c94 / release 0.3.0-beta already passed Linux x86_64, Windows x86_64 and both macOS jobs, including format/API/dependencies and artifact assembly. Reconfirmed from GitHub run 36183994220 on 2026-10-18. |
+| 🟢 | F18/F19 — New Package Checks | Source `c12cd392` passed all four desktop CI jobs, including runtime identity, inventory, XML, notices, provenance, checksums and artifact upload. Linux host-GL and Windows Git prerequisites corrected. [CI evidence](https://github.com/Zer0one/Libretro-Supermodel/actions/runs/39134741470). |
+| 🟢 | Source Publication And GitHub Page | Accumulated source/docs committed and pushed; README and repository description updated. `supermodel-modern` is the default branch; `master` is retained. Four-platform CI passed. The existing release is unchanged. |
 | 🟡 | F13 — Complete Visual Game Settings Catalogue | 120/130 pending parent cycles completed, plus Bass Fishing Event Game Time; 720 cycle photographs and two contexts archived. YAML/Excel/catalogue reconciled. Only ten vs298 rows remain blocked by the local ROM CRC mismatch. |
-| 🟡 | F18/F19 — New Package Checks And Next Delivery | New package checker, notices, provenance, checksums and version ledger implemented; local macOS assembly passed. Validate these later local changes in the normal next CI run after an authorized push. This is not an unperformed historical binary-validation campaign. |
-| 🟡 | Source Publication And GitHub Page | Authorized on 2026-10-18. Publish the accumulated source/docs, update the README and verify the ordinary four-platform CI. No new release requested. |
 | 🔵 | Optional Standalone GUI/Configuration Changes | Review upstream GUI/configuration changes only if a core-owned writer needs them. RetroArch owns the option GUI; the current adapter does not rewrite user INI files. |
 | 🔵 | F15 — Multi-Core Launcher | Owned by the separate launcher project. Do not build a second launcher in this repository. |
 
@@ -179,12 +179,20 @@ on commit 4566c94, already passed all four platform jobs on 2026-09-25, includin
 format/API/dependency validation and artifact assembly/upload. This was reconfirmed
 on 2026-10-18; the published 0.3.0-beta binaries are not an outstanding task.
 
-The new package-checker step and later local source changes are not included in
-that committed baseline. Their ordinary CI regression belongs to the next
-authorized push; do not open a redundant historical binary-validation campaign.
-Platform runtime validation, Libretro distribution and publication remain distinct. A later authorized release
-must reconcile runtime version, .info, tag/title and release notes. No new tag or
-release identity is assigned by the local menu activity.
+The 2026-10-18 source delivery is now committed and pushed: `14a740d6` contains
+the accumulated implementation and documentation, followed by `c12cd392` for
+the package-probe Linux host dependency and Windows MSYS2 Git prerequisite.
+[GitHub run 39134741470](https://github.com/Zer0one/Libretro-Supermodel/actions/runs/39134741470) passed all four platform jobs on `c12cd392`,
+including build, format/API/dependencies, package checks and artifact upload.
+The final documentation-only publication record does not change that tested
+production source. It skips a redundant rebuild.
+
+The public README and repository description are updated, and the default
+branch is `supermodel-modern`; the old `master` branch remains intact. Local
+ROMs, saves, build products and raw test outputs were excluded from the push.
+Platform runtime validation, Libretro distribution and publication remain
+distinct. A later authorized release must reconcile runtime version, .info,
+tag/title and release notes; no new release was created by this source delivery.
 
 ## Framework Reporting And Historical Evidence
 

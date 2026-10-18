@@ -8,7 +8,7 @@ The port is based on `libretro/Libretro-Supermodel`, retaining the frontend
 lineage of `sgiannop/Libretro-Supermodel`. Standalone `trzy/Supermodel` supplies
 machine and renderer reference changes; a fetch is not an integration.
 
-Previously published port baseline: `4566c9470ab89ec8e2738bfb43c18281df580971`.
+Port baseline before this delivery: `4566c9470ab89ec8e2738bfb43c18281df580971`.
 Current reviewed standalone tip: `ed608de1c5f0f61dcad957cffe0ff8234cbc8e6c`.
 The changes below are included in the 2026-10-18 source delivery on
 `supermodel-modern`; this delivery does not assign a new release tag.
@@ -70,9 +70,16 @@ format/API/dependency validation, artifact assembly and upload. The correspondin
 0.3.0-beta artifacts were packaged and published; job results were reconfirmed
 on 2026-10-18. They are not pending verification.
 
-The new package checker above and subsequent local source changes are outside
-that committed baseline. Local macOS checks qualify that new checker only on
-macOS; its Linux/Windows checks belong to the normal CI regression at the next
-authorized push. This distinction does not invalidate prior binary checks or
-require a separate historical validation campaign. CI success, native gameplay,
-Libretro-hosted distribution and publication remain different claims.
+The 2026-10-18 source delivery (`14a740d6`, followed by package prerequisites
+in `c12cd392`) passed [GitHub run 39134741470](https://github.com/Zer0one/Libretro-Supermodel/actions/runs/39134741470) on Linux x86_64, Windows
+x86_64, macOS ARM64 and macOS x86_64. All four jobs passed binary validation,
+package inventory/runtime identity/provenance/checksums and artifact upload.
+The initial run exposed missing host OpenGL for the isolated Linux identity
+probe and missing Git inside Windows MSYS2; both were corrected and the full
+matrix rerun successfully. The final documentation-only record retains this
+tested production source and skips a redundant rebuild.
+
+This supersedes the previous pending status of the new checker; it does not
+expand native gameplay qualification or update the existing release. CI success,
+native gameplay, Libretro-hosted distribution and publication remain different
+claims.
