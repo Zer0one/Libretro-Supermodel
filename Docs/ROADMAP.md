@@ -15,7 +15,7 @@ Legend: 🟢 Completed · 🟡 Partial · ⚪ Not Started · 🔵 Deferred
 | Status | Activity | Remaining Work |
 | --- | --- | --- |
 | 🟢 | F04 — Frontend Option Ordering | Implemented and installed locally. Profile/Rumble precede specialized Input groups; Star Wars controls are last. Approved Video follow-up groups Rendering, Image, then Timing/Diagnostics. Original whole-menu UI acceptance retained; its follow-up API 0/1/2 and four header configurations pass. The later Aspect Ratio selector is adjacent to Widescreen Mode. System/native order retained. |
-| 🟢 | Widescreen And Aspect Ratio | User-approved Disabled / Expand 3D View Only / Expand 3D View + Stretch 2D Background labels and direct-16:9 help implemented and installed locally. WM values/default retained. Added Auto/4:3/16:9 Aspect Ratio, Auto default; 4:3 suppresses expansion, Disabled + 16:9 stretches. Both selectors now apply on Resume without reset/reload, reusing the existing resize path. API 0/1/2, build, CGL transitions and three RetroArch cases pass. This follow-up is not committed or pushed. |
+| 🟢 | Widescreen And Aspect Ratio | User-approved Disabled / Expand 3D View Only / Expand 3D View + Stretch 2D Background labels and direct-16:9 help implemented and installed locally. WM values/default retained. Added Auto/4:3/16:9 Aspect Ratio, Auto default; 4:3 suppresses expansion, Disabled + 16:9 stretches. Both selectors now apply on Resume without reset/reload, reusing the existing resize path. API 0/1/2, build, CGL transitions and three RetroArch cases pass. Published in the first snapshot-based port release; see Current Local Delivery. |
 | 🟢 | F04 — Final Registered Menu Wording Audit | The original 255 definitions and 36 applicable workbook rows pass; the later Aspect Ratio follow-up verifies 256 definitions with the original metadata preserved except revised WM help; full per-key metadata preserved. V2/V1/V0 order, 22 network pairs, exact help and four conditional header configurations checked. |
 | 🟢 | F14 — Two-Option Networking | Native authority, handover and retained transport are implemented; initial real two-peer exchange is verified. User-approved fallback retains immediate effective-change application during non-pausing Netplay menus. See the 2026-10-18 feasibility follow-up for the explicit timing limit. |
 | 🟢 | F05/F12 — Effective NVRAM Reset | Paused menus coalesce effective edits into one reset on Resume; unchanged/alias-equivalent settings do not reset. Explicit Restart consumes pending choices. During non-pausing Netplay, effective edits apply immediately; the user accepted retaining this behavior if reliable menu-exit deferral is unavailable. |
@@ -33,19 +33,27 @@ Legend: 🟢 Completed · 🟡 Partial · ⚪ Not Started · 🔵 Deferred
 | 🟢 | Quad Rendering Performance Investigation | Closed by the user. The Mac geometry-stage/draw-path penalty was isolated; tested workarounds did not produce a safe production correction. |
 | 🟢 | Existing Multi-Platform CI And Release Artifacts | Commit 4566c94 / release 0.3.0-beta already passed Linux x86_64, Windows x86_64 and both macOS jobs, including format/API/dependencies and artifact assembly. Reconfirmed from GitHub run 36183994220 on 2026-10-18. |
 | 🟢 | F18/F19 — New Package Checks | Source `c12cd392` passed all four desktop CI jobs, including runtime identity, inventory, XML, notices, provenance, checksums and artifact upload. Linux host-GL and Windows Git prerequisites corrected. [CI evidence](https://github.com/Zer0one/Libretro-Supermodel/actions/runs/39134741470). |
-| 🟢 | Source Publication And GitHub Page | Accumulated source/docs committed and pushed; README and repository description updated. `supermodel-modern` is the default branch; `master` is retained. Four-platform CI passed. The existing release is unchanged. |
+| 🟢 | Source Publication And GitHub Page | Accumulated source/docs committed and pushed; README and repository description updated. Current release source is published on `main`; `supermodel-modern` remains the repository default and historical branches are retained. The new four-platform prerelease is published; see Current Local Delivery. |
 | 🟡 | F13 — Complete Visual Game Settings Catalogue | 120/130 pending parent cycles completed, plus Bass Fishing Event Game Time; 720 cycle photographs and two contexts archived. YAML/Excel/catalogue reconciled. Only ten vs298 rows remain blocked by the local ROM CRC mismatch. |
 | 🔵 | Optional Standalone GUI/Configuration Changes | Review upstream GUI/configuration changes only if a core-owned writer needs them. RetroArch owns the option GUI; the current adapter does not rewrite user INI files. |
 | 🔵 | F15 — Multi-Core Launcher | Owned by the separate launcher project. Do not build a second launcher in this repository. |
 
 ## Current Local Delivery
 
-The current delivery includes live Aspect Ratio/Widescreen selectors and the
-renderer texture-state correction. Source publication and the four-platform
-release `v0.3a-20261012-git-ed608de-libretro.1` are authorized and in progress on `main`.
-Local build/install hashes and protected-file checks are recorded in
-`outputs/release-20261018/deployment.json`. Later sections retain historical
-delivery and verification details.
+Published [v0.3a-20261012-git-ed608de-libretro.1](https://github.com/Zer0one/Libretro-Supermodel/releases/tag/v0.3a-20261012-git-ed608de-libretro.1)
+from `57b0701611e4ed89cd627697956eebc01a45b97e` on `main`. The release
+contains four architecture-specific packages and archive checksums.
+[CI 39164917017](https://github.com/Zer0one/Libretro-Supermodel/actions/runs/39164917017)
+passed Linux x86_64, Windows x86_64, macOS ARM64 and macOS x86_64. All packages
+record identical clean source commit/fingerprint; their GitHub digests match
+the verified local archives. The earlier Windows autocrlf provenance failure
+was corrected before publication.
+
+Local RetroArch now uses the exact CI ARM release core and matching .info.
+Core SHA-256: `b150417731ae694844b7b694c38f8ede50797c54b5844b7e473009d00fc5208f`. Twenty CGL transitions
+pass on that installed CI binary. Configuration and external System XML remain
+unchanged. Evidence: `outputs/release-20261018/`; historical delivery details
+remain below. No cross-platform gameplay qualification is inferred from CI.
 
 See [the menu ordering/audit report](CORE_OPTIONS_ORDER_AUDIT_2026-10-18.md).
 Its Video follow-up records eight changed Video positions with all 255 per-key
@@ -375,3 +383,15 @@ Build/API/dependency checks pass; 256 options unchanged. macOS runtime only.
 See [Renderer State After Live Presentation Changes](WIDESCREEN_RENDERER_STATE_2026-10-18.md)
 for failed-probe distinctions and limits. Verified local deployment recorded
 in `outputs/widescreen-renderer-state-20261018/deployment.json`. No commit/push.
+
+
+## Snapshot Release Publication — 2026-10-18
+
+User-authorized source commits `cea5eae2` (live presentation/state correction and
+release identity) and `57b07016` (Windows checkout integrity) are published on
+`main`. Tag `v0.3a-20261012-git-ed608de-libretro.1` targets `57b07016`, matching
+the four CI package provenance files. The accompanying documentation-only
+record does not change the tested release source and skips redundant CI.
+Runtime version, .info display version, tag/title and release notes agree.
+The repository default remains `supermodel-modern`; no historical branch was
+rewritten or deleted.

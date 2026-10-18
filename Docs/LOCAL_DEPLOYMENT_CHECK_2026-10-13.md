@@ -196,3 +196,14 @@ configuration, System XML assets and TGPulse core preserved. No routine binary
 backup or commit/push. Evidence: `outputs/widescreen-renderer-state-20261018/`.
 Already-running instances retain their previously loaded binary until the
 content/core is reopened once; subsequent WM/AR changes remain live on Resume.
+
+
+## Published CI Artifact Deployment — 2026-10-18
+
+Local RetroArch core and .info were replaced atomically from the exact macOS
+ARM artifact of CI 39164917017 / source `57b07016`, published as
+`v0.3a-20261012-git-ed608de-libretro.1`. Installed/core artifact SHA-256:
+`b150417731ae694844b7b694c38f8ede50797c54b5844b7e473009d00fc5208f`. Twenty CGL transitions pass on the
+installed artifact. Active frontend config and external System XML hashes are
+preserved. Evidence: `outputs/release-20261018/deployment.json` and
+`geometry-abi.json`. No routine binary backup.
