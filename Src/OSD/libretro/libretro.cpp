@@ -74,7 +74,6 @@ static Game g_active_input_game;
 static bool g_has_active_input_game = false;
 static GunInput g_active_gun_input = GunInput::Hybrid;
 static StarWarsInput g_active_star_wars_input = StarWarsInput::Hybrid;
-static WidescreenMode g_active_widescreen_mode = WidescreenMode::Disabled;
 static constexpr unsigned kNvramSettingCount =
    static_cast<unsigned>(LibretroNvramSettings::Setting::Count);
 struct NvramCoreOptionSet
@@ -680,6 +679,7 @@ CoreOptions g_options = {
    /* crt_colors           */ 0,
    /* supersampling        */ 1,
    /* upscale_mode          */ 2,
+   /* aspect_ratio         */ AspectRatioMode::Auto,
    /* widescreen_mode      */ WidescreenMode::Disabled,
    /* no_white_flash       */ false,
    /* av_timing_mode       */ AVTimingMode::Default60Hz,
@@ -713,12 +713,19 @@ CoreOptions g_options = {
 
 static bool widescreen_enabled()
 {
-   return g_active_widescreen_mode != WidescreenMode::Disabled;
+   return g_options.aspect_ratio != AspectRatioMode::FourThree &&
+          g_options.widescreen_mode != WidescreenMode::Disabled;
+}
+
+static float effective_aspect_ratio()
+{
+   return g_options.aspect_ratio == AspectRatioMode::SixteenNine ||
+          widescreen_enabled() ? (16.0f / 9.0f) : (4.0f / 3.0f);
 }
 
 static bool wide_background_enabled()
 {
-   return g_active_widescreen_mode ==
+   return widescreen_enabled() && g_options.widescreen_mode ==
           WidescreenMode::WidescreenWideBackground;
 }
 
@@ -768,6 +775,9 @@ static constexpr unsigned kMaximumVideoWidth =
 // Optimization: Cache last known resolution to avoid redundant updates
 static unsigned last_width = 0;
 static unsigned last_height = 0;
+static float last_aspect_ratio = 0.0f;
+static bool last_widescreen = false;
+static bool last_wide_background = false;
 #define NVRAM_BUFFER_SIZE (0x20000 + 2048) 
 static uint8_t g_nvram_buffer[NVRAM_BUFFER_SIZE];
 static constexpr int32_t NVRAM_FILE_VERSION = 0;
@@ -1305,7 +1315,7 @@ void retro_get_system_info(struct retro_system_info *info)
 {
    memset(info, 0, sizeof(*info));
    info->library_name     = "Supermodel";
-   info->library_version  = "v0.3a-libretro";
+   info->library_version  = "v0.3a-20261012-git-ed608de-libretro.1";
    info->need_fullpath    = true;
    // GameLoader currently opens MAME-style ZIP sets. Do not advertise CHD or
    // 7z until the content path can actually consume those formats.
@@ -1321,8 +1331,7 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
    info->geometry.base_height  = output_height;
    info->geometry.max_width    = kMaximumVideoWidth;
    info->geometry.max_height   = kMaximumVideoHeight;
-   info->geometry.aspect_ratio = widescreen_enabled()
-      ? (16.0f / 9.0f) : (4.0f / 3.0f);
+   info->geometry.aspect_ratio = effective_aspect_ratio();
 
    info->timing.fps         = wrapper.GetFramesPerSecond();
    info->timing.sample_rate = LibretroTiming::kAudioSampleRate;
@@ -1406,6 +1415,7 @@ bool retro_load_game(const struct retro_game_info *info)
    g_skip_counter = 0;
    last_width = 0;
    last_height = 0;
+   last_aspect_ratio = 0.0f;
    g_context_ready = false;
    s_frontendTimings = {};
    s_accRun = s_accCoreAndBlit = s_accPresent = s_maxRun = 0.0f;
@@ -1476,8 +1486,6 @@ bool retro_load_game(const struct retro_game_info *info)
         // Optional: Log that rumble is not supported by this frontend/controller
    }
 
-   
-   g_active_widescreen_mode = g_options.widescreen_mode;
    g_active_gun_input = g_options.gun_input;
    g_active_star_wars_input = g_options.star_wars_input;
    ppc_set_jit_enabled(g_options.jit_enable);
@@ -1591,7 +1599,6 @@ void retro_run(void)
       bool old_quad_rendering = g_options.quad_rendering;
       int old_crt_colors = g_options.crt_colors;
       int old_supersampling = g_options.supersampling;
-      WidescreenMode old_widescreen_mode = g_options.widescreen_mode;
       bool old_no_white_flash = g_options.no_white_flash;
       AVTimingMode old_av_timing_mode = g_options.av_timing_mode;
       int old_upscale_mode = g_options.upscale_mode;
@@ -1647,11 +1654,6 @@ void retro_run(void)
       if (g_options.emulation_threading != old_emulation_threading)
       {
          notify_frontend("Emulation Threading will apply after restarting the content.", 180);
-      }
-
-      if (g_options.widescreen_mode != old_widescreen_mode)
-      {
-         notify_frontend("Widescreen Mode will apply after restarting the content.", 180);
       }
 
       if (g_options.av_timing_mode != old_av_timing_mode)
@@ -1834,23 +1836,34 @@ void retro_run(void)
 
    unsigned view_w, view_h, target_w, target_h;
    get_video_dimensions(view_w, view_h, target_w, target_h);
+   const float target_aspect = effective_aspect_ratio();
 
-   // OPTIMIZATION: Only update screen size if it actually changed.
-   if (target_w != last_width || target_h != last_height) {
-      wrapper.UpdateScreenSize(view_w, view_h, target_w, target_h);
-      
-      struct retro_game_geometry geometry;
-      geometry.base_width   = target_w;
-      geometry.base_height  = target_h;
-      geometry.max_width    = kMaximumVideoWidth;
-      geometry.max_height   = kMaximumVideoHeight;
-      geometry.aspect_ratio = widescreen_enabled()
-         ? (16.0f / 9.0f) : (4.0f / 3.0f);
+   const bool target_widescreen = widescreen_enabled();
+   const bool target_wide_background = wide_background_enabled();
+   const bool geometry_changed = target_w != last_width || target_h != last_height ||
+      target_aspect != last_aspect_ratio;
+   // Background-only mode changes share dimensions but must refresh the renderers.
+   if (geometry_changed || target_widescreen != last_widescreen ||
+       target_wide_background != last_wide_background) {
+      wrapper.UpdateScreenSize(view_w, view_h, target_w, target_h,
+                               target_widescreen, target_wide_background);
 
-      environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &geometry);
-      
+      if (geometry_changed) {
+         struct retro_game_geometry geometry;
+         geometry.base_width   = target_w;
+         geometry.base_height  = target_h;
+         geometry.max_width    = kMaximumVideoWidth;
+         geometry.max_height   = kMaximumVideoHeight;
+         geometry.aspect_ratio = target_aspect;
+
+         environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &geometry);
+      }
+
       last_width  = target_w;
       last_height = target_h;
+      last_aspect_ratio = target_aspect;
+      last_widescreen = target_widescreen;
+      last_wide_background = target_wide_background;
    }
 
    Game game = wrapper.getGame();

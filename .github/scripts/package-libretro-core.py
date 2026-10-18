@@ -86,4 +86,6 @@ lib.retro_get_system_info.argtypes = [ctypes.POINTER(SystemInfo)]
 actual = SystemInfo()
 lib.retro_get_system_info(ctypes.byref(actual))
 assert actual.name == b'Supermodel' and actual.extensions == b'zip'
+expected_version = re.search(r'^display_version = "([^"]+)"$', info, re.M)
+assert expected_version and actual.version.decode() == expected_version[1], 'Runtime/metadata version mismatch'
 print(f'PASS: {len(files)} package files; runtime identity, metadata, XML, licenses, provenance and hashes')

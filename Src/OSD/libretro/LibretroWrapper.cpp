@@ -237,12 +237,15 @@ void LibretroWrapper::InitializePaths(const std::string& systemPath)
 
 void LibretroWrapper::UpdateScreenSize(unsigned viewWidth, unsigned viewHeight,
                                        unsigned outputWidth,
-                                       unsigned outputHeight)
+                                       unsigned outputHeight,
+                                       bool widescreen, bool wideBackground)
 {
     // If dimensions match and renderers are initialized, skip costly re-init
     if (viewWidth == xRes && viewHeight == yRes &&
         outputWidth == totalXRes && outputHeight == totalYRes &&
-        superAA != nullptr)
+        superAA != nullptr &&
+        s_runtime_config["WideScreen"].ValueAsDefault<bool>(false) == widescreen &&
+        s_runtime_config["WideBackground"].ValueAsDefault<bool>(false) == wideBackground)
         return;
 
     xRes = std::min(viewWidth, outputWidth);
@@ -255,6 +258,8 @@ void LibretroWrapper::UpdateScreenSize(unsigned viewWidth, unsigned viewHeight,
     if (Model3)
         Model3->PauseThreads();
 
+    // The existing resize path parks the workers before changing renderer state.
+    SetWidescreen(widescreen, wideBackground);
     InitRenderers();
 
     if (Model3)
@@ -496,6 +501,8 @@ int LibretroWrapper::SuperModelInit(const Game &game) {
 
   totalXRes = xRes = s_runtime_config["XResolution"].ValueAs<unsigned>();
   totalYRes = yRes = s_runtime_config["YResolution"].ValueAs<unsigned>();
+  // A new content load starts with no margins from the previous wide viewport.
+  xOffset = yOffset = 0;
   snprintf(baseTitleStr, sizeof(baseTitleStr), "Supermodel - %s", game.title.c_str());
 
   SetAudioType(game.audio);

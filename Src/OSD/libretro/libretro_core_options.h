@@ -171,16 +171,31 @@ static struct retro_core_option_v2_definition option_defs[] = {
       "2"
    },
    {
-      "supermodel_wide_screen",
-      "Widescreen Mode",
+      "supermodel_aspect_ratio",
+      "Aspect Ratio",
       NULL,
-      "Expand the 3D field of view for widescreen output, with optional background stretching. Applies only to hardware rendering.",
+      "Select the displayed aspect ratio. Auto follows Widescreen Mode. Explicit 4:3 suppresses expansion; 16:9 with Widescreen Mode Disabled stretches the original image. Changes apply when returning to the game.",
       NULL,
       "video",
       {
-         { "disabled", NULL },
-         { "enabled", "Widescreen" },
-         { "wide_background", "Widescreen + Wide Background" },
+         { "auto", "Auto" },
+         { "4_3", "4:3" },
+         { "16_9", "16:9" },
+         { NULL, NULL },
+      },
+      "auto"
+   },
+   {
+      "supermodel_wide_screen",
+      "Widescreen Mode",
+      NULL,
+      "Expand the 3D field of view with Aspect Ratio set to Auto or 16:9, optionally stretching the lower 2D background. Explicit 4:3 suppresses expansion. Upper 2D layers keep their proportions. Disabled retains original rendering; Aspect Ratio 16:9 then stretches the complete image. Changes apply when returning to the game without a reset or content reload.",
+      NULL,
+      "video",
+      {
+         { "disabled", "Disabled" },
+         { "enabled", "Expand 3D View Only" },
+         { "wide_background", "Expand 3D View + Stretch 2D Background" },
          { NULL, NULL },
       },
       "disabled"
@@ -725,6 +740,11 @@ void update_core_options(void)
    g_options.timing_overlay = strcmp(option_get("supermodel_timing_overlay", "disabled"), "enabled") == 0;
 
    {
+      const char *aspect = option_get("supermodel_aspect_ratio", "auto");
+      g_options.aspect_ratio = strcmp(aspect, "4_3") == 0
+         ? AspectRatioMode::FourThree
+         : strcmp(aspect, "16_9") == 0
+            ? AspectRatioMode::SixteenNine : AspectRatioMode::Auto;
       const char *widescreen = option_get(
          "supermodel_wide_screen", "disabled");
       g_options.widescreen_mode =

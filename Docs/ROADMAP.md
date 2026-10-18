@@ -14,8 +14,9 @@ Legend: 🟢 Completed · 🟡 Partial · ⚪ Not Started · 🔵 Deferred
 
 | Status | Activity | Remaining Work |
 | --- | --- | --- |
-| 🟢 | F04 — Frontend Option Ordering | Implemented and installed locally. Profile/Rumble precede specialized Input groups; Star Wars controls are last. Approved Video follow-up groups Rendering, Image, then Timing/Diagnostics. Original whole-menu UI acceptance retained; follow-up API 0/1/2 and four header configurations pass. System/native order retained. |
-| 🟢 | F04 — Final Registered Menu Wording Audit | 255 definitions and 36 applicable workbook rows pass; full per-key metadata preserved. V2/V1/V0 order, 22 network pairs, exact help and four conditional header configurations checked. |
+| 🟢 | F04 — Frontend Option Ordering | Implemented and installed locally. Profile/Rumble precede specialized Input groups; Star Wars controls are last. Approved Video follow-up groups Rendering, Image, then Timing/Diagnostics. Original whole-menu UI acceptance retained; its follow-up API 0/1/2 and four header configurations pass. The later Aspect Ratio selector is adjacent to Widescreen Mode. System/native order retained. |
+| 🟢 | Widescreen And Aspect Ratio | User-approved Disabled / Expand 3D View Only / Expand 3D View + Stretch 2D Background labels and direct-16:9 help implemented and installed locally. WM values/default retained. Added Auto/4:3/16:9 Aspect Ratio, Auto default; 4:3 suppresses expansion, Disabled + 16:9 stretches. Both selectors now apply on Resume without reset/reload, reusing the existing resize path. API 0/1/2, build, CGL transitions and three RetroArch cases pass. This follow-up is not committed or pushed. |
+| 🟢 | F04 — Final Registered Menu Wording Audit | The original 255 definitions and 36 applicable workbook rows pass; the later Aspect Ratio follow-up verifies 256 definitions with the original metadata preserved except revised WM help; full per-key metadata preserved. V2/V1/V0 order, 22 network pairs, exact help and four conditional header configurations checked. |
 | 🟢 | F14 — Two-Option Networking | Native authority, handover and retained transport are implemented; initial real two-peer exchange is verified. User-approved fallback retains immediate effective-change application during non-pausing Netplay menus. See the 2026-10-18 feasibility follow-up for the explicit timing limit. |
 | 🟢 | F05/F12 — Effective NVRAM Reset | Paused menus coalesce effective edits into one reset on Resume; unchanged/alias-equivalent settings do not reset. Explicit Restart consumes pending choices. During non-pausing Netplay, effective edits apply immediately; the user accepted retaining this behavior if reliable menu-exit deferral is unavailable. |
 | 🟢 | Audio Recovery After Machine Reset | Startup and reset share the primed audio-queue initialization. Old/new PCM regression, real RetroArch recording, matching Multi-threaded + GPU playback before/after reset confirmed by the user, and existing Daytona 2 network lifecycle regression pass. Standard local core installed; no driver or user-configuration change. |
@@ -39,11 +40,12 @@ Legend: 🟢 Completed · 🟡 Partial · ⚪ Not Started · 🔵 Deferred
 
 ## Current Local Delivery
 
-The 2026-10-18 audio-reset correction is the current installed macOS ARM build:
-`5cca917dc93bcc9ea9b65377d5f87658533038c14c1bee20506b4e04442c7862`.
-It includes the earlier menu delivery (`ca0360e3…eef235`).
-The configured standard `supermodel_libretro.dylib` matches the build; .info and
-external System assets are unchanged by the menu/audio deliveries.
+The current delivery includes live Aspect Ratio/Widescreen selectors and the
+renderer texture-state correction. Source publication and the four-platform
+release `v0.3a-20261012-git-ed608de-libretro.1` are authorized and in progress on `main`.
+Local build/install hashes and protected-file checks are recorded in
+`outputs/release-20261018/deployment.json`. Later sections retain historical
+delivery and verification details.
 
 See [the menu ordering/audit report](CORE_OPTIONS_ORDER_AUDIT_2026-10-18.md).
 Its Video follow-up records eight changed Video positions with all 255 per-key
@@ -255,3 +257,121 @@ Build/export/dependency checks and the reused Daytona 2 lifecycle regression
 core matches the build: `5cca917dc93bcc9ea9b65377d5f87658533038c14c1bee20506b4e04442c7862`. The two user instances
 were closed normally after authorization; all QA instances exited normally.
 Evidence: `outputs/audio-reset-20261018/verification.json`. No commit or push.
+
+
+## Widescreen Value-Label Follow-Up
+
+The user approved these display names for the existing saved values:
+
+| Saved Value | Display Label | Behavior Boundary |
+| --- | --- | --- |
+| `disabled` (Default) | Disabled | Original rendering; RetroArch must force 16:9 for full-image stretch. Core Provided retains 4:3. |
+| `enabled` | Expand 3D View Only | Expand the 3D view while preserving native 2D proportions. |
+| `wide_background` | Expand 3D View + Stretch 2D Background | Also stretch the lower 2D background; upper layers retain their proportions. |
+
+Only display labels and the explanatory help changed. The option key, saved
+values, default, category, order, restart policy and renderer remain unchanged.
+The README reflects the same behavior. Supermodel's lower-background stretch
+is not identical to TGPulse's stretch of both native 2D layers.
+
+Build, the existing 25-export/dependency gate and actual API 2/1/0 registration
+checks pass for all 255 definitions. Modern metadata changes only for the
+three labels and help of this key; legacy API 0 retains its raw-value strings.
+The normal installed core is hash-matched. Actual frontend UI/gameplay checks
+were not repeated for this label-only change. Evidence:
+`outputs/widescreen-labels-20261018/{verification,deployment}.json`. No commit
+or push was requested for this follow-up.
+
+
+The subsequent user clarification restores **Disabled** as the first label.
+Both Expand modes directly publish 16:9, independent of frontend Aspect Ratio;
+Disabled retains original rendering and reports 4:3. Forcing 16:9 in RetroArch
+while Disabled still stretches the complete image. This supersedes the earlier
+Stretch label, not the renderer behavior. The matching TGPulse adaptation keeps
+native-widescreen titles unchanged and makes its expansion independent of its
+separate Aspect Ratio selector. Supermodel stretches only the lower background;
+TGPulse's optional 2D stretch still covers both native layers.
+
+The revised Supermodel build, 25-export/dependency gate and all 255 API 0/1/2
+registrations pass. Compared with the immediately preceding local delivery,
+only the first value label and help changed. The normal installed core matches
+`f7254edfd9e86924e4558636cdf457ba1082f4ed99a5e39763926e7a127ab9b9`.
+Evidence: `outputs/widescreen-direct-20261018/`. No commit or push.
+
+
+## Aspect Ratio Gate — 2026-10-18
+
+The user's final rule supersedes unconditional artificial expansion: Widescreen
+Mode acts only when the core's Aspect Ratio is Auto or 16:9. Explicit 4:3
+suppresses expansion while retaining the saved WM choice. The user approved
+adding the missing core selector; the global RetroArch aspect setting is not
+readable through the Libretro ABI.
+
+- Aspect Ratio: Auto/default, 4:3, 16:9; saved `auto`, `4_3`, `16_9`. It sits
+  immediately before Widescreen Mode. Auto follows the effective WM choice,
+  with native 4:3 fallback; no native Model 3 wide monitor is invented.
+- Disabled + 16:9 presents the original 496x384 image stretched to 16:9.
+  Disabled + Auto/4:3 remains 4:3.
+- Expand + Auto/16:9 renders 683x384 and reports 16:9. Expand + 4:3 renders
+  native 496x384 and reports 4:3, including the optional background mode.
+- Aspect Ratio applies on Resume without resetting the machine. The existing
+  resize/rebuild path parks workers before changing renderer flags. Aspect-only
+  changes publish geometry even when pixel dimensions stay unchanged. WM changes
+  now apply on Resume as well (see the live-selector follow-up below). RetroArch Core Provided honors the result;
+  an explicit frontend override remains frontend-owned.
+
+All 256 definitions pass API 0/1/2 checks. Exactly one definition was added;
+previous keys/order/defaults/choices remain intact, with revised WM help. The
+macOS build and 25-export/dependency gate pass. Reusing the CGL host verifies
+12 live transitions, stable geometry notifications, no automatic machine resets,
+and three explicit Restarts with one reset each in Multi-threaded + GPU mode.
+Three isolated actual RetroArch glcore runs confirm 4:3 suppression, Auto
+expansion and Disabled + 16:9 Stretch; screenshots were retained. These are
+geometry/image-delivery checks, not new 3D/gameplay or other-platform acceptance.
+
+Installed/build SHA-256:
+`fcf6ea2d0049a8d8dcf5a1902e8e16313900965a358c98b5cc0990510a18fe53`.
+Info/config/System files remain unchanged. Evidence:
+`outputs/widescreen-aspect-gate-20261018/`. TGPulse and SM2 were instructed to
+use the same Auto/16:9 gate with native widescreen unchanged; TGPulse's corrected
+build is verified and installed. No commit or push.
+
+
+## Widescreen Mode On Resume — 2026-10-18
+
+The user requested the same live selector lifecycle verified in TGPulse. Reuse
+the existing Aspect Ratio resize path, which parks/resumes workers around
+renderer reinitialization; no machine reset or content reload. Remove the load-only WM cache and use the current selection read by the existing
+Resume options block. Track effective widescreen
+and background flags as well as dimensions: the two Expand modes have identical
+geometry but different lower-background behavior. Background-only changes do
+not publish redundant frontend geometry. Projection, shaders and composition
+remain unchanged. Renderer/Supersampling restart rules remain unchanged.
+
+Verification: macOS build and 25-export/dependency gate pass. All 256
+registered definitions are preserved across API 0/1/2, except the WM help text.
+Twenty actual CGL hardware-frame transitions verify paused callbacks are inert,
+no automatic machine resets, explicit 4:3 suppression, Disabled + 16:9 stretch,
+both Expand modes, same-size background renderer refresh and no redundant
+geometry/reinitialization. One isolated RetroArch 1.22.2 macOS ARM glcore
+Daytona 2 session verifies Disabled -> Expand -> Expand + Background -> Disabled
+on Resume through actual 3D attract scenes, with no machine reset or reload.
+Other platforms were not runtime-tested in this follow-up. Evidence:
+`outputs/widescreen-live-selector-20261018/`. Public local core installed with
+matching SHA-256 `112b326cd6770409619c6058b47c02c1cd398bc8a0e05112ad910c8d27fd8af5`; matching info, active configuration, System assets and TGPulse core preserved.
+No commit or push.
+
+
+## Live Presentation Texture Regression — 2026-10-18
+
+Corrected the user-reported Daytona 2 texture corruption after WM/AR changes.
+The previous green lifecycle result was insufficient for texture integrity.
+Recreated renderers now receive texture RAM and persistent native rendering
+registers through AttachRenderer, reusing LoadState's native operations. New
+content loads also clear stale viewport margins. No reset/reload, shader or
+projection change. Fifteen static/live pixel comparisons and twenty CGL
+transitions pass, including the user's 2x/Multi-threaded + GPU settings.
+Build/API/dependency checks pass; 256 options unchanged. macOS runtime only.
+See [Renderer State After Live Presentation Changes](WIDESCREEN_RENDERER_STATE_2026-10-18.md)
+for failed-probe distinctions and limits. Verified local deployment recorded
+in `outputs/widescreen-renderer-state-20261018/deployment.json`. No commit/push.

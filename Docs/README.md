@@ -1,9 +1,9 @@
 # Supermodel — Sega Model 3 Libretro Core
 
-[![Libretro Core CI](https://github.com/Zer0one/Libretro-Supermodel/actions/workflows/libretro-ci.yml/badge.svg?branch=supermodel-modern)](https://github.com/Zer0one/Libretro-Supermodel/actions/workflows/libretro-ci.yml)
+[![Libretro Core CI](https://github.com/Zer0one/Libretro-Supermodel/actions/workflows/libretro-ci.yml/badge.svg?branch=main)](https://github.com/Zer0one/Libretro-Supermodel/actions/workflows/libretro-ci.yml)
 
 A C++17 Libretro port of Supermodel for running Sega Model 3 arcade games in
-RetroArch. The active development branch is `supermodel-modern`.
+RetroArch. The active development branch is `main`.
 
 This port builds on [libretro/Libretro-Supermodel](https://github.com/libretro/Libretro-Supermodel)
 and the frontend work of [sgiannop/Libretro-Supermodel](https://github.com/sgiannop/Libretro-Supermodel),
@@ -21,8 +21,9 @@ each architecture.
 
 Tagged packages are available under
 [Releases](https://github.com/Zer0one/Libretro-Supermodel/releases).
-The existing `0.3.0-beta` release predates the current branch changes; pushing
-source does not update those release binaries.
+The current port release is `v0.3a-20261012-git-ed608de-libretro.1`, based on the selectively integrated
+2026-10-12 upstream snapshot. See the [release notes](RELEASE_NOTES.md) for
+changes, platform coverage and limitations.
 
 1. Copy `supermodel_libretro.so`, `.dll` or `.dylib` to RetroArch's configured
    **Cores** directory.
@@ -119,16 +120,26 @@ and [shader follow-up](QUAD_SHADER_INSTRUCTION_REVIEW_2026-10-13.md) reproduce t
 penalty and document the tested alternatives. No safe production workaround
 was adopted; keep Quad Rendering disabled when performance is insufficient.
 
-**Widescreen Mode** is a rendering enhancement. There is no verified native
+**Aspect Ratio** offers Auto (default), 4:3 and 16:9. Auto uses the presentation
+selected by Widescreen Mode; explicit 4:3 suppresses expansion. With Widescreen
+Mode Disabled, 16:9 stretches the original complete image. Aspect Ratio changes
+apply when returning to the game without a machine reset.
+
+**Widescreen Mode** keeps native rendering when Disabled. Either Expand mode
+widens the 3D view and reports 16:9 only when Aspect Ratio is Auto or 16:9. There is no verified native
 Model 3 widescreen setting on which to base automatic aspect selection.
 
 | Mode | Result |
 | --- | --- |
-| Disabled | Original 496 × 384 rendering with 4:3 presentation. |
-| Widescreen | Wider full-screen 3D viewports in a 16:9 framebuffer, keeping original 2D geometry. |
-| Widescreen + Wide Background | Also widens the lower background layer; HUD/upper overlays retain their original geometry. |
+| Disabled (Default) | Original 496 × 384 rendering. Aspect Ratio 16:9 stretches the complete image; Auto and 4:3 retain 4:3. |
+| Expand 3D View Only | Wider full-screen 3D viewports in a 16:9 framebuffer, keeping original 2D geometry. |
+| Expand 3D View + Stretch 2D Background | Also widens the lower background layer; HUD/upper overlays retain their original geometry. |
 
-Widescreen changes require restarting the content. Final output stretching and
+These labels retain the saved values `disabled`, `enabled` and `wide_background`
+respectively. They do not change rendering behavior or the default. Unlike
+TGPulse's Stretch 2D mode, Supermodel stretches only its lower background layer.
+
+Aspect Ratio and Widescreen Mode changes apply when returning to the game, without a machine reset or content reload. Use RetroArch's Core Provided aspect setting to honor the core selector. Final output stretching and
 scaling remain frontend controls. **2D Layer Upscaling Filter** affects tile
 layers above native resolution; native rendering uses nearest-neighbor.
 

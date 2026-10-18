@@ -27,7 +27,7 @@ The LCF changes are port-specific frontend adaptations. They do not establish
 additional standalone upstream coverage; their status is recorded only in
 `ROADMAP.md`.
 
-## WIP Version Scheme
+## Snapshot-Based Port Version Scheme
 
 Supermodel's upstream identifies snapshots as
 `v0.3a-YYYYMMDD-git-SHA`, rather than a sequence such as SM2's `0.9.44`.
@@ -83,3 +83,25 @@ This supersedes the previous pending status of the new checker; it does not
 expand native gameplay qualification or update the existing release. CI success,
 native gameplay, Libretro-hosted distribution and publication remain different
 claims.
+
+
+## Local Renderer Reattachment Candidate — 2026-10-18
+
+`CReal3D::AttachRenderer` now repopulates GPU texture banks and restores sun
+clamp/block-culling registers from native state, using LoadState's existing
+operations. This fixes replacement-renderer texture loss in Libretro WM/AR
+changes. It is a small candidate for upstream review, not an upstream submission
+or standalone runtime qualification. Keep it when merging an upstream update
+unless an equivalent reattachment synchronization is present. Evidence and
+limits: [Renderer State](WIDESCREEN_RENDERER_STATE_2026-10-18.md).
+
+
+## First Snapshot-Based Port Release
+
+The user authorized commit, push and a new release on 2026-10-18.
+`v0.3a-20261012-git-ed608de-libretro.1` aligns runtime identity, .info display version and release
+tag/title. It uses the reviewed `ed608de` snapshot identity and port revision 1,
+with the selective coverage above; excluded standalone GUI changes remain
+excluded. Publication now uses `main`; historical branches are retained.
+The earlier references to 0.3.0-beta and v0.3a-libretro describe the preceding
+delivery. See [current release notes](RELEASE_NOTES.md).

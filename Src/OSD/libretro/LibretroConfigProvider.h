@@ -344,8 +344,10 @@ namespace LibretroConfigProvider {
         config.Set("Supersampling", g_options.supersampling);
         config.Set("UpscaleMode", g_options.upscale_mode);
         config.Set("WideScreen",
+                   g_options.aspect_ratio != AspectRatioMode::FourThree &&
                    g_options.widescreen_mode != WidescreenMode::Disabled);
         config.Set("WideBackground",
+                   g_options.aspect_ratio != AspectRatioMode::FourThree &&
                    g_options.widescreen_mode ==
                        WidescreenMode::WidescreenWideBackground);
         config.Set("NoWhiteFlash", g_options.no_white_flash);

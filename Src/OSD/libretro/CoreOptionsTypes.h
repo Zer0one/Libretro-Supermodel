@@ -23,6 +23,12 @@ enum class WidescreenMode {
    WidescreenWideBackground
 };
 
+enum class AspectRatioMode {
+   Auto,
+   FourThree,
+   SixteenNine
+};
+
 enum class AVTimingMode {
    Default60Hz,
    Native57524Hz
@@ -64,6 +70,7 @@ struct CoreOptions {
    int crt_colors;
    int supersampling;
    int upscale_mode;
+   AspectRatioMode aspect_ratio;
    WidescreenMode widescreen_mode;
    bool no_white_flash;
    AVTimingMode av_timing_mode;

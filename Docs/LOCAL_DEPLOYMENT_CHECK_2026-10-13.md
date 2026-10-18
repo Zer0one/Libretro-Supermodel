@@ -131,3 +131,68 @@ verified unchanged. Both original user sessions were closed normally with user
 authorization, and QA instances exited 0; the next launch uses the corrected
 core. No frontend-driver or configuration change, commit or push. Evidence:
 `outputs/audio-reset-20261018/{verification,deployment}.json`.
+
+
+## Widescreen Value Labels — 2026-10-18
+
+The standard installed core now shows Stretch 3D and 2D View, Expand 3D View
+Only and Expand 3D View + Stretch 2D Background. The help explains the frontend
+16:9 requirement for full-image stretch and the lower-background-only expansion.
+Saved values, default and renderer behavior are unchanged. Build, 25-export/
+dependency checks and API 0/1/2 comparisons pass; this is registration evidence,
+not a repeated frontend/gameplay check.
+
+Installed/build SHA-256:
+`48f9a27935eda40ab0ae42addfd897ad87ca2a3c4a5c5989137830932d9d874a`.
+Active paths were reread/resolved and the .info, frontend configuration and
+external System files verified unchanged. No binary backup was retained; scoped
+header/rebuild rollback applies. Reload the core to display the new labels.
+Evidence: `outputs/widescreen-labels-20261018/`. No commit or push.
+
+
+## Direct Widescreen Convention — User Clarification
+
+The first value is again labelled Disabled. Expand modes directly report 16:9;
+Disabled reports 4:3 and still permits frontend-forced full-image stretching.
+This supersedes the prior Stretch label. The new help documents that behavior
+and preserves the lower-background versus upper-layer distinction.
+
+Build, 25-export/dependency gate and API 0/1/2 scope checks pass. Installed/build
+SHA-256: `f7254edfd9e86924e4558636cdf457ba1082f4ed99a5e39763926e7a127ab9b9`.
+Active configured paths were resolved; matching info, config and System files
+remain unchanged. Evidence: `outputs/widescreen-direct-20261018/`. No commit/push.
+
+
+## Core Aspect Ratio Selector And Gate — 2026-10-18
+
+The user approved Auto/4:3/16:9, Auto default. Explicit 4:3 now suppresses
+expansion; Auto/16:9 permit the selected Expand mode. Disabled + 16:9 stretches
+the complete image. Aspect-only geometry changes and live renderer resizing
+reuse the existing paused-worker path without a machine reset.
+
+Build, 25-export/dependencies, 256 API 0/1/2 definitions, 12 live CGL transitions
+and three explicit Restarts pass. Three actual RetroArch glcore image-delivery
+cases confirm the combinations. Installed/build SHA-256:
+`fcf6ea2d0049a8d8dcf5a1902e8e16313900965a358c98b5cc0990510a18fe53`.
+Matching info, active config and System assets were preserved. Evidence:
+`outputs/widescreen-aspect-gate-20261018/`. No commit/push.
+
+
+## Widescreen Mode On Resume — 2026-10-18
+
+Installed the verified public `supermodel_libretro.dylib` after the live-selector
+follow-up. Build/install SHA-256: `112b326cd6770409619c6058b47c02c1cd398bc8a0e05112ad910c8d27fd8af5`. Matching info, active
+configuration/System files and TGPulse core preserved. Reused the existing
+atomic deployment helper; no routine binary backup, commit or push. Source,
+20 CGL transitions and actual Daytona 2 RetroArch UI evidence are under
+`outputs/widescreen-live-selector-20261018/`.
+
+
+## Live Presentation Renderer-State Fix — 2026-10-18
+
+Installed the verified public core after the reproduced WM/AR texture loss
+correction. Build/install SHA-256: `1c333eb0d3ab0bd5b584e2069484147cceb4dcef99574e77d5428d37104707f1`. Matching info, active
+configuration, System XML assets and TGPulse core preserved. No routine binary
+backup or commit/push. Evidence: `outputs/widescreen-renderer-state-20261018/`.
+Already-running instances retain their previously loaded binary until the
+content/core is reopened once; subsequent WM/AR changes remain live on Resume.
