@@ -1,13 +1,14 @@
 # Roadmap
 
-Updated: 2026-10-18
+Updated: 2026-10-19
 
 Reference: [Libretro Core Framework 0.1.37](/Users/andrea/dev/libretro-core-framework/FRAMEWORK.md).
 
 This is the sole current implementation roadmap. Completed means the stated
 scope and evidence are complete; it does not imply all-platform gameplay or a
-published release. The user authorized commit, push and a GitHub project-page update on
-2026-10-18. No new tag or release was requested. Generated local evidence and
+published release. The user authorized the accumulated U01–U05 source/documentation commit and push
+on 2026-10-19. The project README is updated with this source publication.
+No new tag or release was requested. Generated local evidence and
 build artifacts remain outside the source publication.
 
 Legend: 🟢 Completed · 🟡 Partial · ⚪ Not Started · 🔵 Deferred
@@ -36,15 +37,12 @@ Legend: 🟢 Completed · 🟡 Partial · ⚪ Not Started · 🔵 Deferred
 | 🟢 | F18/F19 — New Package Checks | Source `c12cd392` passed all four desktop CI jobs, including runtime identity, inventory, XML, notices, provenance, checksums and artifact upload. Linux host-GL and Windows Git prerequisites corrected. [CI evidence](https://github.com/Zer0one/Libretro-Supermodel/actions/runs/39134741470). |
 | 🟢 | Libretro Upstream Submission | [PR #20](https://github.com/libretro/Libretro-Supermodel/pull/20) published from existing `main`, including the Scud Australia and rumble fixes in `36a105e2`. Desktop CI run 39173389437 started for that implementation commit. New standalone changes remain pending below; no new branch or native upstream import. |
 | 🟢 | Source Publication And GitHub Page | Accumulated source/docs committed and pushed; README and repository description updated. Current release source is published on `main`; `supermodel-modern` remains the repository default and historical branches are retained. The new four-platform prerelease is published; see Current Local Delivery. |
-| ⚪ | U01 — Native Wheel Drive-Board Corrections | Integrate upstream `beb421ed` (servo registers, gain, idle stop and final per-frame force) with `175add57` (command queue), reviewing reset/load compatibility. Reuse the Scud rumble probes; verify Scud, Daytona 2 and Sega Rally 2 before making title-specific claims. These native changes complement the delivered Libretro output fix. |
-| ⚪ | U02 — PowerPC Interpreter Correctness | Review and integrate upstream `70b1b316` (#347). Check arithmetic/shift edge cases, carry/exception behavior and representative game startup; keep interpreter and JIT coverage distinct. |
-| ⚪ | U03 — Quad Triangle Rendering Corrections | Integrate `5dbc97fa`, `3574db93` and `53ff7674` (#348) as one coherent change. Preserve the Libretro OpenGL 4.1 shader prefix and live renderer reattachment; compare Quad on/off scenes for triangle slivers, depth and texture regressions. This does not reopen the closed general macOS performance investigation. |
-| ⚪ | U04 — Shared Model 3 / Real3D Updates | Review the Model 3-relevant portions of `4f5d686b`, `a8297d4c` and `ddbc3066`: renderer bounds/traversal, fog and shared interface changes. Identify dependencies before importing individual hunks; retain the local texture/register reattachment fix. New Pro-1000 hardware and host SCSI transport are outside this item's scope. |
-| 🔵 | U05 — Shared Force-Feedback Effect Count | Align `NUM_FF_EFFECTS` with upstream `0a99174d` when shared input sources are reconciled. Its overflow fix concerns standalone DirectInput, which is not built by this core; the Libretro adapter already keeps all four native effects independently. No current Libretro runtime defect is implied by the old macro value. |
+| 🟢 | U01 — Native Wheel Drive-Board Corrections | Integrated locally from `beb421ed` and `175add57`: servo nibble order/gain/idle stop, final per-frame output and bounded command queue. Native register probes, Scud/Daytona 2/Sega Rally 2 ABI runs, reset and old/new Save State checks pass; Scud Multi-threaded + GPU checked separately. Libretro preflight accepts the optional servo block only when absent, retaining strict corruption checks. Physical-controller response remains unqualified. Included in the authorized 2026-10-19 source publication. |
+| 🟢 | U02 — PowerPC Interpreter Correctness | Integrated `70b1b316` with the port's cached carry API retained. Actual interpreter dispatch: 138 edge checks, eight baseline failures reduced to zero. Daytona 2 interpreter startup/reset/state round-trip and separate Sega Rally 2 JIT smoke run pass. JIT FPSCR shortcuts remain distinct and are not claimed corrected by this interpreter patch. Included in the 2026-10-19 source publication; the tagged release is unchanged. |
+| 🟢 | U03 — Quad Triangle Rendering Corrections | Integrated `5dbc97fa`, `3574db93` and `53ff7674`; preserved OpenGL 4.1 prefixes and renderer reattachment. Same-state Scud/Daytona 2 comparisons: triangle-renderer images identical; Quad differences limited to 191/173 pixels in the sampled frames. Twenty live WM/AR transitions pass without reset. Targeted evidence only, not all-scene or performance qualification. Included in the 2026-10-19 source publication; the tagged release is unchanged. |
+| 🟢 | U04 — Shared Model 3 / Real3D Updates | Completed the selected Model 3 scope from `a8297d4c` and `4f5d686b`: polygon bounds, base rotation/fog/LOD tag, FIFO flags, viewport/list/point-ref/no-LOD traversal, decal ordering/depth bias and LOS after transparency passes. Retained local async LOS, conditional transparency path and renderer reattachment; bound skipped-entry lists to RAM. Native CGL tests pass 29 checks each with triangles/Quad, three saved-scene comparisons are pixel-identical, VF3/Lost World boot/reset/state and 20 live WM/AR transitions pass. Pro-1000 camera/hardware/SCSI and interface refactors are assessed and excluded; no full upstream synchronization or other-platform qualification is implied. Included in the 2026-10-19 source publication; the tagged release is unchanged. |
+| 🟢 | U05 — Shared Force-Feedback Effect Count | Aligned `NUM_FF_EFFECTS` to four (`0a99174d`). Existing four-effect Libretro mixer and native drive-board regressions pass. The upstream overflow affected standalone DirectInput, not this adapter. Included in the 2026-10-19 source publication; the tagged release is unchanged. |
 | 🟡 | F13 — Complete Visual Game Settings Catalogue | 120/130 pending parent cycles completed, plus Bass Fishing Event Game Time; 720 cycle photographs and two contexts archived. YAML/Excel/catalogue reconciled. Only ten vs298 rows remain blocked by the local ROM CRC mismatch. |
-| 🔵 | Optional Standalone GUI/Configuration Changes | Review upstream GUI/configuration changes only if a core-owned writer needs them. RetroArch owns the option GUI; the current adapter does not rewrite user INI files. |
-| 🔵 | Pro-1000 And Host SCSI Expansion | New standalone hardware in #343/#350 and Windows `wnaspi32.dll` are not Model 3 frontend fixes. No addition to this core is planned without a separate scope decision. Unmerged SCSP #349 and GLES/Wayland #332 remain watch items, not delivered updates. |
-| 🔵 | F15 — Multi-Core Launcher | Owned by the separate launcher project. Do not build a second launcher in this repository. |
 
 ## Current Local Delivery
 
@@ -57,7 +55,14 @@ record identical clean source commit/fingerprint; their GitHub digests match
 the verified local archives. The earlier Windows autocrlf provenance failure
 was corrected before publication.
 
-Local RetroArch now uses the exact CI ARM release core and matching .info.
+The published CI ARM release remains the release baseline. Local RetroArch now
+uses the separately verified 2026-10-19 U01/U02/U03/U04/U05 development
+build under the agreed standard name `supermodel_libretro.dylib`, SHA-256
+`c0082f673f738b6f1c8f5f070590599019446d41ae62818de78e24806d72ffb5`. The matching .info, user configuration and external
+System XML are unchanged. The source integrations are included in the authorized
+2026-10-19 publication on `main`; they are not part of the tagged release. Evidence: `outputs/autonomous-upstream-20261019/` and `outputs/u04-real3d-20261019/`.
+
+The preceding CI ARM release delivery used the matching .info.
 Core SHA-256: `b150417731ae694844b7b694c38f8ede50797c54b5844b7e473009d00fc5208f`. Twenty CGL transitions
 pass on that installed CI binary. Configuration and external System XML remain
 unchanged. Evidence: `outputs/release-20261018/`; historical delivery details
@@ -171,6 +176,12 @@ debug-menu photographs are historical diagnostics.
 
 ## Scope Exclusions And Deferred Decisions
 
+By user decision on 2026-10-19, standalone GUI/configuration work, Pro-1000
+and host SCSI expansion, and the multi-core launcher are excluded from this
+project's roadmap, rather than deferred activities. The launcher was completed
+in another project, as confirmed by the user. Previously integrated shared
+Model 3 corrections remain part of U04.
+
 Prototype analysis, inventories, acquisition, tests, implementation and maintenance
 are excluded unless explicitly requested. Existing prototype records/support are
 retained; old srally2p/srally2pa failures are not active completeness blockers.
@@ -192,8 +203,10 @@ not authorize a replacement renderer or Vulkan backend.
 
 [Upstream integration and release identity](UPSTREAM_INTEGRATION.md) records the
 2026-10-13 reviewed snapshot, integrated/adapted/excluded changes and future
-version scheme. This roadmap refresh is not an upstream update check. Optional
-standalone GUI changes remain deferred; Libretro ownership is preserved.
+version scheme. This roadmap refresh is not an upstream update check.
+Standalone GUI/configuration changes are excluded by user decision; RetroArch
+retains frontend ownership. Unmerged SCSP #349 and GLES/Wayland #332 remain
+upstream watch notes, not scheduled integration tasks.
 
 The existing package gate assembles core, .info, Games.xml, Music.xml, notices,
 source provenance and checksums. The existing [GitHub run 36183994220](https://github.com/Zer0one/Libretro-Supermodel/actions/runs/36183994220),

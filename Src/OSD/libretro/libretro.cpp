@@ -229,7 +229,7 @@ static void append_nvram_core_options(void)
 static void append_linked_cabinet_core_options(void)
 {
    static constexpr const char *kInfo =
-      "Select the total number of linked cabinets, including a Relay where supported. Disabled disconnects optional communication boards or keeps required boards in local loopback; it does not change the selected native role. Supported totals and role combinations depend on the game. Effective changes reset automatically when returning to the game.";
+      "Select the total number of linked cabinets, including a Relay where supported. 1 Cabinet / Disabled disconnects optional communication boards or keeps required boards in local loopback; it does not change the selected native role. Supported totals and role combinations depend on the game. Effective changes reset automatically when returning to the game.";
    static constexpr const char *kRoleInfo =
       "Apply the native role and game identity independently of Linked Cabinets, even with NVRAM Settings disabled. Disabled restores manual management. Managed native fields are hidden; unrelated settings are preserved. Effective changes reset automatically when returning to the game.";
    // One visible pair also exists without a supported current game.
@@ -252,9 +252,9 @@ static void append_linked_cabinet_core_options(void)
       definition.desc = "Linked Cabinets";
       definition.info = kInfo;
       definition.category_key = "system";
-      definition.values[0] = {"-1", "Disabled"};
-      definition.values[1] = {"0", "Disabled"};
-      definition.values[2] = {"1", "Disabled"};
+      definition.values[0] = {"-1", "1 Cabinet / Disabled"};
+      definition.values[1] = {"0", "1 Cabinet / Disabled"};
+      definition.values[2] = {"1", "1 Cabinet / Disabled"};
       for (unsigned i = 2; i <= spec.max_cabinets; ++i)
          definition.values[i + 1] = {
             network_string(std::to_string(i)),
@@ -2128,11 +2128,26 @@ bool retro_unserialize(const void* data, size_t size)
     write_save_state(legacyLayout, false, false);
 
     CBlockFileMemory mem(data, size);
-    const bool hasCurrentLayout = mem.ValidateLayout(currentLayout.GetLayout());
+    const auto matchesLayout = [&mem](const CBlockFileCounter &counter) {
+        auto layout = counter.GetLayout();
+        if (mem.ValidateLayout(layout))
+            return true;
+        // Upstream adds this optional gain block without changing older wheel
+        // states. Accept its absence while retaining exact checks elsewhere.
+        const auto servo = std::find_if(layout.begin(), layout.end(),
+            [](const LibretroBlockLayout &block) {
+                return block.name == "WheelBoardServo";
+            });
+        if (servo == layout.end())
+            return false;
+        layout.erase(servo);
+        return mem.ValidateLayout(layout);
+    };
+    const bool hasCurrentLayout = matchesLayout(currentLayout);
     const bool hasStandaloneLayout = !hasCurrentLayout &&
-        mem.ValidateLayout(standaloneLayout.GetLayout());
+        matchesLayout(standaloneLayout);
     const bool hasLegacyLayout = !hasCurrentLayout && !hasStandaloneLayout &&
-        mem.ValidateLayout(legacyLayout.GetLayout());
+        matchesLayout(legacyLayout);
     if (!hasCurrentLayout && !hasStandaloneLayout && !hasLegacyLayout)
     {
         log_cb(RETRO_LOG_ERROR,

@@ -52,6 +52,24 @@ Windows packages can be checked with `sha256sum -c SHA256SUMS`; on macOS use
 - Core Options API 2, 1 and legacy registration, with reviewed menu grouping,
   help text and game-specific visibility.
 
+## Recent Development Changes
+
+The development branch selectively incorporates newer standalone corrections:
+
+- Native wheel drive-board servo gain, vibration decoding, idle stop and command
+  ordering, with compatibility for states lacking the optional servo block.
+- PowerPC interpreter arithmetic/carry, FPSCR and conversion edge-case fixes.
+- Quad triangle interpolation, bounded polygon/list traversal, LOD handling,
+  decal depth/order and LOS sampling after transparency rendering. The port's
+  OpenGL 4.1 support, asynchronous LOS and live renderer reattachment are retained.
+
+These changes are newer than the tagged release above. Local macOS ARM64 checks
+cover targeted CPU/native renderer cases, representative game startup/state/reset
+and live video-option transitions; other-platform gameplay and physical rumble
+are not implied. See the [integration ledger](UPSTREAM_INTEGRATION.md) for scope,
+upstream provenance and exclusions. Standalone GUI and Pro-1000 expansion are
+outside this project's scope.
+
 ## System Files And Saves
 
 The preferred support-file location is
